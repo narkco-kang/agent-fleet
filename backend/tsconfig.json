@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@agentmesh/shared": ["../shared/src/index.ts"],
+      "@agentmesh/shared/*": ["../shared/src/*"],
+      "@agentmesh/memory": ["../memory/src/index.ts"],
+      "@agentmesh/memory/*": ["../memory/src/*"]
+    },
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

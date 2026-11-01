@@ -1,0 +1,33 @@
+{
+  "name": "agent-mesh",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AgentMesh — 跨设备超级智能体协同系统",
+  "workspaces": [
+    "shared",
+    "backend",
+    "device-agent",
+    "frontend",
+    "wechat",
+    "memory"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:agent": "npm run dev --workspace device-agent",
+    "dev:relay": "npm run relay --workspace backend",
+    "dev:wechat": "npm run dev --workspace wechat",
+    "build:shared": "npm run build --workspace shared",
+    "build:backend": "npm run build --workspace backend",
+    "build:frontend": "npm run build --workspace frontend",
+    "build:agent": "npm run build --workspace device-agent",
+    "build:wechat": "npm run build --workspace wechat",
+    "build:memory": "npm run build --workspace memory",
+    "build": "npm run build:shared && npm run build:backend && npm run build:frontend && npm run build:agent && npm run build:wechat && npm run build:memory",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #4f46e5;
+  --brand-soft: #eef2ff;
+  --accent: #0891b2;
+  --accent-soft: #ecfeff;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --offline: #94a3b8;
+  --agent: #7c3aed;
+  --bg: #ffffff;
+  --bg-subtle: #f8fafc;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text-strong: #0f172a;
+  --text: #334155;
+  --text-muted: #64748b;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* 神经图节点入场动画 */
+@keyframes node-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 脉冲光晕 */
+@keyframes pulse-ring {
+  0% {
+    stroke-opacity: 0.5;
+    stroke-width: 2;
+  }
+  100% {
+    stroke-opacity: 0;
+    stroke-width: 8;
+  }
+}
+
+/* 流动光点 */
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}

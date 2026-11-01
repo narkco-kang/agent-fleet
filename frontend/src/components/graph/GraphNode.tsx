@@ -1,0 +1,168 @@
+import type { SimNode } from './NeuralGraph';
+
+/**
+ * 节点渲染（04 §4.2）：
+ * 设备圆(Indigo) / agent 圆角方(Violet) / 任务菱形(Cyan/状态色) / 消息流光点。
+ * 在线设备与运行中任务外圈脉冲。
+ */
+export function NodeShape({
+  node,
+  dimmed,
+  focused,
+  onMouseEnter,
+  onMouseLeave,
+  onClick,
+  onPointerDown,
+}: {
+  node: SimNode;
+  dimmed: boolean;
+  focused: boolean;
+  onMouseEnter: (e: React.MouseEvent) => void;
+  onMouseLeave: () => void;
+  onClick: (e: React.MouseEvent) => void;
+  onPointerDown: (e: React.PointerEvent) => void;
+}): JSX.Element {
+  const opacity = dimmed ? 0.15 : 1;
+  const pulse = node.type === 'device'
+    ? (node.data.status === 'online' || node.data.status === 'busy')
+    : node.type === 'task' && node.data.status === 'running';
+
+  const stroke = focused ? '#4F46E5' : 'transparent';
+  const strokeWidth = focused ? 3 : 0;
+
+  return (
+    <g
+      data-node={node.id}
+      style={{ cursor: 'pointer' }}
+      opacity={opacity}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onClick={onClick}
+      onPointerDown={onPointerDown}
+    >
+      {node.type === 'device' && (
+        <DeviceGlyph node={node} pulse={pulse} stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {node.type === 'agent' && (
+        <AgentGlyph node={node} stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {node.type === 'task' && (
+        <TaskGlyph node={node} pulse={pulse} stroke={stroke} strokeWidth={strokeWidth} />
+      )}
+      {node.type === 'message' && <MessageGlyph node={node} />}
+    </g>
+  );
+}
+
+function DeviceGlyph({ node, pulse, stroke, strokeWidth }: { node: SimNode; pulse: boolean; stroke: string; strokeWidth: number }): JSX.Element {
+  const statusColor =
+    node.type === 'device'
+      ? node.data.status === 'online'
+        ? '#10B981'
+        : node.data.status === 'busy'
+          ? '#F59E0B'
+          : '#94A3B8'
+      : '#4F46E5';
+  return (
+    <g>
+      {pulse && (
+        <circle cx={node.x} cy={node.y} r={22} fill="none" stroke={statusColor} className="pulse-ring" />
+      )}
+      <circle cx={node.x} cy={node.y} r={22} fill="#4F46E5" stroke={statusColor} strokeWidth={2.5} />
+      <circle cx={node.x} cy={node.y} r={22} fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+      <text x={node.x} y={node.y + 5} textAnchor="middle" fill="#fff" fontSize="13">
+        💻
+      </text>
+    </g>
+  );
+}
+
+function AgentGlyph({ node, stroke, strokeWidth }: { node: SimNode; stroke: string; strokeWidth: number }): JSX.Element {
+  const busy = node.type === 'agent' && node.data.status === 'busy';
+  const error = node.type === 'agent' && node.data.status === 'error';
+  const fill = busy ? '#F59E0B' : error ? '#EF4444' : '#7C3AED';
+  const size = 28;
+  return (
+    <g>
+      <rect
+        x={node.x - size / 2}
+        y={node.y - size / 2}
+        width={size}
+        height={size}
+        rx={7}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+      />
+      <text x={node.x} y={node.y + 5} textAnchor="middle" fill="#fff" fontSize="12" fontWeight={600}>
+        {node.type === 'agent' ? agentInitial(node.data.agentType) : ''}
+      </text>
+    </g>
+  );
+}
+
+function TaskGlyph({ node, pulse, stroke, strokeWidth }: { node: SimNode; pulse: boolean; stroke: string; strokeWidth: number }): JSX.Element {
+  const color =
+    node.type === 'task'
+      ? node.data.status === 'running'
+        ? '#F59E0B'
+        : node.data.status === 'completed'
+          ? '#10B981'
+          : node.data.status === 'failed' || node.data.status === 'interrupted' || node.data.status === 'cancelled'
+            ? '#EF4444'
+            : '#94A3B8'
+      : '#0891B2';
+  const r = 12;
+  const pts = `${node.x},${node.y - r} ${node.x + r},${node.y} ${node.x},${node.y + r} ${node.x - r},${node.y}`;
+  return (
+    <g>
+      {pulse && <circle cx={node.x} cy={node.y} r={16} fill="none" stroke={color} className="pulse-ring" />}
+      <polygon points={pts} fill={color} stroke={stroke} strokeWidth={strokeWidth} />
+      <text x={node.x} y={node.y + 4} textAnchor="middle" fill="#fff" fontSize="9">
+        ◆
+      </text>
+    </g>
+  );
+}
+
+function MessageGlyph({ node }: { node: SimNode }): JSX.Element {
+  return (
+    <g>
+      <circle cx={node.x} cy={node.y} r={3.5} fill="#0891B2" className="flow-dot" />
+      <circle cx={node.x} cy={node.y} r={6} fill="none" stroke="#0891B2" opacity={0.4} />
+    </g>
+  );
+}
+
+function agentInitial(agentType: string): string {
+  switch (agentType) {
+    case 'codex':
+      return 'C';
+    case 'claude':
+      return 'Cℓ';
+    case 'dsh':
+      return 'D';
+    case 'grok':
+      return 'G';
+    case 'cursor':
+      return 'Cu';
+    case 'aider':
+      return 'A';
+    case 'gemini':
+      return 'Ge';
+    case 'cody':
+      return 'Co';
+    case 'qwen':
+      return 'Q';
+    case 'doubao':
+      return '豆';
+    case 'kimi':
+      return 'K';
+    case 'opencode':
+      return 'Op';
+    case 'windsurf':
+      return 'W';
+    default:
+      return '?';
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@agentmesh/memory",
+  "version": "0.1.0",
+  "description": "AgentMesh 跨设备分布式记忆账本（纯 TypeScript，零运行时第三方依赖）",
+  "type": "module",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
