@@ -91,7 +91,83 @@ AgentMesh 可以明确描述为：
 - 自动：scheduler 执行平台模型绑定任务时，主模型失败会调用 `markModelFailed()` 并尝试下一个 fallback；全部失败则把绑定标为 `degraded` 并降级本地 agent。
 - 手动：`/api/routing/platform-models/:deviceId/:agentType/switch` 切换到指定已知模型；`reset` 清空排除表并恢复健康。
 
-## 5. 安全边界
+## 5. EchoBird 式多 agent 平台部署/调用口径
+
+可以对外说 AgentMesh 具备 **EchoBird 式的多 agent 平台管理能力**，但要准确表达为四层能力：
+
+| 能力层 | AgentMesh 当前状态 | 对外表达 |
+|---|---|---|
+| 多平台安装/卸载 | 已支持 13 个平台的 OS 自适应安装/卸载脚本与验证 | “可批量部署/卸载多种 AI agent 平台” |
+| 多平台发现/上报 | 设备守护可探测并上报 13 个平台 | “每台设备自动识别本机 agent 工蜂” |
+| 多平台模型调用 | 13 个平台均可绑定 modelgateway 模型，任务经网关执行 | “部署完成即可通过智能模型路由运行任务” |
+| 本地 CLI 真接 | 当前稳定真接 Grok；其他平台为发现与派发骨架 | “本地 CLI 真接逐平台实测中，Grok 已稳定” |
+
+因此，推荐的产品口径是：
+
+> AgentMesh 像 EchoBird 一样提供多 agent 平台管理入口，但更强调“多设备蜂群协同”：先统一部署、发现和模型路由，让多平台能部署即用；再逐步补齐各平台本地 CLI 真接。
+
+这能避免用户误以为所有第三方 CLI 的 headless 执行都已经完成实机验证，同时也突出 AgentMesh 已经具备的多平台部署、模型绑定、故障切换和多设备调度优势。
+
+详细矩阵见 `docs/17-Agent平台安装卸载与调用矩阵.md`。
+
+## 6. 微信朋友圈发布文案
+
+### 6.1 推荐正式版
+
+最近继续完善我的开源项目 **AgentMesh**。
+
+它现在的定位越来越清晰：
+
+> 每台设备是一支 AI 蜂群，<br>
+> 整个 AgentMesh 是多蜂群协同系统。
+
+一台设备里可以有 Codex、Claude Code、Gemini、Aider、Cursor、OpenCode、Grok 等不同 agent 平台；AgentMesh 负责把这些平台统一部署、发现、绑定模型，并通过内置智能模型路由网关调度起来。
+
+它目前已经支持：
+- 多设备、多 agent 平台统一管理
+- 13 个 agent 平台安装/卸载与验证
+- 部署完成自动绑定模型，直接可用
+- 免费源探测评级，只保留优/中线路
+- 付费 Provider 批量配置
+- 模型故障自动/手动切换
+- 自动签到获取免费源积分
+- 动态神经图看板
+- 多蜂群共享记忆账本
+
+我想做的是：让个人手里的多台电脑，不再只是单机工具，而是组成一个可以协同工作的 AI 团队。
+
+开源地址：
+https://github.com/narkco-kang/agent-mesh
+
+### 6.2 短版
+
+最近在做一个开源项目：**AgentMesh**。
+
+可以理解成：
+
+> 每台设备是一支 AI 蜂群，<br>
+> 整个 AgentMesh 是多蜂群协同系统。
+
+它能把多台设备上的 Codex、Claude、Gemini、Aider、Cursor、OpenCode、Grok 等 agent 平台统一部署、发现和调度，并通过内置模型路由网关实现模型绑定、故障切换、免费源评级和付费 Provider 管理。
+
+目标是让多台设备组成一个真正能协同工作的 AI 团队。
+
+GitHub：
+https://github.com/narkco-kang/agent-mesh
+
+### 6.3 极简版
+
+AgentMesh 更新：
+
+每台设备是一支 AI 蜂群，整个 AgentMesh 是多蜂群协同系统。
+
+它可以统一部署和调度多种 AI agent 平台，并通过智能模型路由网关实现模型绑定、免费源评级、付费 Provider 管理和故障自动切换。
+
+让多台设备，组成一个 AI 团队。
+
+https://github.com/narkco-kang/agent-mesh
+
+## 7. 安全边界
 
 - 部署 SSH 密码仍只在内存中保存，执行后清除。
 - 付费 Provider API Key 不进数据库、不进 Git、不明文回显；仅写入本机 `.workbuddy-ai/modelgateway-providers.json`。
