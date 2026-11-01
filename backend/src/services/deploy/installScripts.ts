@@ -1,4 +1,5 @@
 import type { AgentType, DeployOS } from '@agentmesh/shared';
+import { AGENT_TYPES } from '@agentmesh/shared';
 
 /**
  * 安装脚本生成（F1 增强）：按目标 OS 自动适配 agent 平台安装方式。
@@ -537,4 +538,54 @@ function shellQuote(s: string): string {
 
 function psQuote(s: string): string {
   return `'${s.replace(/'/g, "''")}'`;
+}
+
+// ============================================================
+// 平台目录（供前端「批量勾选平台」与「已装平台识别」使用）
+// ============================================================
+
+/** 13 个 agent 平台的中文展示名 */
+export const PLATFORM_DISPLAY_NAMES: Record<AgentType, string> = {
+  codex: 'Codex',
+  claude: 'Claude Code',
+  dsh: 'DSH Desktop',
+  grok: 'Grok',
+  cursor: 'Cursor',
+  aider: 'Aider',
+  gemini: 'Gemini CLI',
+  cody: 'Cody',
+  qwen: 'Qwen Code',
+  doubao: '豆包 MarsCode',
+  kimi: 'Kimi CLI',
+  opencode: 'OpenCode',
+  windsurf: 'Windsurf',
+};
+
+/** 平台目录条目（扁平化 install spec，供前端渲染勾选网格） */
+export interface PlatformCatalogItem {
+  platform: AgentType;
+  displayName: string;
+  commandNames: string[];
+  npmPackage?: string;
+  pipxPackage?: string;
+  brewCask?: string;
+  wingetId?: string;
+  manualReason?: string;
+}
+
+/** 返回 13 个平台完整目录（顺序与 AGENT_TYPES 一致） */
+export function listPlatformCatalog(): PlatformCatalogItem[] {
+  return AGENT_TYPES.map((p) => {
+    const s = getInstallSpec(p);
+    return {
+      platform: p,
+      displayName: PLATFORM_DISPLAY_NAMES[p] ?? p,
+      commandNames: s.commandNames,
+      npmPackage: s.npmPackage,
+      pipxPackage: s.pipxPackage,
+      brewCask: s.brewCask,
+      wingetId: s.wingetId,
+      manualReason: s.manualReason,
+    };
+  });
 }

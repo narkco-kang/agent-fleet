@@ -13,6 +13,26 @@ export interface CreateBatchResult {
   summary: string;
 }
 
+/** 平台目录条目（对应后端 listPlatformCatalog） */
+export interface PlatformCatalogItem {
+  platform: string;
+  displayName: string;
+  commandNames: string[];
+  npmPackage?: string;
+  pipxPackage?: string;
+  brewCask?: string;
+  wingetId?: string;
+  manualReason?: string;
+}
+
+/** 单台目标机的 OS + 已装平台探测结果 */
+export interface ProbeResult {
+  os: string;
+  installed: string[];
+  missing: string[];
+  results: Array<{ platform: string; installed: boolean }>;
+}
+
 export const deployApi = {
   list: (kind?: DeploymentKind) =>
     get<ApiOk<DeploymentBatch[]>>(`/api/deploy/batches${kind ? `?kind=${kind}` : ''}`),
@@ -34,6 +54,9 @@ export const deployApi = {
       kind === 'uninstall' ? '/api/deploy/uninstall-batches' : '/api/deploy/batches',
       { name, targets },
     ),
+  listPlatforms: () => get<ApiOk<PlatformCatalogItem[]>>('/api/deploy/platforms'),
+  probeTarget: (body: { ip: string; user: string; password?: string; port?: number }) =>
+    post<ApiOk<ProbeResult>>('/api/deploy/probe', body),
   confirm: (id: string) => post<ApiOk<unknown>>(`/api/deploy/batches/${id}/confirm`),
   cancel: (id: string) => post<ApiOk<never>>(`/api/deploy/batches/${id}/cancel`),
 };
