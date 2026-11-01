@@ -26,6 +26,33 @@
 | **新手引导** | 首次进入看板自动解释「设备蜂群 → modelgateway → Provider → 部署即用 → 故障切换」主流程 |
 | **微信助理** | 企业微信（官方 API）+ 个人微信（接口预留）聊天式下发任务 |
 
+## 🧩 支持的 agent 平台与能力边界
+
+AgentMesh 可以**一键部署 / 卸载 / 发现 / 路由多个 agent 平台**，但「本地 CLI 真接调用」与「经 modelgateway 执行模型」是两条不同路径：
+
+- **安装 / 卸载**：13 个平台按 OS 自动生成 npm / pipx / brew / winget / manual verify 脚本，并做安装后或卸载后验证。
+- **发现 / 上报**：设备守护自动探测已安装平台，作为每台设备蜂群里的工蜂上报。
+- **部署即用**：部署目标可携带 `deviceId + platform models`，成功后自动把「设备 + agent 平台」绑定到内置 modelgateway 模型，任务优先经网关执行。
+- **本地 CLI 真接**：当前稳定真接的是 `grok`；其他平台已具备发现与派发骨架，但 headless 参数、登录态和输出格式需逐平台实测后再标为稳定。
+
+| 平台 | 安装/卸载 | 发现上报 | 网关模型执行 | 本地 CLI 真接 |
+|---|---|---|---|---|
+| Codex | npm | ✅ | ✅ | 骨架 |
+| Claude Code | npm | ✅ | ✅ | 骨架 |
+| DSH Desktop | 手动验证 | ✅ | ✅ | 骨架 |
+| Grok | 手动验证 | ✅ | ✅ | ✅ 稳定 |
+| Cursor | macOS brew / Windows winget | ✅ | ✅ | 骨架 |
+| Aider | pipx | ✅ | ✅ | 骨架 |
+| Gemini CLI | npm | ✅ | ✅ | 骨架 |
+| Cody | npm | ✅ | ✅ | 骨架 |
+| Qwen Code | npm | ✅ | ✅ | 骨架 |
+| 豆包 MarsCode | npm | ✅ | ✅ | 骨架 |
+| Kimi CLI | npm | ✅ | ✅ | 骨架 |
+| OpenCode | npm | ✅ | ✅ | 骨架 |
+| Windsurf | macOS brew / Windows winget | ✅ | ✅ | 骨架 |
+
+完整能力矩阵见 [`docs/17-Agent平台安装卸载与调用矩阵.md`](docs/17-Agent平台安装卸载与调用矩阵.md)。
+
 ## 🏗️ 架构
 
 ```
@@ -54,7 +81,7 @@ agent-mesh/
 ├── wechat/         # 微信网关（企业 + 个人）
 ├── memory/         # 区块链式记忆账本核心（哈希链 + Merkle）
 ├── modelgateway/   # 内置模型路由网关（OpenAI 兼容 + Provider 池）
-└── docs/           # 17 份设计 / 架构文档
+└── docs/           # 18 份设计 / 架构文档
 ```
 
 ## 🚀 快速开始
@@ -89,7 +116,7 @@ npm run test --workspace memory
 
 ## 📚 文档
 
-见 [`docs/`](docs/)：grok 协同逆向研究、PRD、架构设计、UI 设计、区块链记忆账本设计、路由网关融合设计、免费源接入实测、平台模型绑定、管理界面与 EchoBird 借鉴等 17 份文档。
+见 [`docs/`](docs/)：grok 协同逆向研究、PRD、架构设计、UI 设计、区块链记忆账本设计、路由网关融合设计、免费源接入实测、平台模型绑定、管理界面、EchoBird 借鉴与 agent 平台能力矩阵等 18 份文档。
 
 ## 🔒 安全
 

@@ -26,6 +26,33 @@ Orchestrate the **AI agent platforms already installed on each device** (Codex /
 | **Onboarding guide** | First-run guide explains the device swarm → modelgateway → Provider → deploy-then-use → failover workflow |
 | **WeChat assistant** | Enterprise WeChat (official API) + personal WeChat (interface reserved) as a chat-based task entry |
 
+## 🧩 Supported agent platforms and responsibility boundaries
+
+AgentMesh can **deploy / uninstall / discover / route multiple agent platforms**, but local CLI execution and modelgateway execution are two different paths:
+
+- **Install / uninstall**: 13 platforms are mapped to OS-aware npm / pipx / brew / winget / manual-verify scripts, with post-install or post-uninstall verification.
+- **Discover / report**: the per-device daemon detects installed platforms and reports them as workers inside that device swarm.
+- **Deploy-then-use**: a deployment target can carry `deviceId + platform models`; after a successful deployment AgentMesh binds the device+agent platform to built-in modelgateway models and runs tasks through the gateway first.
+- **Local CLI direct execution**: `grok` is the currently stable direct adapter; the other platforms have discovery and dispatch scaffolding, but their headless flags, login state and output formats must be verified per platform before they are marked stable.
+
+| Platform | Install / uninstall | Discover | Gateway model execution | Local CLI direct execution |
+|---|---|---|---|---|
+| Codex | npm | ✅ | ✅ | scaffold |
+| Claude Code | npm | ✅ | ✅ | scaffold |
+| DSH Desktop | manual verify | ✅ | ✅ | scaffold |
+| Grok | manual verify | ✅ | ✅ | ✅ stable |
+| Cursor | macOS brew / Windows winget | ✅ | ✅ | scaffold |
+| Aider | pipx | ✅ | ✅ | scaffold |
+| Gemini CLI | npm | ✅ | ✅ | scaffold |
+| Cody | npm | ✅ | ✅ | scaffold |
+| Qwen Code | npm | ✅ | ✅ | scaffold |
+| Doubao MarsCode | npm | ✅ | ✅ | scaffold |
+| Kimi CLI | npm | ✅ | ✅ | scaffold |
+| OpenCode | npm | ✅ | ✅ | scaffold |
+| Windsurf | macOS brew / Windows winget | ✅ | ✅ | scaffold |
+
+See the full matrix in [`docs/17-Agent平台安装卸载与调用矩阵.md`](docs/17-Agent平台安装卸载与调用矩阵.md).
+
 ## 🏗️ Architecture
 
 ```
@@ -56,7 +83,7 @@ agent-mesh/
 ├── wechat/         # WeChat gateway (enterprise + personal)
 ├── memory/         # blockchain-style memory ledger core (hash chain + Merkle)
 ├── modelgateway/   # built-in model router (OpenAI-compatible + Provider pool)
-└── docs/           # 17 design / architecture documents
+└── docs/           # 18 design / architecture documents
 ```
 
 ## 🚀 Quick Start
@@ -91,7 +118,7 @@ npm run test --workspace memory
 
 ## 📚 Documentation
 
-See [`docs/`](docs/) for 17 documents: reverse-engineering of Grok's orchestration, PRD, architecture, UI design, the blockchain memory ledger design, routing-gateway fusion, free-source integration, platform model binding, management UI, and EchoBird-inspired Model Nexus notes.
+See [`docs/`](docs/) for 18 documents: reverse-engineering of Grok's orchestration, PRD, architecture, UI design, the blockchain memory ledger design, routing-gateway fusion, free-source integration, platform model binding, management UI, EchoBird-inspired Model Nexus notes, and the agent platform capability matrix.
 
 ## 🔒 Safety
 
