@@ -48,3 +48,29 @@ export interface RoleRoutingDecision {
   /** 0=primary，1..n=fallback 序号 */
   fallbackLevel: number;
 }
+
+/** 平台模型绑定：为「设备 + agent 平台」配置经网关执行的模型（部署完成即用） */
+export interface PlatformModelConfig {
+  agentType: AgentType;
+  /** 主模型 ref（经 modelgateway 透传，如 'kimi/k3'） */
+  model: string;
+  /** 兜底模型 ref（主模型故障时自动切换） */
+  fallbacks?: string[];
+}
+
+/** 平台模型绑定记录（含运行态） */
+export interface PlatformModelBinding {
+  deviceId: string;
+  agentType: AgentType;
+  /** 主模型 ref */
+  model: string;
+  /** 兜底模型 ref（主模型故障时自动切换） */
+  fallbacks: string[];
+  /** 当前生效模型 */
+  activeModel: string;
+  /** 已失败待排除的模型（成功或手动切换后清空） */
+  excluded: string[];
+  /** ok=健康；degraded=所有模型失败，任务降级本地 agent */
+  state: 'ok' | 'degraded';
+  updatedAt: number;
+}

@@ -1,4 +1,4 @@
-import type { AgentType, DeployOS, DeploymentBatch, DeploymentTarget } from '@agentmesh/shared';
+import type { DeployOS, DeploymentBatch, DeploymentTarget } from '@agentmesh/shared';
 import { randomId } from '../../security/auth.js';
 import { config } from '../../config.js';
 import {
@@ -7,13 +7,21 @@ import {
   getBatch,
   listTargetsByBatch,
   updateBatchStatus,
+  updateTargetPlan,
   updateTargetStatus,
 } from '../../db/repo/deployments.js';
 import { actionGuard } from '../actionGuard.js';
 import { connectSsh } from './sshClient.js';
 import { probeOS } from './osProbe.js';
-import { buildInstallScript } from './installScripts.js';
+import {
+  adaptPlatformsForOS,
+  buildInstallScript,
+  buildUninstallScript,
+  parseInstallVerification,
+  parseUninstallVerification,
+} from './installScripts.js';
 import type { ParsedTarget } from './excelParser.js';
+import { bindPlatformModels } from '../routing/platformModelService.js';
 
 /**
  * 批量部署编排：解析 → 校验 → 确认 → SSH → 探测 → 安装 → 回报。
@@ -23,9 +31,6 @@ import type { ParsedTarget } from './excelParser.js';
 
 /** 内存凭证（targetId → password），执行后清除 */
 const credentials = new Map<string, string>();
-
-/** Excel 未指定平台时的骨架默认集 */
-const DEFAULT_PLATFORMS: AgentType[] = ['codex', 'claude', 'dsh', 'grok'];
 
 export interface CreateBatchResult {
   batchId: string;
@@ -56,7 +61,10 @@ export function createDeployBatch(
       batchId,
       ip: t.ip,
       user: t.user,
-      platforms: t.platforms.length ? t.platforms : [...DEFAULT_PLATFORMS],
+      port: t.port,
+      deviceId: t.deviceId,
+      platforms: t.platforms,
+      modelConfigs: t.modelConfigs,
     });
     if (t.password !== undefined) {
       credentials.set(target.id, t.password);
@@ -77,8 +85,60 @@ export function createDeployBatch(
   };
 }
 
+/** 创建卸载批次（同样密码仅内存、需人工确认） */
+export function createUninstallBatch(
+  name: string,
+  parsedTargets: ParsedTarget[],
+  invalidRows: Array<{ row: number; reason: string }> = [],
+): CreateBatchResult {
+  if (!config.deployEnabled) {
+    throw new Error('deploy disabled');
+  }
+
+  const batchId = randomId('batch');
+  createBatch({ batchId, name, kind: 'uninstall' });
+
+  const targets: DeploymentTarget[] = [];
+  for (const t of parsedTargets) {
+    const target = createTarget({
+      targetId: randomId('target'),
+      batchId,
+      ip: t.ip,
+      user: t.user,
+      port: t.port,
+      deviceId: t.deviceId,
+      platforms: t.platforms,
+    });
+    if (t.password !== undefined) credentials.set(target.id, t.password);
+    targets.push(target);
+  }
+
+  const summary = `批量卸载：${targets.length} 台目标机（${name}）`;
+  const confirmation = actionGuard.request('uninstall', batchId, summary);
+  return {
+    batchId,
+    status: 'pending_confirmation',
+    confirmationId: confirmation.id,
+    targets,
+    invalidRows,
+    summary,
+  };
+}
+
 /** 执行部署（actionGuard 确认后触发） */
 export async function runDeploy(batchId: string): Promise<DeploymentBatch | undefined> {
+  return runBatch(batchId, 'deploy');
+}
+
+/** 执行卸载（actionGuard 确认后触发） */
+export async function runUninstall(batchId: string): Promise<DeploymentBatch | undefined> {
+  return runBatch(batchId, 'uninstall');
+}
+
+async function runBatch(
+  batchId: string,
+  mode: 'deploy' | 'uninstall',
+): Promise<DeploymentBatch | undefined> {
   const batch = getBatch(batchId);
   if (!batch) return undefined;
 
@@ -86,7 +146,7 @@ export async function runDeploy(batchId: string): Promise<DeploymentBatch | unde
   const targets = listTargetsByBatch(batchId);
 
   for (const target of targets) {
-    await runTarget(target);
+    await runTarget(target, mode);
   }
 
   const finalTargets = listTargetsByBatch(batchId);
@@ -96,7 +156,10 @@ export async function runDeploy(batchId: string): Promise<DeploymentBatch | unde
 }
 
 /** 处理单个目标：connecting → probing → installing → verifying → success|failed */
-async function runTarget(target: DeploymentTarget): Promise<void> {
+async function runTarget(
+  target: DeploymentTarget,
+  mode: 'deploy' | 'uninstall' = 'deploy',
+): Promise<void> {
   const password = credentials.get(target.id) ?? '';
   let conn: Awaited<ReturnType<typeof connectSsh>> | null = null;
 
@@ -104,24 +167,59 @@ async function runTarget(target: DeploymentTarget): Promise<void> {
     updateTargetStatus(target.id, 'connecting');
     conn = await connectSsh({
       host: target.ip,
+      port: target.port,
       username: target.user,
       password: password || undefined,
     });
 
     updateTargetStatus(target.id, 'probing');
     const os: DeployOS = await probeOS(conn);
+    const adaptedPlatforms = adaptPlatformsForOS(os, target.platforms);
+    updateTargetPlan(target.id, os, adaptedPlatforms);
 
     updateTargetStatus(target.id, 'installing', { os });
-    const script = buildInstallScript(os, target.platforms);
-    const installRes = await conn.exec(script);
-    if (installRes.code !== 0 && installRes.code !== -1 && installRes.stderr) {
-      // 安装命令退出码非 0：记录但不中断（骨架阶段以 stderr 留痕）
-      console.warn(`[deploy] ${target.ip} 安装脚本退出码 ${installRes.code}: ${installRes.stderr}`);
+    const script =
+      mode === 'uninstall'
+        ? buildUninstallScript(os, adaptedPlatforms)
+        : buildInstallScript(os, adaptedPlatforms);
+    const execRes = await conn.exec(script);
+    const combinedOutput = [execRes.stdout, execRes.stderr].filter(Boolean).join('\n');
+    if (execRes.code !== 0 && execRes.code !== -1 && execRes.stderr) {
+      // 命令退出码非 0：不中断，最终以逐平台 verify 标记为准。
+      console.warn(
+        `[${mode}] ${target.ip} 脚本退出码 ${execRes.code}: ${execRes.stderr}`,
+      );
     }
 
     updateTargetStatus(target.id, 'verifying');
-    // 骨架阶段：验证以安装输出为据，不额外阻塞
+    const okSet = new Set(
+      mode === 'uninstall'
+        ? parseUninstallVerification(combinedOutput)
+            .filter((v) => v.removed)
+            .map((v) => v.platform)
+        : parseInstallVerification(combinedOutput)
+            .filter((v) => v.ok)
+            .map((v) => v.platform),
+    );
+    const failed = adaptedPlatforms.filter((platform) => !okSet.has(platform));
+    if (failed.length > 0) {
+      updateTargetStatus(target.id, 'failed', {
+        error:
+          mode === 'uninstall'
+            ? `still present: ${failed.join(', ')}`
+            : `verification failed: ${failed.join(', ')}`,
+      });
+      return;
+    }
     updateTargetStatus(target.id, 'success');
+
+    // 部署完成即用：把「设备 + agent 平台」绑定到路由网关模型
+    if (mode === 'deploy' && target.deviceId && target.modelConfigs?.length) {
+      const bound = bindPlatformModels(target.deviceId, target.modelConfigs);
+      if (bound > 0) {
+        console.log(`[deploy] 已为 ${target.deviceId} 绑定 ${bound} 条平台模型（部署完成即用）`);
+      }
+    }
   } catch (err) {
     updateTargetStatus(target.id, 'failed', { error: (err as Error).message });
   } finally {
@@ -131,10 +229,13 @@ async function runTarget(target: DeploymentTarget): Promise<void> {
   }
 }
 
-/** 注册 actionGuard 执行器 */
+/** 注册 actionGuard 执行器（部署 + 卸载） */
 export function registerDeployExecutor(): void {
   actionGuard.registerExecutor('deploy', (refId) => {
     void runDeploy(refId);
+  });
+  actionGuard.registerExecutor('uninstall', (refId) => {
+    void runUninstall(refId);
   });
 }
 

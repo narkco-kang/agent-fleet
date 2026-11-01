@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import {
   normalizeRow,
   parseExcel,
+  parseModelConfigs,
   parseTargetsFromObjects,
 } from '../src/services/deploy/excelParser.js';
 
@@ -66,5 +67,56 @@ describe('excelParser', () => {
     ]);
     expect(targets).toHaveLength(1);
     expect(invalidRows).toHaveLength(1);
+  });
+
+  it('解析自定义 SSH 端口（默认 22，非法回退 undefined）', () => {
+    const buf = buildXlsx([
+      { IP: '10.0.0.6', user: 'root', port: '2222' },
+      { IP: '10.0.0.7', user: 'root', port: 'not-a-port' },
+    ]);
+    const { targets } = parseExcel(buf);
+    expect(targets[0].port).toBe(2222);
+    expect(targets[1].port).toBeUndefined();
+  });
+
+  it('normalizeRow 兼容中文「端口」「设备id」别名', () => {
+    const headerMap = new Map([
+      ['ip', 'ip'],
+      ['username', 'username'],
+      ['端口', '端口'],
+      ['设备id', '设备id'],
+    ]);
+    const { target } = normalizeRow(
+      { ip: '10.0.0.1', username: 'u', 端口: '2222', 设备id: 'dev-9' },
+      headerMap,
+    );
+    expect(target?.port).toBe(2222);
+    expect(target?.deviceId).toBe('dev-9');
+  });
+
+  it('解析 deviceId 与模型配置（部署完成即绑定模型）', () => {
+    const buf = buildXlsx([
+      {
+        IP: '10.0.0.8',
+        user: 'root',
+        deviceId: 'dev-1',
+        platforms: 'codex',
+        models: 'codex=kimi/k3,glm/strong;claude=claude/opus',
+      },
+    ]);
+    const { targets } = parseExcel(buf);
+    expect(targets[0].deviceId).toBe('dev-1');
+    expect(targets[0].modelConfigs).toEqual([
+      { agentType: 'codex', model: 'kimi/k3', fallbacks: ['glm/strong'] },
+      { agentType: 'claude', model: 'claude/opus', fallbacks: [] },
+    ]);
+  });
+
+  it('parseModelConfigs 兼容 JSON 数组与等号列表', () => {
+    expect(
+      parseModelConfigs(JSON.stringify([{ agentType: 'qwen', model: 'qwen/max', fallbacks: ['qwen/plus'] }])),
+    ).toEqual([{ agentType: 'qwen', model: 'qwen/max', fallbacks: ['qwen/plus'] }]);
+    expect(parseModelConfigs('')).toEqual([]);
+    expect(parseModelConfigs('badagent=x')).toEqual([]);
   });
 });

@@ -4,8 +4,10 @@ import type {
   DeployOS,
   DeploymentBatch,
   DeploymentBatchStatus,
+  DeploymentKind,
   DeploymentTarget,
   DeployTargetStatus,
+  PlatformModelConfig,
 } from '@agentmesh/shared';
 
 /**
@@ -16,6 +18,7 @@ import type {
 export interface DeploymentBatchRow {
   batch_id: string;
   name: string;
+  kind: DeploymentKind;
   status: DeploymentBatchStatus;
   created_at: number;
 }
@@ -25,8 +28,11 @@ export interface DeploymentTargetRow {
   batch_id: string;
   ip: string;
   user: string;
+  port: number;
+  device_id: string | null;
   os: DeployOS;
   platforms: string;
+  model_configs: string;
   status: DeployTargetStatus;
   error: string | null;
   created_at: number;
@@ -40,8 +46,11 @@ export function rowToTarget(row: DeploymentTargetRow): DeploymentTarget {
     batchId: row.batch_id,
     ip: row.ip,
     user: row.user,
+    port: row.port ?? 22,
+    deviceId: row.device_id ?? undefined,
     os: row.os,
     platforms: JSON.parse(row.platforms || '[]') as AgentType[],
+    modelConfigs: JSON.parse(row.model_configs || '[]') as PlatformModelConfig[],
     status: row.status,
     error: row.error ?? undefined,
     createdAt: row.created_at,
@@ -50,14 +59,18 @@ export function rowToTarget(row: DeploymentTargetRow): DeploymentTarget {
 }
 
 /** 创建批次 */
-export function createBatch(input: { batchId: string; name: string }): DeploymentBatch {
+export function createBatch(input: {
+  batchId: string;
+  name: string;
+  kind?: DeploymentKind;
+}): DeploymentBatch {
   const now = Date.now();
   getDb()
     .prepare(
-      `INSERT INTO deployment_batches (batch_id, name, status, created_at)
-       VALUES (@batchId, @name, 'pending_confirmation', @now)`,
+      `INSERT INTO deployment_batches (batch_id, name, kind, status, created_at)
+       VALUES (@batchId, @name, @kind, 'pending_confirmation', @now)`,
     )
-    .run({ batchId: input.batchId, name: input.name, now });
+    .run({ batchId: input.batchId, name: input.name, kind: input.kind ?? 'deploy', now });
   return getBatch(input.batchId) as DeploymentBatch;
 }
 
@@ -70,20 +83,26 @@ export function getBatch(batchId: string): DeploymentBatch | undefined {
   return {
     id: row.batch_id,
     name: row.name,
+    kind: row.kind ?? 'deploy',
     status: row.status,
     targets: listTargetsByBatch(row.batch_id),
     createdAt: row.created_at,
   };
 }
 
-/** 列表批次 */
-export function listBatches(limit = 500): DeploymentBatch[] {
-  const rows = getDb()
-    .prepare(`SELECT * FROM deployment_batches ORDER BY created_at DESC LIMIT ?`)
-    .all(limit) as DeploymentBatchRow[];
+/** 列表批次（可按 kind 过滤） */
+export function listBatches(limit = 500, kind?: DeploymentKind): DeploymentBatch[] {
+  const rows = kind
+    ? (getDb()
+        .prepare(`SELECT * FROM deployment_batches WHERE kind = ? ORDER BY created_at DESC LIMIT ?`)
+        .all(kind, limit) as DeploymentBatchRow[])
+    : (getDb()
+        .prepare(`SELECT * FROM deployment_batches ORDER BY created_at DESC LIMIT ?`)
+        .all(limit) as DeploymentBatchRow[]);
   return rows.map((r) => ({
     id: r.batch_id,
     name: r.name,
+    kind: r.kind ?? 'deploy',
     status: r.status,
     targets: listTargetsByBatch(r.batch_id),
     createdAt: r.created_at,
@@ -101,20 +120,26 @@ export function createTarget(input: {
   batchId: string;
   ip: string;
   user: string;
+  port?: number;
+  deviceId?: string;
   platforms?: AgentType[];
+  modelConfigs?: PlatformModelConfig[];
 }): DeploymentTarget {
   const now = Date.now();
   getDb()
     .prepare(
-      `INSERT INTO deployment_targets (target_id, batch_id, ip, user, os, platforms, status, created_at)
-       VALUES (@targetId, @batchId, @ip, @user, 'unknown', @platforms, 'pending', @now)`,
+      `INSERT INTO deployment_targets (target_id, batch_id, ip, user, port, device_id, os, platforms, model_configs, status, created_at)
+       VALUES (@targetId, @batchId, @ip, @user, @port, @deviceId, 'unknown', @platforms, @modelConfigs, 'pending', @now)`,
     )
     .run({
       targetId: input.targetId,
       batchId: input.batchId,
       ip: input.ip,
       user: input.user,
+      port: input.port ?? 22,
+      deviceId: input.deviceId ?? null,
       platforms: JSON.stringify(input.platforms ?? []),
+      modelConfigs: JSON.stringify(input.modelConfigs ?? []),
       now,
     });
   return getTarget(input.targetId) as DeploymentTarget;
@@ -160,5 +185,21 @@ export function updateTargetStatus(
       error: extra.error ?? null,
       finishedAt: extra.finishedAt ?? null,
       now: Date.now(),
+    });
+}
+
+/** 更新目标 OS 与最终适配后的平台列表（密码仍不落库） */
+export function updateTargetPlan(targetId: string, os: DeployOS, platforms: AgentType[]): void {
+  getDb()
+    .prepare(
+      `UPDATE deployment_targets SET
+        os = @os,
+        platforms = @platforms
+       WHERE target_id = @targetId`,
+    )
+    .run({
+      targetId,
+      os,
+      platforms: JSON.stringify(platforms),
     });
 }

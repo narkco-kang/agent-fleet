@@ -10,7 +10,8 @@
     "device-agent",
     "frontend",
     "wechat",
-    "memory"
+    "memory",
+    "modelgateway"
   ],
   "scripts": {
     "dev:backend": "npm run dev --workspace backend",
@@ -18,13 +19,16 @@
     "dev:agent": "npm run dev --workspace device-agent",
     "dev:relay": "npm run relay --workspace backend",
     "dev:wechat": "npm run dev --workspace wechat",
+    "dev:gateway": "npm run dev --workspace modelgateway",
     "build:shared": "npm run build --workspace shared",
     "build:backend": "npm run build --workspace backend",
     "build:frontend": "npm run build --workspace frontend",
     "build:agent": "npm run build --workspace device-agent",
     "build:wechat": "npm run build --workspace wechat",
     "build:memory": "npm run build --workspace memory",
-    "build": "npm run build:shared && npm run build:backend && npm run build:frontend && npm run build:agent && npm run build:wechat && npm run build:memory",
+    "build:gateway": "npm run build --workspace modelgateway",
+    "build": "npm run build:shared && npm run build:backend && npm run build:frontend && npm run build:agent && npm run build:wechat && npm run build:memory && npm run build:gateway",
+    "start:gateway": "npm run start --workspace modelgateway",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "engines": {

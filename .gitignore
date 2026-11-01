@@ -26,3 +26,6 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# WorkBuddy 项目数据（本地记忆/会话接续，不进仓库）
+.workbuddy-ai/

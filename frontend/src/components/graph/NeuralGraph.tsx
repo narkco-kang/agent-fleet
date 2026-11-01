@@ -13,6 +13,7 @@ import { GraphLegend } from './GraphLegend';
 import { GraphLinks, ArrowMarkers, layoutLinks } from './GraphLink';
 import { FlowParticles } from './FlowParticle';
 import { NodeShape } from './GraphNode';
+import type { NodeLens } from './GraphToolbar';
 import type { DetailTarget } from '../drawer/DetailDrawer';
 
 /**
@@ -22,6 +23,7 @@ import type { DetailTarget } from '../drawer/DetailDrawer';
  * 四类连线：call / return / stream / belongs。
  * 动画：脉冲（在线设备/运行中任务）、流动光点（stream）、入场上浮、聚焦高亮。
  * 交互：缩放 0.3×–4×、拖拽、悬停 Tooltip、点击聚焦+邻接高亮、空白复位、图例。
+ * 深化交互（增量叠加）：透镜 Lens（节点 type 维度）、路径漫游（任务节点沿 call/stream 逐跳）。
  * <768px 降级只读（仅缩放/悬停）。
  */
 
@@ -37,7 +39,15 @@ export type SimLink = Omit<GraphLink, 'source' | 'target'> & {
   target: string | SimNode;
 };
 
-export function NeuralGraph({ onSelect }: { onSelect?: (target: DetailTarget | null) => void }): JSX.Element {
+export function NeuralGraph({
+  onSelect,
+  lens = 'all',
+  walk = false,
+}: {
+  onSelect?: (target: DetailTarget | null) => void;
+  lens?: NodeLens;
+  walk?: boolean;
+}): JSX.Element {
   const data = useGraphData();
   const { isMobile } = useBreakpoint();
 
@@ -49,6 +59,8 @@ export function NeuralGraph({ onSelect }: { onSelect?: (target: DetailTarget | n
   const [hover, setHover] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
+  const [walkPath, setWalkPath] = useState<SimLink[]>([]);
+  const [walkHop, setWalkHop] = useState(0);
 
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const panRef = useRef<{ x: number; y: number; k: number; startX: number; startY: number } | null>(null);
@@ -109,6 +121,36 @@ export function NeuralGraph({ onSelect }: { onSelect?: (target: DetailTarget | n
     return set;
   }, [focus, links]);
 
+  // 路径漫游：当前 hop 的连线 id
+  const walkActiveId = walk && walkPath.length > 0 ? walkPath[walkHop % walkPath.length]?.id ?? null : null;
+
+  // 路径漫游节点集（用于弱化无关节点）
+  const walkNodeIds = useMemo(() => {
+    if (!walk || walkPath.length === 0) return null;
+    const set = new Set<string>(focus ? [focus] : []);
+    for (const l of walkPath) {
+      const s = typeof l.source === 'string' ? l.source : l.source.id;
+      const t = typeof l.target === 'string' ? l.target : l.target.id;
+      set.add(s);
+      set.add(t);
+    }
+    return set;
+  }, [walk, walkPath, focus]);
+
+  // 路径漫游逐跳推进
+  useEffect(() => {
+    if (!walk || walkPath.length === 0) return;
+    const timer = setInterval(() => setWalkHop((h) => h + 1), 900);
+    return () => clearInterval(timer);
+  }, [walk, walkPath.length]);
+
+  const isDimmed = (n: GraphNode): boolean => {
+    if (adjacent && !adjacent.has(n.id)) return true;
+    if (lens !== 'all' && n.type !== lens) return true;
+    if (walkNodeIds && !walkNodeIds.has(n.id)) return true;
+    return false;
+  };
+
   // 缩放
   const onWheel = (e: React.WheelEvent): void => {
     const next = Math.max(0.3, Math.min(4, transform.k * (e.deltaY < 0 ? 1.1 : 0.9)));
@@ -155,8 +197,14 @@ export function NeuralGraph({ onSelect }: { onSelect?: (target: DetailTarget | n
     setTooltip({ x: e.clientX, y: e.clientY, node });
   };
 
-  // 点击聚焦
+  // 点击聚焦 / 路径漫游起点
   const clickNode = (node: GraphNode): void => {
+    if (walk && node.type === 'task') {
+      setFocus(node.id);
+      setWalkPath(computeWalkPath(node.id, links));
+      setWalkHop(0);
+      return;
+    }
     if (focus === node.id) {
       setFocus(null);
       onSelect?.(null);
@@ -168,11 +216,12 @@ export function NeuralGraph({ onSelect }: { onSelect?: (target: DetailTarget | n
 
   const blankClick = (): void => {
     setFocus(null);
+    setWalkPath([]);
     onSelect?.(null);
   };
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-[#F8FAFC]">
+    <div ref={containerRef} className="graph-canvas relative h-full w-full overflow-hidden">
       <svg
         className="h-full w-full"
         onWheel={onWheel}
@@ -185,14 +234,15 @@ export function NeuralGraph({ onSelect }: { onSelect?: (target: DetailTarget | n
         <ArrowMarkers />
         <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
           {/* 连线 */}
-          <LinkLayer links={links} nodeMap={nodeMap} focus={focus} adjacent={adjacent} />
+          <LinkLayer links={links} nodeMap={nodeMap} focus={focus} adjacent={adjacent} walkActiveId={walkActiveId} />
           {/* 节点 */}
           {nodes.map((n) => (
             <NodeShape
               key={n.id}
               node={n}
-              dimmed={!!adjacent && !adjacent.has(n.id)}
+              dimmed={isDimmed(n)}
               focused={focus === n.id}
+              lensActive={lens !== 'all' && n.type === lens}
               onMouseEnter={(e) => {
                 setHover(n.id);
                 showTooltip(e, n);
@@ -230,23 +280,38 @@ export function NeuralGraph({ onSelect }: { onSelect?: (target: DetailTarget | n
   );
 }
 
-/** 连线层：实线/虚线/箭头 + stream 流动光点 */
+/** 计算任务节点的漫游路径：先 call（task→agent），再 stream（agent→task） */
+function computeWalkPath(taskId: string, links: SimLink[]): SimLink[] {
+  const calls = links.filter((l) => {
+    const s = typeof l.source === 'string' ? l.source : l.source.id;
+    return s === taskId && l.kind === 'call';
+  });
+  const streams = links.filter((l) => {
+    const t = typeof l.target === 'string' ? l.target : l.target.id;
+    return t === taskId && l.kind === 'stream';
+  });
+  return [...calls, ...streams];
+}
+
+/** 连线层：实线/虚线/箭头 + stream 流动光点 + 漫游 trace */
 function LinkLayer({
   links,
   nodeMap,
   adjacent,
   focus,
+  walkActiveId,
 }: {
   links: SimLink[];
   nodeMap: Map<string, SimNode>;
   adjacent: Set<string> | null;
   focus: string | null;
+  walkActiveId: string | null;
 }): JSX.Element {
-  const positioned = layoutLinks(links, nodeMap, adjacent, focus);
+  const positioned = layoutLinks(links, nodeMap, adjacent, focus, walkActiveId);
   return (
     <g>
       <GraphLinks links={positioned} />
-      <FlowParticles links={positioned} />
+      <FlowParticles links={positioned} traceLinks={positioned.filter((l) => l.trace)} />
     </g>
   );
 }

@@ -1,6 +1,6 @@
 # AgentMesh · Cross-Device Super-Agent Collaboration System
 
-Orchestrate the **AI agent platforms already installed on each device** (Codex / Claude Code / DSH / Grok bot / Cursor / Aider / Gemini / Qwen …) into a cross-device **"super-agent team"**. A dynamic neural-graph dashboard visualizes device → agent → task invocation topology in real time, and WeChat (personal + enterprise) acts as a task entry point.
+Orchestrate the **AI agent platforms already installed on each device** (Codex / Claude Code / DSH / Grok bot / Cursor / Aider / Gemini / Qwen …): **each device is a local swarm, and AgentMesh is a multi-swarm collaboration system**. A dynamic neural-graph dashboard visualizes device → agent → task invocation topology in real time, and WeChat (personal + enterprise) acts as a task entry point.
 
 [中文说明](README.zh-CN.md) · English
 
@@ -11,11 +11,19 @@ Orchestrate the **AI agent platforms already installed on each device** (Codex /
 | **Cross-device orchestration** | Auto-detect 13+ AI agent platforms per device via a data-driven adapter catalog; unified task protocol (submit / stream / cancel) |
 | **Dynamic neural graph** | d3-force topology: 4 node types (device / agent / task / message flow) + 4 link types (call / return / stream / belongs), with pulse / flow / focus animations |
 | **Blockchain-style memory ledger** | Append-only hash chain (`prev_hash` ring) + Merkle tree + distributed ledger + consensus (longest chain + deterministic tie-break) — tamper-evident team memory |
-| **Smart routing gateway** | Role-based routing (role → device + agent + model) with failover and token ledger, protocol-compatible with a local model gateway |
-| **Excel batch deployment** | Upload an Excel sheet (device IP / account / password) to one-click deploy agent platforms over SSH |
+| **Smart routing gateway** | Built-in modelgateway workspace with an OpenAI-compatible endpoint; role-based routing (role → device + agent + model), failover and token ledger |
+| **Excel batch deployment** | Upload an Excel sheet (device IP / account / password / SSH port); the target OS picks npm / pipx / brew / winget / PowerShell automatically, then verifies each install |
+| **One-click uninstall** | Generate OS-aware uninstall scripts (npm / pipx / brew / winget) and verify the commands are really gone — still behind human confirmation |
+| **Deploy-then-use** | A deployment target can carry a deviceId + platform models; on success the device+agent is bound to the routing gateway model |
+| **Platform model failover** | Configure a primary + fallback model per device agent; auto-switch on failure, degrade to local when all fail, with manual switch/reset |
+| **Per-device team mode** | Bind each device to a different team (A = software team, B = content team); `target.mode='team'` routes only to that team's devices |
 | **Asset distribution** | Unified Asset model for rules / knowledge / skills, delivered to one device or a whole batch |
 | **Expert teams & loops** | Assign expert teams (role routing) to single/cross-device agent teams; orchestrate single/batch/cross-device loops |
 | **Primary AI agent** | Set a primary AI agent per device or in batch — auto-routing prefers it |
+| **Free-source rating** | Live chat probes against Kilo / OpenCode, rated 优/中/差; keep only 优 and 中 |
+| **Auto check-in** | Startup check-in + scheduled auto check-in + audit for free sources that award credits via check-in |
+| **Model Nexus** | Inspired by EchoBird: batch configure paid Providers, mask API keys, persist them in the local ignored directory, and reuse them across all device swarms |
+| **Onboarding guide** | First-run guide explains the device swarm → modelgateway → Provider → deploy-then-use → failover workflow |
 | **WeChat assistant** | Enterprise WeChat (official API) + personal WeChat (interface reserved) as a chat-based task entry |
 
 ## 🏗️ Architecture
@@ -27,6 +35,8 @@ Orchestrate the **AI agent platforms already installed on each device** (Codex /
 │  Backend (coordinator):  device registry · task scheduler    │
 │                          role routing · asset · deploy       │
 │                          teams · loops · memory ledger       │
+├─────────────────────────────────────────────────────────────┤
+│  Built-in modelgateway:  OpenAI-compatible API · Provider pool│
 ├─────────────────────────────────────────────────────────────┤
 │  Transport:  LAN first (mDNS + direct) + cloud relay fallback│
 ├─────────────────────────────────────────────────────────────┤
@@ -45,7 +55,8 @@ agent-mesh/
 ├── device-agent/   # per-device daemon + adapters + asset receiver
 ├── wechat/         # WeChat gateway (enterprise + personal)
 ├── memory/         # blockchain-style memory ledger core (hash chain + Merkle)
-└── docs/           # 13 design / architecture documents
+├── modelgateway/   # built-in model router (OpenAI-compatible + Provider pool)
+└── docs/           # 17 design / architecture documents
 ```
 
 ## 🚀 Quick Start
@@ -64,6 +75,9 @@ npm run dev:frontend
 # per-device daemon (set COORDINATOR_URL=ws://127.0.0.1:4173 if mDNS is blocked)
 npm run dev:agent
 
+# built-in model routing gateway :18765 (or start it from the Deploy page)
+npm run dev:gateway
+
 # cloud relay :4174 · WeChat gateway :4175
 npm run dev:relay
 npm run dev:wechat
@@ -77,12 +91,22 @@ npm run test --workspace memory
 
 ## 📚 Documentation
 
-See [`docs/`](docs/) for 13 documents: reverse-engineering of Grok's orchestration, PRD, architecture, UI design, the blockchain memory ledger design, and the routing-gateway fusion design.
+See [`docs/`](docs/) for 17 documents: reverse-engineering of Grok's orchestration, PRD, architecture, UI design, the blockchain memory ledger design, routing-gateway fusion, free-source integration, platform model binding, management UI, and EchoBird-inspired Model Nexus notes.
 
 ## 🔒 Safety
 
 - Deployment passwords are **never persisted** (in-memory only, cleared after use).
-- Deploy / asset-deliver / loop-start all require an explicit **human confirmation gate** before any outbound action.
+- Deploy / uninstall / asset-deliver / loop-start all require an explicit **human confirmation gate** before any outbound action.
+
+## 🧪 Verification
+
+```bash
+# Backend unit + integration tests (per-device teams, uninstall, free-source fallback)
+npm run test --workspace backend
+
+# Probe real free sources (Kilo / OpenCode + local modelgateway)
+npm run probe:free --workspace backend
+```
 
 ## 📄 License
 

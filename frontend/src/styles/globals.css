@@ -21,6 +21,26 @@
   --text-muted: #64748b;
 }
 
+/* 暗色主题（localStorage 持久化，默认浅色，不跟随系统） */
+[data-theme='dark'] {
+  --brand: #818cf8;
+  --brand-soft: #1e1b4b;
+  --accent: #22d3ee;
+  --accent-soft: #164e63;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --offline: #64748b;
+  --agent: #a78bfa;
+  --bg: #0f172a;
+  --bg-subtle: #1e293b;
+  --surface: #1e293b;
+  --border: #334155;
+  --text-strong: #f1f5f9;
+  --text: #cbd5e1;
+  --text-muted: #94a3b8;
+}
+
 html,
 body,
 #root {
@@ -62,5 +82,22 @@ body,
 @keyframes flow-dash {
   to {
     stroke-dashoffset: -24;
+  }
+}
+
+/* 神经图画布：跟随主题 CSS 变量 */
+.graph-canvas {
+  background: var(--bg-subtle);
+}
+
+/* 路径漫游 trace 光点 */
+@keyframes walk-trace {
+  0% {
+    stroke-opacity: 0.4;
+    stroke-width: 2;
+  }
+  100% {
+    stroke-opacity: 0;
+    stroke-width: 8;
   }
 }

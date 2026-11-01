@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
+import type { Team } from '@agentmesh/shared';
 import { useDeviceStore, type DeviceRecord } from '../../store/deviceStore';
 import { DeviceCard } from './DeviceCard';
 
 /**
  * 设备卡片网格（响应式：1/2/3 列）。
  */
-export function DeviceGrid(): ReactNode {
+export function DeviceGrid({ teams = [] }: { teams?: Team[] }): ReactNode {
   const devices = useDeviceStore((s) => s.devices);
 
   if (devices.length === 0) {
@@ -15,7 +16,7 @@ export function DeviceGrid(): ReactNode {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {devices.map((d: DeviceRecord) => (
-        <DeviceCard key={d.deviceId} device={d} />
+        <DeviceCard key={d.deviceId} device={d} teams={teams} />
       ))}
     </div>
   );

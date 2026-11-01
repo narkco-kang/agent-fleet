@@ -1,7 +1,7 @@
 -- AgentMesh SQLite 建表 DDL
--- 基础 5 张表（devices/agents/tasks/messages/sessions）+ 路由网关融合新增 9 张表
+-- 基础 5 张表（devices/agents/tasks/messages/sessions）+ 路由网关融合新增 11 张表
 -- （role_routes/assets/asset_deliveries/teams/loops/deployment_batches/
---   deployment_targets/action_confirmations/usage_records）。
+--   deployment_targets/action_confirmations/usage_records/platform_models/free_checkins）。
 -- 所有时间戳为 epoch 毫秒（INTEGER）。
 
 CREATE TABLE IF NOT EXISTS devices (
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS devices (
   token          TEXT NOT NULL DEFAULT '',
   owner          TEXT NOT NULL DEFAULT 'default',
   primary_agent_type TEXT,
+  team_id        TEXT,                       -- 该设备绑定的团队（团队模式路由）
   created_at     INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
 );
 
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   target_device_id   TEXT,
   target_agent_type  TEXT,
   target_role        TEXT,
+  target_team_id     TEXT,
   require_capability TEXT,
   status             TEXT NOT NULL DEFAULT 'queued',
   result_text        TEXT,
@@ -117,12 +119,14 @@ CREATE TABLE IF NOT EXISTS asset_deliveries (
 );
 
 CREATE TABLE IF NOT EXISTS teams (
-  team_id    TEXT PRIMARY KEY,
-  name       TEXT NOT NULL,
-  members    TEXT NOT NULL DEFAULT '[]',      -- JSON array
-  routes     TEXT NOT NULL DEFAULT '{}',      -- JSON object
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  team_id     TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  purpose     TEXT NOT NULL DEFAULT 'general', -- software|content|research|ops|general
+  members     TEXT NOT NULL DEFAULT '[]',      -- JSON array
+  routes      TEXT NOT NULL DEFAULT '{}',      -- JSON object
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS loops (
@@ -141,6 +145,7 @@ CREATE TABLE IF NOT EXISTS loops (
 CREATE TABLE IF NOT EXISTS deployment_batches (
   batch_id   TEXT PRIMARY KEY,
   name       TEXT NOT NULL,
+  kind       TEXT NOT NULL DEFAULT 'deploy',   -- deploy|uninstall
   status     TEXT NOT NULL DEFAULT 'pending_confirmation',
   created_at INTEGER NOT NULL
 );
@@ -150,8 +155,11 @@ CREATE TABLE IF NOT EXISTS deployment_targets (   -- 无密码列（安全红线
   batch_id   TEXT NOT NULL,
   ip         TEXT NOT NULL,
   user       TEXT NOT NULL,
+  port       INTEGER NOT NULL DEFAULT 22,
+  device_id  TEXT,                              -- 可选：已注册 AgentMesh 设备 id
   os         TEXT NOT NULL DEFAULT 'unknown',
   platforms  TEXT NOT NULL DEFAULT '[]',
+  model_configs TEXT NOT NULL DEFAULT '[]',     -- JSON: PlatformModelConfig[]
   status     TEXT NOT NULL DEFAULT 'pending',
   error      TEXT,
   created_at INTEGER NOT NULL,
@@ -179,6 +187,28 @@ CREATE TABLE IF NOT EXISTS usage_records (
   created_at  INTEGER NOT NULL
 );
 
+-- 平台模型绑定：device + agent → 网关模型（部署完成即用 / 故障切换）
+CREATE TABLE IF NOT EXISTS platform_models (
+  device_id    TEXT NOT NULL,
+  agent_type   TEXT NOT NULL,
+  model        TEXT NOT NULL,
+  fallbacks    TEXT NOT NULL DEFAULT '[]',
+  active_model TEXT NOT NULL,
+  excluded     TEXT NOT NULL DEFAULT '[]',      -- 已失败待排除模型
+  state        TEXT NOT NULL DEFAULT 'ok',      -- ok|degraded
+  updated_at   INTEGER NOT NULL,
+  PRIMARY KEY (device_id, agent_type)
+);
+
+-- 免费源自动签到审计
+CREATE TABLE IF NOT EXISTS free_checkins (
+  checkin_id TEXT PRIMARY KEY,
+  source_id  TEXT NOT NULL,
+  status     TEXT NOT NULL,                     -- ok|failed
+  detail     TEXT NOT NULL DEFAULT '',
+  checked_at INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_agents_device ON agents (device_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_session ON tasks (session_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks (status);
@@ -187,5 +217,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_task_seq ON messages (task_id, seq);
 CREATE INDEX IF NOT EXISTS idx_asset_deliveries_device ON asset_deliveries (device_id);
 CREATE INDEX IF NOT EXISTS idx_asset_deliveries_status ON asset_deliveries (status);
 CREATE INDEX IF NOT EXISTS idx_deployment_targets_batch ON deployment_targets (batch_id);
+CREATE INDEX IF NOT EXISTS idx_free_checkins_source ON free_checkins (source_id);
+CREATE INDEX IF NOT EXISTS idx_free_checkins_at ON free_checkins (checked_at);
 CREATE INDEX IF NOT EXISTS idx_action_confirmations_ref ON action_confirmations (kind, ref_id);
 CREATE INDEX IF NOT EXISTS idx_usage_records_task ON usage_records (task_id);

@@ -16,3 +16,5 @@ export * from './deploy.js';
 export * from './team.js';
 export * from './loop.js';
 export * from './action.js';
+export * from './freeSourceRating.js';
+export * from './freeSourceCatalog.js';

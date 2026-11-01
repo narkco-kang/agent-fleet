@@ -1,16 +1,38 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { DeviceRecord } from '../../store/deviceStore';
+import type { Team } from '@agentmesh/shared';
+import { useDeviceStore, type DeviceRecord } from '../../store/deviceStore';
+import { http } from '../../api/http';
 import { Card } from '../common/Card';
 import { StatusBadge } from '../common/StatusBadge';
 import { AgentIcon } from '../common/AgentIcon';
 
 /**
- * 设备卡片（04 §6.3）：名称 + 在线圆点 + agent 图标行 + 负载条。
+ * 设备卡片（04 §6.3）：名称 + 在线圆点 + agent 图标行 + 负载条 + 团队绑定。
  */
-export function DeviceCard({ device }: { device: DeviceRecord }): ReactNode {
+export function DeviceCard({
+  device,
+  teams = [],
+}: {
+  device: DeviceRecord;
+  teams?: Team[];
+}): ReactNode {
   const navigate = useNavigate();
+  const upsertDevice = useDeviceStore((s) => s.upsertDevice);
   const load = Math.round(device.load.cpu * 100);
+
+  const bindTeam = async (teamId: string): Promise<void> => {
+    try {
+      const res = await http.setDeviceTeam(device.deviceId, teamId || null);
+      upsertDevice({
+        ...device,
+        teamId: res.data.teamId,
+        teamName: res.data.teamName,
+      });
+    } catch {
+      // 演示模式 / 后端离线：静默失败，不打断浏览
+    }
+  };
 
   return (
     <Card className="cursor-pointer p-4 transition-shadow hover:shadow-md" onClick={() => navigate(`/devices/${device.deviceId}`)}>
@@ -26,6 +48,26 @@ export function DeviceCard({ device }: { device: DeviceRecord }): ReactNode {
       </div>
 
       <div className="mt-2 truncate text-xs text-[#64748B]">ID: {device.deviceId}</div>
+
+      <div className="mt-2 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <span className="shrink-0 text-xs text-[#64748B]">团队</span>
+        {teams.length > 0 ? (
+          <select
+            className="min-w-0 flex-1 truncate rounded border border-[#E2E8F0] bg-white px-1.5 py-0.5 text-xs text-[#0F172A]"
+            value={device.teamId ?? ''}
+            onChange={(e) => void bindTeam(e.target.value)}
+          >
+            <option value="">未绑定</option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="truncate text-xs text-[#94A3B8]">{device.teamName ?? '未绑定'}</span>
+        )}
+      </div>
 
       <div className="mt-3 flex gap-1.5">
         {device.agents.length === 0 ? (

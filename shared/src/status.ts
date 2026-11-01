@@ -48,8 +48,8 @@ export type AgentType =
   | 'opencode'
   | 'windsurf';
 
-/** 路由模式（扩展 role：角色路由） */
-export type TargetMode = 'auto' | 'device' | 'agent' | 'role';
+/** 路由模式（扩展 role：角色路由；team：按设备团队模式路由） */
+export type TargetMode = 'auto' | 'device' | 'agent' | 'role' | 'team';
 
 /** 任务取消原因 */
 export type CancelReason = 'user_cancel' | 'timeout' | 'device_offline' | 'system';
@@ -105,7 +105,7 @@ export type LoopState =
 export type LoopTrigger = 'manual' | 'schedule' | 'event';
 
 /** 对外动作类型（一律过 actionGuard） */
-export type ActionKind = 'deploy' | 'asset_deliver' | 'loop_start';
+export type ActionKind = 'deploy' | 'uninstall' | 'asset_deliver' | 'loop_start';
 
 /** 人工确认记录状态 */
 export type ActionStatus =
@@ -118,7 +118,14 @@ export type ActionStatus =
 /** 角色能力（chat / 仅决策） */
 export type RoleCapability = 'chat' | 'decision-only';
 
-export const TASK_STATUSES: readonly TaskStatus[] = [
+/** 免费源评级（优 > 中 > 差；仅保留优与中） */
+export type FreeSourceRating = 'excellent' | 'medium' | 'poor';
+
+export const FREE_SOURCE_RATINGS: readonly FreeSourceRating[] = [
+  'excellent',
+  'medium',
+  'poor',
+] as const;export const TASK_STATUSES: readonly TaskStatus[] = [
   'queued',
   'running',
   'completed',
@@ -156,7 +163,7 @@ export const AGENT_TYPES: readonly AgentType[] = [
   'windsurf',
 ] as const;
 
-export const TARGET_MODES: readonly TargetMode[] = ['auto', 'device', 'agent', 'role'] as const;
+export const TARGET_MODES: readonly TargetMode[] = ['auto', 'device', 'agent', 'role', 'team'] as const;
 
 export const ASSET_KINDS: readonly AssetKind[] = ['rule', 'knowledge', 'skill'] as const;
 
@@ -199,7 +206,12 @@ export const LOOP_STATES: readonly LoopState[] = [
 
 export const LOOP_TRIGGERS: readonly LoopTrigger[] = ['manual', 'schedule', 'event'] as const;
 
-export const ACTION_KINDS: readonly ActionKind[] = ['deploy', 'asset_deliver', 'loop_start'] as const;
+export const ACTION_KINDS: readonly ActionKind[] = [
+  'deploy',
+  'uninstall',
+  'asset_deliver',
+  'loop_start',
+] as const;
 
 export const ACTION_STATUSES: readonly ActionStatus[] = [
   'pending_confirmation',

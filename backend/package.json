@@ -10,7 +10,8 @@
     "relay": "tsx src/relayEntry.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "probe:free": "tsx scripts/probe-free.ts"
   },
   "dependencies": {
     "@agentmesh/shared": "0.1.0",

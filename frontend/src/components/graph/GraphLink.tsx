@@ -14,6 +14,8 @@ export interface PositionedLink {
   y2: number;
   dimmed: boolean;
   active: boolean;
+  /** 路径漫游当前 hop（高亮 + 流动 trace） */
+  trace: boolean;
 }
 
 export function layoutLinks(
@@ -21,12 +23,14 @@ export function layoutLinks(
   nodeMap: Map<string, SimNode>,
   adjacent: Set<string> | null,
   focus: string | null,
+  walkActiveId: string | null = null,
 ): PositionedLink[] {
   const out: PositionedLink[] = [];
   for (const l of links) {
     const s = typeof l.source === 'string' ? nodeMap.get(l.source) : l.source;
     const t = typeof l.target === 'string' ? nodeMap.get(l.target) : l.target;
     if (!s || !t) continue;
+    const trace = walkActiveId != null && l.id === walkActiveId;
     out.push({
       id: l.id,
       kind: l.kind,
@@ -34,8 +38,9 @@ export function layoutLinks(
       y1: s.y,
       x2: t.x,
       y2: t.y,
-      dimmed: !!adjacent && focus !== null && !(adjacent.has(s.id) && adjacent.has(t.id)),
-      active: !focus || !!(adjacent?.has(s.id) && adjacent.has(t.id)),
+      dimmed: !!adjacent && focus !== null && !(adjacent.has(s.id) && adjacent.has(t.id)) && !trace,
+      active: trace || !focus || !!(adjacent?.has(s.id) && adjacent.has(t.id)),
+      trace,
     });
   }
   return out;
@@ -62,9 +67,9 @@ export function GraphLinks({ links }: { links: PositionedLink[] }): JSX.Element 
             x2={l.x2}
             y2={l.y2}
             stroke={style.stroke}
-            strokeWidth={style.width}
+            strokeWidth={l.trace ? style.width + 1.6 : style.width}
             strokeDasharray={style.dash}
-            opacity={opacity}
+            opacity={l.trace ? 1 : opacity}
             markerEnd={style.arrow ? `url(#arrow-${l.kind})` : undefined}
           />
         );

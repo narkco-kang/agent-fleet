@@ -8,6 +8,8 @@ import type { RoleRoute, Team, TeamMember } from '@agentmesh/shared';
 export interface TeamRow {
   team_id: string;
   name: string;
+  description: string;
+  purpose: string;
   members: string;
   routes: string;
   created_at: number;
@@ -19,6 +21,8 @@ export function rowToTeam(row: TeamRow): Team {
   return {
     id: row.team_id,
     name: row.name,
+    description: row.description ?? '',
+    purpose: row.purpose ?? 'general',
     members: JSON.parse(row.members || '[]') as TeamMember[],
     routes: JSON.parse(row.routes || '{}') as Record<string, RoleRoute>,
     createdAt: row.created_at,
@@ -30,18 +34,22 @@ export function rowToTeam(row: TeamRow): Team {
 export function createTeam(input: {
   teamId: string;
   name: string;
+  description?: string;
+  purpose?: string;
   members?: TeamMember[];
   routes?: Record<string, RoleRoute>;
 }): Team {
   const now = Date.now();
   getDb()
     .prepare(
-      `INSERT INTO teams (team_id, name, members, routes, created_at, updated_at)
-       VALUES (@teamId, @name, @members, @routes, @now, @now)`,
+      `INSERT INTO teams (team_id, name, description, purpose, members, routes, created_at, updated_at)
+       VALUES (@teamId, @name, @description, @purpose, @members, @routes, @now, @now)`,
     )
     .run({
       teamId: input.teamId,
       name: input.name,
+      description: input.description ?? '',
+      purpose: input.purpose ?? 'general',
       members: JSON.stringify(input.members ?? []),
       routes: JSON.stringify(input.routes ?? {}),
       now,
@@ -68,18 +76,27 @@ export function listTeams(limit = 500): Team[] {
 /** 更新团队 */
 export function updateTeam(
   teamId: string,
-  patch: { name?: string; members?: TeamMember[]; routes?: Record<string, RoleRoute> },
+  patch: {
+    name?: string;
+    description?: string;
+    purpose?: string;
+    members?: TeamMember[];
+    routes?: Record<string, RoleRoute>;
+  },
 ): Team | undefined {
   const prev = getTeam(teamId);
   if (!prev) return undefined;
   getDb()
     .prepare(
-      `UPDATE teams SET name = @name, members = @members, routes = @routes, updated_at = @now
+      `UPDATE teams SET name = @name, description = @description, purpose = @purpose,
+        members = @members, routes = @routes, updated_at = @now
        WHERE team_id = @teamId`,
     )
     .run({
       teamId,
       name: patch.name ?? prev.name,
+      description: patch.description ?? prev.description ?? '',
+      purpose: patch.purpose ?? prev.purpose ?? 'general',
       members: JSON.stringify(patch.members ?? prev.members),
       routes: JSON.stringify(patch.routes ?? prev.routes),
       now: Date.now(),

@@ -16,6 +16,7 @@ export interface DeviceRow {
   token: string;
   owner: string;
   primary_agent_type: AgentType | null;
+  team_id: string | null;
   created_at: number;
 }
 
@@ -120,6 +121,44 @@ export function listPrimaryAgents(): Map<string, AgentType> {
   return new Map(rows.map((r) => [r.device_id, r.primary_agent_type]));
 }
 
+/** 设置设备绑定团队（teamId 为 null 表示解绑） */
+export function setDeviceTeam(deviceId: string, teamId: string | null): boolean {
+  return getDb().prepare(`UPDATE devices SET team_id = ? WHERE device_id = ?`).run(teamId, deviceId).changes > 0;
+}
+
+/** 批量绑定设备到同一团队（teamId 为 null 表示解绑） */
+export function setDeviceTeams(deviceIds: string[], teamId: string | null): number {
+  if (deviceIds.length === 0) return 0;
+  const stmt = getDb().prepare(`UPDATE devices SET team_id = ? WHERE device_id = ?`);
+  let n = 0;
+  for (const id of deviceIds) n += stmt.run(teamId, id).changes;
+  return n;
+}
+
+/** 查询全部设备 → 团队映射 */
+export function listDeviceTeams(): Map<string, string> {
+  const rows = getDb()
+    .prepare(`SELECT device_id, team_id FROM devices WHERE team_id IS NOT NULL`)
+    .all() as Array<{ device_id: string; team_id: string }>;
+  return new Map(rows.map((r) => [r.device_id, r.team_id]));
+}
+
+/** 查询某团队绑定的设备 id 列表 */
+export function listDevicesByTeam(teamId: string): string[] {
+  const rows = getDb()
+    .prepare(`SELECT device_id FROM devices WHERE team_id = ? ORDER BY created_at ASC`)
+    .all(teamId) as Array<{ device_id: string }>;
+  return rows.map((r) => r.device_id);
+}
+
+/** 查询设备绑定的团队 id */
+export function getDeviceTeam(deviceId: string): string | null {
+  const row = getDb()
+    .prepare(`SELECT team_id FROM devices WHERE device_id = ?`)
+    .get(deviceId) as { team_id: string | null } | undefined;
+  return row?.team_id ?? null;
+}
+
 /** 按 ID 查询设备 */
 export function getDevice(deviceId: string): DeviceRow | undefined {
   return getDb()
@@ -146,6 +185,7 @@ export function toDeviceSnapshot(
   row: DeviceRow,
   load: { cpu: number; mem: number } = { cpu: 0, mem: 0 },
   busyAgents = 0,
+  teamName: string | null = null,
 ): DeviceSnapshot {
   return {
     deviceId: row.device_id,
@@ -158,6 +198,8 @@ export function toDeviceSnapshot(
     lanAddr: row.lan_addr,
     relayOnline: row.relay_online === 1,
     primaryAgentType: row.primary_agent_type,
+    teamId: row.team_id ?? null,
+    teamName,
     load,
     busyAgents,
   };

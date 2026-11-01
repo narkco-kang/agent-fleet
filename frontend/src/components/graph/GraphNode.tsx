@@ -9,6 +9,7 @@ export function NodeShape({
   node,
   dimmed,
   focused,
+  lensActive = false,
   onMouseEnter,
   onMouseLeave,
   onClick,
@@ -17,6 +18,8 @@ export function NodeShape({
   node: SimNode;
   dimmed: boolean;
   focused: boolean;
+  /** 透镜命中的类别节点：叠加虚线高亮环 */
+  lensActive?: boolean;
   onMouseEnter: (e: React.MouseEvent) => void;
   onMouseLeave: () => void;
   onClick: (e: React.MouseEvent) => void;
@@ -29,6 +32,7 @@ export function NodeShape({
 
   const stroke = focused ? '#4F46E5' : 'transparent';
   const strokeWidth = focused ? 3 : 0;
+  const lensRadius = node.type === 'device' ? 26 : node.type === 'agent' ? 20 : 17;
 
   return (
     <g
@@ -40,6 +44,18 @@ export function NodeShape({
       onClick={onClick}
       onPointerDown={onPointerDown}
     >
+      {lensActive && (
+        <circle
+          cx={node.x}
+          cy={node.y}
+          r={lensRadius}
+          fill="none"
+          stroke="#4F46E5"
+          strokeWidth={1.5}
+          strokeDasharray="3 3"
+          opacity={0.7}
+        />
+      )}
       {node.type === 'device' && (
         <DeviceGlyph node={node} pulse={pulse} stroke={stroke} strokeWidth={strokeWidth} />
       )}

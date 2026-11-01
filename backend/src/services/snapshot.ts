@@ -12,7 +12,14 @@ import { deviceRegistry } from './deviceRegistry.js';
 import { getDevice, listDevices, toDeviceSnapshot } from '../db/repo/devices.js';
 import { listAgents, toAgentSnapshot } from '../db/repo/agents.js';
 import { listTasks, toTaskSnapshot } from '../db/repo/tasks.js';
+import { getTeam } from '../db/repo/teams.js';
 import { getBusyCount } from './scheduler.js';
+
+/** 设备绑定团队名（未绑定返回 null） */
+function teamNameOf(teamId: string | null): string | null {
+  if (!teamId) return null;
+  return getTeam(teamId)?.name ?? null;
+}
 
 /**
  * 看板快照装配器：把 DB + 注册表组装为 dashboard.snapshot / dashboard.patch。
@@ -24,6 +31,7 @@ export function buildSnapshot(): DashboardSnapshot {
       row,
       entry?.load ?? { cpu: 0, mem: 0 },
       entry?.busyAgents ?? getBusyCount(row.device_id),
+      teamNameOf(row.team_id),
     );
   });
 
@@ -57,6 +65,7 @@ export function buildDevicePatch(deviceId: string): DashboardPatch {
     row,
     entry?.load ?? { cpu: 0, mem: 0 },
     entry?.busyAgents ?? getBusyCount(deviceId),
+    teamNameOf(row.team_id),
   );
   return makePatch({ devices: [snapshot] });
 }

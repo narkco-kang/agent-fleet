@@ -5,6 +5,10 @@ import DevicesIcon from '@mui/icons-material/Devices';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AddIcon from '@mui/icons-material/Add';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import ExtensionIcon from '@mui/icons-material/Extension';
+import RouteIcon from '@mui/icons-material/Route';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useLiveData } from '../hooks/useLiveData';
 import { useDeviceStore } from '../store/deviceStore';
@@ -12,11 +16,15 @@ import { useTaskStore } from '../store/taskStore';
 import { useWsStore } from '../store/wsStore';
 import { MobileTabBar } from './MobileTabBar';
 import { NewTaskDialog } from '../components/drawer/NewTaskDialog';
+import { OnboardingGuide, useOnboardingState } from '../components/common/OnboardingGuide';
 
 const NAV = [
   { to: '/', label: '神经图', icon: <HubIcon /> },
   { to: '/devices', label: '设备', icon: <DevicesIcon /> },
   { to: '/tasks', label: '任务', icon: <AssignmentIcon /> },
+  { to: '/deploy', label: '部署', icon: <CloudUploadIcon /> },
+  { to: '/platform-models', label: '平台模型', icon: <ExtensionIcon /> },
+  { to: '/routing', label: '路由网关', icon: <RouteIcon /> },
   { to: '/settings', label: '设置', icon: <SettingsIcon /> },
 ];
 
@@ -26,6 +34,7 @@ const NAV = [
 export default function MainLayout(): JSX.Element {
   const { isMobile, isTablet } = useBreakpoint();
   const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const onboarding = useOnboardingState();
   const navigate = useNavigate();
 
   useLiveData();
@@ -97,13 +106,22 @@ export default function MainLayout(): JSX.Element {
                   : '🔴 未连接'}
             </span>
           </div>
-          <button
-            onClick={() => setNewTaskOpen(true)}
-            className="inline-flex items-center gap-1 rounded-lg bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#4338CA]"
-          >
-            <AddIcon fontSize="small" />
-            {!isTablet && <span>新建任务</span>}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onboarding.show}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#334155] hover:bg-[#F8FAFC]"
+            >
+              <HelpOutlineIcon fontSize="small" />
+              {!isTablet && <span>新手引导</span>}
+            </button>
+            <button
+              onClick={() => setNewTaskOpen(true)}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#4338CA]"
+            >
+              <AddIcon fontSize="small" />
+              {!isTablet && <span>新建任务</span>}
+            </button>
+          </div>
         </header>
 
         {/* 页面主体 */}
@@ -136,6 +154,7 @@ export default function MainLayout(): JSX.Element {
           navigate(`/tasks/${taskId}`);
         }}
       />
+      <OnboardingGuide open={onboarding.open} onClose={onboarding.close} />
     </div>
   );
 }

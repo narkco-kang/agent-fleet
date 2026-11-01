@@ -8,6 +8,7 @@ import { registerTaskRoutes } from './routes/tasks.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerMemoryRoutes } from './routes/memory.js';
 import { registerRoutingRoutes } from './routes/routing.js';
+import { registerPlatformModelRoutes } from './routes/platformModels.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerDeployRoutes } from './routes/deploy.js';
 import { registerTeamRoutes } from './routes/teams.js';
@@ -40,6 +41,9 @@ import {
   handleAssetDeliverAck,
 } from './services/assets/deliveryService.js';
 import { loopScheduler, registerLoopExecutor } from './services/loop/loopScheduler.js';
+import { startCheckinLoop } from './services/routing/checkinService.js';
+import { registerGatewayRoutes } from './routes/gateway.js';
+import { gatewayManager } from './services/gateway/gatewayManager.js';
 import { MESSAGE_TYPES } from '@agentmesh/shared';
 
 /**
@@ -75,6 +79,7 @@ async function main(): Promise<void> {
   setAssetAckHandler(handleAssetDeliverAck);
   startDeliverySweeper();
   loopScheduler.startTicker();
+  startCheckinLoop();
 
   // 装配任务桥接 + 中继转发
   setTaskBridge({
@@ -120,13 +125,20 @@ async function main(): Promise<void> {
   registerTaskRoutes(app);
   registerMemoryRoutes(app);
   registerRoutingRoutes(app);
+  registerPlatformModelRoutes(app);
   registerAssetRoutes(app);
   registerDeployRoutes(app);
   registerTeamRoutes(app);
   registerLoopRoutes(app);
+  registerGatewayRoutes(app);
 
   await app.listen({ host: config.host, port: config.port });
   console.log(`[backend] AgentMesh 协调服务已启动 http://${config.host}:${config.port}`);
+
+  // 内置 modelgateway：MODELGATEWAY_AUTO_START=1 时后端启动后自动 spawn（默认手动）
+  void gatewayManager.maybeAutoStart().catch((err) => {
+    console.warn('[backend] modelgateway 自动启动失败:', (err as Error).message);
+  });
 
   // mDNS 局域网发现
   startLanDiscovery();

@@ -18,6 +18,7 @@ export interface TaskRow {
   target_device_id: string | null;
   target_agent_type: AgentType | null;
   target_role: string | null;
+  target_team_id: string | null;
   require_capability: string | null;
   status: TaskStatus;
   result_text: string | null;
@@ -42,6 +43,7 @@ export interface TaskCreateInput {
   targetDeviceId?: string | null;
   targetAgentType?: AgentType | null;
   targetRole?: string | null;
+  targetTeamId?: string | null;
   requireCapability?: string | null;
 }
 
@@ -51,9 +53,11 @@ export function createTask(input: TaskCreateInput): void {
     .prepare(
       `INSERT INTO tasks
         (task_id, session_id, origin, origin_ref, prompt, target_mode,
-         target_device_id, target_agent_type, target_role, require_capability, status, created_at)
+         target_device_id, target_agent_type, target_role, target_team_id,
+         require_capability, status, created_at)
        VALUES (@taskId, @sessionId, @origin, @originRef, @prompt, @targetMode,
-         @targetDeviceId, @targetAgentType, @targetRole, @requireCapability, 'queued', @now)`,
+         @targetDeviceId, @targetAgentType, @targetRole, @targetTeamId,
+         @requireCapability, 'queued', @now)`,
     )
     .run({
       taskId: input.taskId,
@@ -65,6 +69,7 @@ export function createTask(input: TaskCreateInput): void {
       targetDeviceId: input.targetDeviceId ?? null,
       targetAgentType: input.targetAgentType ?? null,
       targetRole: input.targetRole ?? null,
+      targetTeamId: input.targetTeamId ?? null,
       requireCapability: input.requireCapability ?? null,
       now: Date.now(),
     });
@@ -208,6 +213,7 @@ export function toTaskSnapshot(row: TaskRow): TaskSnapshot {
     targetDeviceId: row.target_device_id,
     targetAgentType: row.target_agent_type,
     targetRole: row.target_role,
+    targetTeamId: row.target_team_id,
     resultText: row.result_text,
     durationMs: row.duration_ms,
     createdAt: row.created_at,

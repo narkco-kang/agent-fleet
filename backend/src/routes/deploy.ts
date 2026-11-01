@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { parseExcel, parseTargetsFromObjects } from '../services/deploy/excelParser.js';
-import { createDeployBatch, getBatchView } from '../services/deploy/deployService.js';
+import {
+  createDeployBatch,
+  createUninstallBatch,
+  getBatchView,
+} from '../services/deploy/deployService.js';
 import { listBatches, updateBatchStatus } from '../db/repo/deployments.js';
+import type { DeploymentKind } from '@agentmesh/shared';
 import { actionGuard } from '../services/actionGuard.js';
 import { config } from '../config.js';
 
@@ -62,9 +67,49 @@ export function registerDeployRoutes(app: FastifyInstance): void {
     return { ok: true, data: result };
   });
 
-  /** 批次列表 */
-  app.get('/api/deploy/batches', async () => {
-    return { ok: true, data: listBatches() };
+  /** 上传 Excel / JSON 创建卸载批次（一键卸载 agent 平台） */
+  app.post('/api/deploy/uninstall-batches', async (req, reply) => {
+    if (!config.deployEnabled) {
+      return reply.code(403).send({ ok: false, error: 'deploy disabled' });
+    }
+
+    let name = (req.query as { name?: string }).name ?? 'uninstall-batch';
+    let buffer: Buffer | null = null;
+    const isMultipart = (req.headers['content-type'] ?? '').includes('multipart/form-data');
+    if (isMultipart) {
+      for await (const part of (req as unknown as { parts(): AsyncIterable<MultipartPart> }).parts()) {
+        if (part.type === 'file') buffer = await part.toBuffer();
+        else if (part.type === 'field' && part.fieldname === 'name') name = part.value;
+      }
+    }
+
+    const body = (req.body ?? {}) as {
+      name?: string;
+      base64?: string;
+      targets?: Array<Record<string, unknown>>;
+    };
+    if (!buffer && typeof body.base64 === 'string') {
+      buffer = Buffer.from(body.base64, 'base64');
+      if (body.name) name = body.name;
+    }
+
+    if (!buffer && Array.isArray(body.targets)) {
+      const { targets, invalidRows } = parseTargetsFromObjects(body.targets);
+      const result = createUninstallBatch(body.name ?? name, targets, invalidRows);
+      return { ok: true, data: result };
+    }
+    if (!buffer) {
+      return reply.code(400).send({ ok: false, error: 'file or base64/targets required' });
+    }
+
+    const { targets, invalidRows } = parseExcel(buffer);
+    const result = createUninstallBatch(name, targets, invalidRows);
+    return { ok: true, data: result };
+  });
+
+  /** 批次列表（?kind=deploy|uninstall） */
+  app.get<{ Querystring: { kind?: DeploymentKind } }>('/api/deploy/batches', async (req) => {
+    return { ok: true, data: listBatches(500, req.query.kind) };
   });
 
   /** 批次详情（含目标，无密码） */
@@ -74,9 +119,12 @@ export function registerDeployRoutes(app: FastifyInstance): void {
     return { ok: true, data: batch };
   });
 
-  /** 确认部署（触发 runDeploy） */
+  /** 确认部署/卸载（按批次 kind 触发对应执行器） */
   app.post<{ Params: { id: string } }>('/api/deploy/batches/:id/confirm', async (req, reply) => {
-    const confirmation = actionGuard.confirmByRef('deploy', req.params.id, 'dashboard-user');
+    const batch = getBatchView(req.params.id);
+    if (!batch) return reply.code(404).send({ ok: false, error: 'batch_not_found' });
+    const kind = batch.kind === 'uninstall' ? 'uninstall' : 'deploy';
+    const confirmation = actionGuard.confirmByRef(kind, req.params.id, 'dashboard-user');
     if (!confirmation) return reply.code(404).send({ ok: false, error: 'confirmation_not_found' });
     return { ok: true, data: confirmation };
   });

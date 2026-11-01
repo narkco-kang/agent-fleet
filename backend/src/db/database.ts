@@ -42,12 +42,53 @@ function runMigrations(database: Database.Database): void {
   if (!taskCols.includes('target_role')) {
     database.exec(`ALTER TABLE tasks ADD COLUMN target_role TEXT`);
   }
+  if (!taskCols.includes('target_team_id')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN target_team_id TEXT`);
+  }
 
   const deviceCols = (
     database.prepare(`PRAGMA table_info(devices)`).all() as Array<{ name: string }>
   ).map((c) => c.name);
   if (!deviceCols.includes('primary_agent_type')) {
     database.exec(`ALTER TABLE devices ADD COLUMN primary_agent_type TEXT`);
+  }
+  if (!deviceCols.includes('team_id')) {
+    database.exec(`ALTER TABLE devices ADD COLUMN team_id TEXT`);
+  }
+
+  const teamCols = (
+    database.prepare(`PRAGMA table_info(teams)`).all() as Array<{ name: string }>
+  ).map((c) => c.name);
+  if (!teamCols.includes('description')) {
+    database.exec(`ALTER TABLE teams ADD COLUMN description TEXT NOT NULL DEFAULT ''`);
+  }
+  if (!teamCols.includes('purpose')) {
+    database.exec(`ALTER TABLE teams ADD COLUMN purpose TEXT NOT NULL DEFAULT 'general'`);
+  }
+
+  const batchCols = (
+    database.prepare(`PRAGMA table_info(deployment_batches)`).all() as Array<{ name: string }>
+  ).map((c) => c.name);
+  if (!batchCols.includes('kind')) {
+    database.exec(`ALTER TABLE deployment_batches ADD COLUMN kind TEXT NOT NULL DEFAULT 'deploy'`);
+  }
+
+  // 索引必须在列补齐之后创建：老库 schema.sql 里的 CREATE INDEX 会因缺列而失败
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_devices_team ON devices (team_id)`);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_deployment_batches_kind ON deployment_batches (kind)`);
+
+  // deployment_targets 新增列（SSH 端口 / 设备绑定 / 模型配置）
+  const targetCols = (
+    database.prepare(`PRAGMA table_info(deployment_targets)`).all() as Array<{ name: string }>
+  ).map((c) => c.name);
+  if (!targetCols.includes('port')) {
+    database.exec(`ALTER TABLE deployment_targets ADD COLUMN port INTEGER NOT NULL DEFAULT 22`);
+  }
+  if (!targetCols.includes('device_id')) {
+    database.exec(`ALTER TABLE deployment_targets ADD COLUMN device_id TEXT`);
+  }
+  if (!targetCols.includes('model_configs')) {
+    database.exec(`ALTER TABLE deployment_targets ADD COLUMN model_configs TEXT NOT NULL DEFAULT '[]'`);
   }
 }
 

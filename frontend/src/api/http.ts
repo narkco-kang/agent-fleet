@@ -1,4 +1,10 @@
-import type { DashboardSnapshot, TaskSnapshot, DeviceSnapshot, AgentSnapshot } from '@agentmesh/shared';
+import type {
+  DashboardSnapshot,
+  TaskSnapshot,
+  DeviceSnapshot,
+  AgentSnapshot,
+  Team,
+} from '@agentmesh/shared';
 
 /**
  * REST 客户端（fetch 封装）。BASE_URL 可通过 VITE_API_BASE 覆盖。
@@ -28,6 +34,42 @@ export interface ApiOk<T> {
   error?: string;
 }
 
+/** GET 便捷封装 */
+export function get<T>(path: string): Promise<T> {
+  return request<T>(path);
+}
+
+/** POST 便捷封装（无 body 时不设 Content-Type，避免 Fastify 空 JSON 报错） */
+export function post<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+/** PUT 便捷封装 */
+export function put<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'PUT',
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+/** DELETE 便捷封装 */
+export function del<T>(path: string): Promise<T> {
+  return request<T>(path, { method: 'DELETE' });
+}
+
+/** multipart 上传（FormData，不手动设 Content-Type，交由浏览器边界） */
+export async function uploadForm<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', body: form });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+  return (await res.json()) as T;
+}
+
 export const http = {
   getHealth: () => request<{ ok: boolean }>('/api/system/health'),
   getStatus: () =>
@@ -43,6 +85,12 @@ export const http = {
       method: 'POST',
       body: JSON.stringify({ deviceId, name }),
     }),
+  getTeams: () => request<ApiOk<Team[]>>('/api/teams'),
+  setDeviceTeam: (deviceId: string, teamId: string | null) =>
+    request<ApiOk<{ deviceId: string; teamId: string | null; teamName: string | null }>>(
+      `/api/devices/${deviceId}/team`,
+      { method: 'PUT', body: JSON.stringify({ teamId }) },
+    ),
   getTasks: (query = '') => request<ApiOk<TaskSnapshot[]>>(`/api/tasks${query}`),
   getTask: (id: string) =>
     request<ApiOk<TaskSnapshot & { messages: unknown[]; sessionTitle?: string }>>(`/api/tasks/${id}`),
@@ -51,7 +99,14 @@ export const http = {
     origin?: string;
     originRef?: string;
     sessionId?: string;
-    target?: { mode?: string; deviceId?: string; agentType?: string; requireCapability?: string };
+    target?: {
+      mode?: string;
+      deviceId?: string;
+      agentType?: string;
+      role?: string;
+      teamId?: string;
+      requireCapability?: string;
+    };
   }) =>
     request<ApiOk<{ taskId: string; sessionId: string; status: string }>>('/api/tasks', {
       method: 'POST',

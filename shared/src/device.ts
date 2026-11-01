@@ -90,6 +90,10 @@ export interface DeviceSnapshot {
   relayOnline: boolean;
   /** 该设备的主 AI agent（auto 路由优先，未设置则为 null） */
   primaryAgentType?: AgentType | null;
+  /** 该设备绑定的团队（团队模式路由用，未绑定则为 null） */
+  teamId?: string | null;
+  /** 团队展示名（快照冗余，便于前端直接展示） */
+  teamName?: string | null;
   load: DeviceLoad;
   busyAgents: number;
 }

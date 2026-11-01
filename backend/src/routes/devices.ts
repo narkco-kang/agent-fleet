@@ -5,14 +5,21 @@ import {
   deleteDevice,
   getDevice,
   listDevices,
+  setDeviceTeam,
   setDeviceToken,
   setPrimaryAgent,
   setPrimaryAgents,
   toDeviceSnapshot,
 } from '../db/repo/devices.js';
 import { listAgentsByDevice, toAgentSnapshot } from '../db/repo/agents.js';
+import { getTeam } from '../db/repo/teams.js';
 import { createPairing, getPendingPair, verifyPairing } from '../security/pairing.js';
 import { issueToken } from '../security/auth.js';
+
+/** 团队名（未绑定返回 null） */
+function teamNameOf(teamId: string | null): string | null {
+  return teamId ? getTeam(teamId)?.name ?? null : null;
+}
 
 /**
  * 设备 REST 路由：列表 / 详情 / 配对 / 删除。
@@ -28,6 +35,7 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
           row,
           entry?.load ?? { cpu: 0, mem: 0 },
           entry?.busyAgents ?? 0,
+          teamNameOf(row.team_id),
         ),
         agents,
       };
@@ -50,6 +58,7 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
           row,
           entry?.load ?? { cpu: 0, mem: 0 },
           entry?.busyAgents ?? 0,
+          teamNameOf(row.team_id),
         ),
         agents,
       },
@@ -104,6 +113,28 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
       const { agentType = null } = req.body ?? {};
       setPrimaryAgent(req.params.id, (agentType as AgentType) ?? null);
       return { ok: true, data: { deviceId: req.params.id, primaryAgentType: agentType } };
+    },
+  );
+
+  /** 设置设备绑定的团队（null = 解绑） */
+  app.put<{ Params: { id: string }; Body: { teamId?: string | null } }>(
+    '/api/devices/:id/team',
+    async (req, reply) => {
+      const row = getDevice(req.params.id);
+      if (!row) return reply.code(404).send({ ok: false, error: 'device_not_found' });
+      const { teamId = null } = req.body ?? {};
+      if (teamId && !getTeam(teamId)) {
+        return reply.code(404).send({ ok: false, error: 'team_not_found' });
+      }
+      setDeviceTeam(req.params.id, teamId ?? null);
+      return {
+        ok: true,
+        data: {
+          deviceId: req.params.id,
+          teamId: teamId ?? null,
+          teamName: teamId ? getTeam(teamId)?.name ?? null : null,
+        },
+      };
     },
   );
 

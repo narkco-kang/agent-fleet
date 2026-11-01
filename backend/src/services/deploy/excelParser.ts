@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { AgentType } from '@agentmesh/shared';
+import type { AgentType, PlatformModelConfig } from '@agentmesh/shared';
 import { AGENT_TYPES } from '@agentmesh/shared';
 
 /**
@@ -12,7 +12,13 @@ export interface ParsedTarget {
   ip: string;
   user: string;
   password?: string;
+  /** SSH 端口（默认 22） */
+  port?: number;
+  /** 可选：已注册 AgentMesh 设备 id，部署成功后据此绑定模型 */
+  deviceId?: string;
   platforms: AgentType[];
+  /** 部署成功后为各平台绑定的网关模型 */
+  modelConfigs?: PlatformModelConfig[];
 }
 
 export interface ParseResult {
@@ -25,6 +31,9 @@ const IP_ALIASES = ['ip', 'ip地址', 'ipaddress', 'host', 'hostname', '主机',
 const USER_ALIASES = ['user', 'username', 'account', '账号', '用户名', '用户'];
 const PASSWORD_ALIASES = ['password', 'passwd', 'pwd', '密码', '口令'];
 const PLATFORM_ALIASES = ['platforms', 'platform', 'agents', 'agent', '平台', '组件'];
+const PORT_ALIASES = ['port', 'sshport', 'ssh_port', '端口', 'ssh端口'];
+const DEVICE_ALIASES = ['deviceid', 'device_id', 'device', '设备id'];
+const MODEL_ALIASES = ['models', 'model', '模型配置', '模型', 'modelconfigs'];
 
 /** 归一化表头 key */
 function normKey(key: string): string {
@@ -49,6 +58,9 @@ export function normalizeRow(
   const userField = findField(headerMap, USER_ALIASES);
   const pwdField = findField(headerMap, PASSWORD_ALIASES);
   const platformField = findField(headerMap, PLATFORM_ALIASES);
+  const portField = findField(headerMap, PORT_ALIASES);
+  const deviceField = findField(headerMap, DEVICE_ALIASES);
+  const modelField = findField(headerMap, MODEL_ALIASES);
 
   const ip = ipField ? String(row[ipField] ?? '').trim() : '';
   const user = userField ? String(row[userField] ?? '').trim() : '';
@@ -68,7 +80,70 @@ export function normalizeRow(
     }
   }
 
-  return { target: { ip, user, password: password || undefined, platforms } };
+  const port = portField ? parseInt(String(row[portField] ?? '').trim(), 10) : NaN;
+  const deviceId = deviceField ? String(row[deviceField] ?? '').trim() : '';
+  const modelConfigs = modelField ? parseModelConfigs(String(row[modelField] ?? '')) : [];
+
+  return {
+    target: {
+      ip,
+      user,
+      password: password || undefined,
+      port: Number.isInteger(port) && port > 0 && port < 65536 ? port : undefined,
+      deviceId: deviceId || undefined,
+      platforms,
+      modelConfigs: modelConfigs.length ? modelConfigs : undefined,
+    },
+  };
+}
+
+/**
+ * 解析模型配置字段：
+ * - JSON 数组：[{agentType, model, fallbacks}]
+ * - 或 `agentType=model` / `agentType=model,fb1,fb2` 分号分隔
+ */
+export function parseModelConfigs(raw: string): PlatformModelConfig[] {
+  const text = raw.trim();
+  if (!text) return [];
+  try {
+    const json = JSON.parse(text);
+    if (Array.isArray(json)) {
+      return json
+        .filter(
+          (c): c is PlatformModelConfig =>
+            c && typeof c === 'object' && typeof c.agentType === 'string' && typeof c.model === 'string',
+        )
+        .map((c) => ({
+          agentType: c.agentType as AgentType,
+          model: c.model,
+          fallbacks: Array.isArray(c.fallbacks) ? c.fallbacks.filter((f): f is string => typeof f === 'string') : [],
+        }));
+    }
+  } catch {
+    // 非 JSON，走 semicolon/等号 格式
+  }
+
+  const configs: PlatformModelConfig[] = [];
+  for (const part of text.split(/[;；]/)) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const agentType = trimmed.slice(0, eq).trim().toLowerCase();
+    if (!(AGENT_TYPES as readonly string[]).includes(agentType)) continue;
+    const models = trimmed
+      .slice(eq + 1)
+      .split(/[,，]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (models.length === 0) continue;
+    configs.push({
+      agentType: agentType as AgentType,
+      model: models[0],
+      fallbacks: models.slice(1),
+    });
+  }
+  return configs;
 }
 
 /** 解析 Excel / CSV 二进制缓冲 */

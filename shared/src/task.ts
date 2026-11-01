@@ -27,6 +27,8 @@ export interface TaskTarget {
   agentType?: AgentType;
   /** mode='role' 时的角色名 */
   role?: string;
+  /** mode='team' 时的团队 id（不同团队负责不同需求） */
+  teamId?: string;
   requireCapability?: string;
 }
 
@@ -106,6 +108,7 @@ export interface TaskSnapshot {
   targetDeviceId?: string | null;
   targetAgentType?: AgentType | null;
   targetRole?: string | null;
+  targetTeamId?: string | null;
   resultText?: string | null;
   durationMs?: number | null;
   createdAt: number;
