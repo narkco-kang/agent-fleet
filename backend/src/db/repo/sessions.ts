@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { Origin } from '@agentmesh/shared';
+import type { Origin } from '@agentfleet/shared';
 
 /** sessions 表行结构 */
 export interface SessionRow {

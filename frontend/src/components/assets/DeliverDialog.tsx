@@ -5,7 +5,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
-import type { AgentSnapshot, Asset, AssetKind, DeviceSnapshot } from '@agentmesh/shared';
+import type { AgentSnapshot, Asset, AssetKind, DeviceSnapshot } from '@agentfleet/shared';
 import { assetsApi, type DeliveryRequestResult } from '../../api/assets';
 import { http } from '../../api/http';
 

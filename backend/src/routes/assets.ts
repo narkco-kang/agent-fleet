@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { AssetContentType, AssetKind } from '@agentmesh/shared';
+import type { AssetContentType, AssetKind } from '@agentfleet/shared';
 import * as assetService from '../services/assets/assetService.js';
 import {
   handleAssetDeliverAck,

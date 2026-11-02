@@ -1,6 +1,6 @@
-# Contributing to AgentMesh
+# Contributing to AgentFleet
 
-First off — thank you for wanting to help. AgentMesh is a young open-source project, and every issue, PR, and real-device test report moves it forward.
+First off — thank you for wanting to help. AgentFleet is a young open-source project, and every issue, PR, and real-device test report moves it forward.
 
 > 中文贡献者请看 [docs/20-适配器开发指南.md](docs/20-适配器开发指南.md)。
 
@@ -12,7 +12,7 @@ First off — thank you for wanting to help. AgentMesh is a young open-source pr
 
 ## The single most useful contribution right now
 
-AgentMesh orchestrates **13+ agent platforms**, but only **Grok** has a fully stable *direct local CLI adapter* today. The other ~12 platforms are detected and dispatch-ready, but their headless invocation still needs per-platform testing and implementation.
+AgentFleet orchestrates **13+ agent platforms**, but only **Grok** has a fully stable *direct local CLI adapter* today. The other ~12 platforms are detected and dispatch-ready, but their headless invocation still needs per-platform testing and implementation.
 
 If you use **Claude Code, Codex, Cursor, Aider, Gemini CLI, Qwen Code, Kimi CLI, Cody, OpenCode, Windsurf, MarsCode, or DSH** on your machine, you are the ideal person to wire one up. See [the adapter guide](docs/20-适配器开发指南.md) — it's a ~30-minute task once you know the CLI flags.
 
@@ -42,7 +42,7 @@ npm run test --workspace memory       # memory ledger tests
 
 1. **Test on real devices** — run the agent daemon on a second machine and report what works / breaks. Open an issue with the `deployment-feedback` label.
 2. **Implement an adapter** — pick a platform from the catalog and wire up its direct CLI execution (see below).
-3. **Fix a good first issue** — look for [`good first issue`](https://github.com/narkco-kang/agent-mesh/contribute) and leave a comment to claim it.
+3. **Fix a good first issue** — look for [`good first issue`](https://github.com/narkco-kang/agent-fleet/contribute) and leave a comment to claim it.
 4. **Improve docs** — typos, unclear sections, missing examples. Docs live in [`docs/`](docs/).
 5. **Report bugs** — open an issue with: your OS, Node version, what you ran, and the logs.
 
@@ -85,4 +85,4 @@ Please do **not** market or document features as "stable" unless they've actuall
 
 ## Questions?
 
-Open an issue, or start a discussion on [GitHub Discussions](https://github.com/narkco-kang/agent-mesh/discussions). The maintainer responds within 24h to issues and PRs.
+Open an issue, or start a discussion on [GitHub Discussions](https://github.com/narkco-kang/agent-fleet/discussions). The maintainer responds within 24h to issues and PRs.

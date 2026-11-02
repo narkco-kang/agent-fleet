@@ -45,9 +45,9 @@ describe('deploy installScripts OS 自适应部署计划', () => {
 
   it('解析部署脚本输出中的逐平台验证结果', () => {
     const out = [
-      '[agentmesh:verify] platform=codex status=ok command=codex',
-      '[agentmesh:verify] platform=grok status=missing',
-      '[agentmesh:verify] platform=codex status=missing',
+      '[agentfleet:verify] platform=codex status=ok command=codex',
+      '[agentfleet:verify] platform=grok status=missing',
+      '[agentfleet:verify] platform=codex status=missing',
     ].join('\n');
     const results = parseInstallVerification(out);
     expect(results).toHaveLength(2);

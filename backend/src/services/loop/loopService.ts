@@ -1,4 +1,4 @@
-import type { Loop, LoopState, LoopStep, LoopTrigger } from '@agentmesh/shared';
+import type { Loop, LoopState, LoopStep, LoopTrigger } from '@agentfleet/shared';
 import { randomId } from '../../security/auth.js';
 import {
   createLoop,

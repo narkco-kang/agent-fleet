@@ -1,4 +1,4 @@
-import type { DeploymentBatch } from '@agentmesh/shared';
+import type { DeploymentBatch } from '@agentfleet/shared';
 import { Card } from '../common/Card';
 
 /**

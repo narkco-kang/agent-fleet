@@ -1,5 +1,5 @@
-import type { DashboardPatch, DashboardSnapshot, Envelope } from '@agentmesh/shared';
-import { MESSAGE_TYPES, WS_RECONNECT_BASE_MS, WS_RECONNECT_MAX_MS } from '@agentmesh/shared';
+import type { DashboardPatch, DashboardSnapshot, Envelope } from '@agentfleet/shared';
+import { MESSAGE_TYPES, WS_RECONNECT_BASE_MS, WS_RECONNECT_MAX_MS } from '@agentfleet/shared';
 
 /**
  * WS 客户端：连接、心跳、断线重连、snapshot/patch 事件分发到 zustand store。

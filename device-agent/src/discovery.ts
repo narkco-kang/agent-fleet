@@ -1,10 +1,10 @@
 import { Bonjour } from 'bonjour-service';
-import { MDNS_SERVICE_TYPE } from '@agentmesh/shared';
+import { MDNS_SERVICE_TYPE } from '@agentfleet/shared';
 import { config } from './config.js';
 import { loadRegistry } from './registry.js';
 
 /**
- * mDNS 广播：本机服务 _agentmesh._tcp + TXT(deviceId/name/port/version)。
+ * mDNS 广播：本机服务 _agentfleet._tcp + TXT(deviceId/name/port/version)。
  * 沙箱受限（mDNS 不可用）时降级为「配置指定协调服务地址直连」。
  */
 let bonjour: Bonjour | null = null;

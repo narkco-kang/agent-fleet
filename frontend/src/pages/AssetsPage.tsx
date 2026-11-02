@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import SendIcon from '@mui/icons-material/Send';
-import type { Asset, AssetKind } from '@agentmesh/shared';
+import type { Asset, AssetKind } from '@agentfleet/shared';
 import { assetsApi } from '../api/assets';
 import { Card } from '../components/common/Card';
 import { AssetEditorDialog } from '../components/assets/AssetEditorDialog';

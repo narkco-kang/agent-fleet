@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from './config.js';
-import type { ParsedCommand } from '@agentmesh/shared';
+import type { ParsedCommand } from '@agentfleet/shared';
 
 /**
  * 微信 ↔ 后端桥接：消息 → 任务下发（POST /api/tasks）；结果 → 回推微信消息。

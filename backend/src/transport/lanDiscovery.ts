@@ -1,11 +1,11 @@
 import { Bonjour, type Service } from 'bonjour-service';
 import WebSocket from 'ws';
-import { MDNS_SERVICE_TYPE, MESSAGE_TYPES } from '@agentmesh/shared';
+import { MDNS_SERVICE_TYPE, MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from '../services/deviceRegistry.js';
 import { handleEnvelopeFor, sendEnvelope } from './wsServer.js';
 
 /**
- * 局域网发现：bonjour 浏览 _agentmesh._tcp，发现设备后发起直连。
+ * 局域网发现：bonjour 浏览 _agentfleet._tcp，发现设备后发起直连。
  * 直连成功后，协调服务向设备本地 WS 发 device.pair（若未配对）→ 设备回 register。
  *
  * 出站直连与入站连接复用同一套 `handleEnvelopeFor` 消息处理逻辑，

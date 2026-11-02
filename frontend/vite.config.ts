@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@agentmesh/shared': path.resolve(__dirname, '../shared/src/index.ts'),
+      '@agentfleet/shared': path.resolve(__dirname, '../shared/src/index.ts'),
     },
   },
   server: {

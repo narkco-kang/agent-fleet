@@ -1,6 +1,6 @@
 # 00 · 逆向研究：Grok Bot 技术文档图谱
 
-> 目标：理解 Grok CLI（xAI 终端编码 Agent）的**多智能体协同架构**，提炼「跨设备统一调度」可复用的范式，作为 AgentMesh 系统的设计依据。
+> 目标：理解 Grok CLI（xAI 终端编码 Agent）的**多智能体协同架构**，提炼「跨设备统一调度」可复用的范式，作为 AgentFleet 系统的设计依据。
 > 方法：`rea-agents` 工具链（Ghidra / Hopper / jadx，已作为 grok 的 MCP server 配置）+ grok 公开命令面 / 文档 / 运行时行为探测。**不复制其闭源代码，只提炼架构范式。**
 
 ---
@@ -158,7 +158,7 @@ sequenceDiagram
 
 ### 4.2 局限（我们要超越的点）
 
-| 局限 | AgentMesh 的解法 |
+| 局限 | AgentFleet 的解法 |
 |---|---|
 | 只调度「grok 自己」一种 agent | 统一 **Adapter 适配器层**，调度 Codex / Claude Code / DSH / Grok 等异构平台 |
 | `leader.sock` 是**本机** Unix socket | 泛化为**局域网 mDNS 发现 + 云端中继兜底**的设备网格 |
@@ -175,4 +175,4 @@ sequenceDiagram
 
 ---
 
-*本文档为 AgentMesh 项目的设计输入，后续 PRD / 架构设计均以此为准。*
+*本文档为 AgentFleet 项目的设计输入，后续 PRD / 架构设计均以此为准。*

@@ -6,7 +6,7 @@ import { useTaskStore } from '../store/taskStore';
 import { useWsStore } from '../store/wsStore';
 import { mockDevices, mockAgents } from '../api/mockData';
 import { MockEngine } from '../api/mockEngine';
-import type { DashboardSnapshot, DashboardPatch } from '@agentmesh/shared';
+import type { DashboardSnapshot, DashboardPatch } from '@agentfleet/shared';
 
 /**
  * 实时数据集成：

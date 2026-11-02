@@ -1,7 +1,7 @@
-# 09 · 路由网关研究：ModelGateway 分析与 AgentMesh 融合
+# 09 · 路由网关研究：ModelGateway 分析与 AgentFleet 融合
 
-> 目标：全面分析本机自研智能体路由网关 `modelgateway`，提炼其可融合进 AgentMesh 的能力，并为 6 个新功能（Excel 部署 / 规则 / 资料库 / skills / 专家团队 / loop）给出设计思路。
-> 约束：不额外新造系统，融合进 AgentMesh 项目（结合进 `agent-mesh/`）。modelgateway 原目录只读参考。
+> 目标：全面分析本机自研智能体路由网关 `modelgateway`，提炼其可融合进 AgentFleet 的能力，并为 6 个新功能（Excel 部署 / 规则 / 资料库 / skills / 专家团队 / loop）给出设计思路。
+> 约束：不额外新造系统，融合进 AgentFleet 项目（结合进 `agent-fleet/`）。modelgateway 原目录只读参考。
 
 ---
 
@@ -59,14 +59,14 @@ CEO 主控，按「角色」路由到具体模型/组/bot，每个角色有 `pri
 
 ---
 
-## 2. 与 AgentMesh 的融合点
+## 2. 与 AgentFleet 的融合点
 
 ### 2.1 分层互补（核心洞察）
 
 两个系统在不同层级，融合是自然的分层叠加：
 
 ```
-AgentMesh（已有）          ModelGateway（融合）
+AgentFleet（已有）          ModelGateway（融合）
 ─────────────────────      ──────────────────────────
 设备网格层（mDNS 发现）     宿主层 host（DSH/Grok/hermes）
 Agent 平台层（Codex/Claude  agent 层（Bot/agent 定义）
@@ -75,18 +75,18 @@ Agent 平台层（Codex/Claude  agent 层（Bot/agent 定义）
 记忆账本层（区块链式）       模型层 provider→model
 ```
 
-**融合定位**：AgentMesh 调度「设备上的 agent 平台」，agent 平台背后经 ModelGateway 做「模型级路由 + 角色路由 + 故障转移 + 台账」。即 AgentMesh 管「谁在哪个设备执行」，ModelGateway 管「执行时用哪个模型/角色、坏了怎么切、花了多少」。
+**融合定位**：AgentFleet 调度「设备上的 agent 平台」，agent 平台背后经 ModelGateway 做「模型级路由 + 角色路由 + 故障转移 + 台账」。即 AgentFleet 管「谁在哪个设备执行」，ModelGateway 管「执行时用哪个模型/角色、坏了怎么切、花了多少」。
 
 ### 2.2 可复用的能力（直接借鉴）
 
-1. **健康状态机 + 两级探针 + failover**：AgentMesh 的 agent 平台探测/健康检查可借鉴（现在是静态探测，可升级为动态健康 + 故障转移）。
-2. **角色路由**：AgentMesh 的「专家团队」= 一组角色路由（复用 modelgateway 的 role→bot→model 模型）。
-3. **台账/额度**：AgentMesh 的任务执行可接入 token 台账（复用 ledger.jsonl 思路）。
-4. **统一协议**：AgentMesh 的 agent 适配器可借鉴「统一 OpenAI 协议 + anthropic 转换」的思路。
+1. **健康状态机 + 两级探针 + failover**：AgentFleet 的 agent 平台探测/健康检查可借鉴（现在是静态探测，可升级为动态健康 + 故障转移）。
+2. **角色路由**：AgentFleet 的「专家团队」= 一组角色路由（复用 modelgateway 的 role→bot→model 模型）。
+3. **台账/额度**：AgentFleet 的任务执行可接入 token 台账（复用 ledger.jsonl 思路）。
+4. **统一协议**：AgentFleet 的 agent 适配器可借鉴「统一 OpenAI 协议 + anthropic 转换」的思路。
 
 ### 2.3 融合方式（约束：不新造系统）
 
-不移植 modelgateway 代码，而是：**AgentMesh 新增「路由网关适配层」**，通过协议对接 modelgateway（modelgateway 作为可选后端，AgentMesh 的 agent 执行时可经其路由）。MVP 阶段：定义「角色路由表」数据结构（对齐 agent-role-routes.json），AgentMesh 的任务可指定角色（role）而非具体 agent，由路由层决策。
+不移植 modelgateway 代码，而是：**AgentFleet 新增「路由网关适配层」**，通过协议对接 modelgateway（modelgateway 作为可选后端，AgentFleet 的 agent 执行时可经其路由）。MVP 阶段：定义「角色路由表」数据结构（对齐 agent-role-routes.json），AgentFleet 的任务可指定角色（role）而非具体 agent，由路由层决策。
 
 ---
 
@@ -104,7 +104,7 @@ Agent 平台层（Codex/Claude  agent 层（Bot/agent 定义）
 设定或上传「规则 / 资料库 / skills」，批量或单设备下发。
 - 统一「资产（Asset）分发」模型：`Asset{ id, kind: rule|knowledge|skill, name, content/url, version }`
 - 分发：`asset.deploy { assetIds[], targets: [deviceId...] }` → 推送到目标设备守护 → 设备落盘到对应目录（rules/knowledge/skills）
-- 复用 AgentMesh 传输层（局域网 + 中继），设备守护新增「资产接收 + 落盘」能力。
+- 复用 AgentFleet 传输层（局域网 + 中继），设备守护新增「资产接收 + 落盘」能力。
 
 ### F5 · 专家团队分配（参考 WorkBuddy）
 
@@ -118,13 +118,13 @@ Agent 平台层（Codex/Claude  agent 层（Bot/agent 定义）
 创建单/批量设备或跨设备批量的 loop（循环任务编排）。
 - 数据模型：`Loop{ id, name, steps: [任务模板], schedule/trigger, targets, state }`
 - loop = 一组任务模板按顺序/条件循环执行，可绑定单设备或跨设备批量。
-- 复用 AgentMesh 任务调度状态机，新增「loop 编排器」：调度 loop 的各 step 到目标设备，跟踪每轮状态。
+- 复用 AgentFleet 任务调度状态机，新增「loop 编排器」：调度 loop 的各 step 到目标设备，跟踪每轮状态。
 
 ---
 
 ## 4. 关键设计决策建议
 
-1. **融合分层**：AgentMesh（设备+agent 平台+任务+记忆）+ 新增「路由网关适配层」（角色路由 + 故障转移 + 台账，对接 modelgateway 协议）+ 新增「资产管理层」（规则/资料库/skills）+ 新增「部署层」（SSH 批量部署）+ 新增「编排层」（专家团队 + loop）。
+1. **融合分层**：AgentFleet（设备+agent 平台+任务+记忆）+ 新增「路由网关适配层」（角色路由 + 故障转移 + 台账，对接 modelgateway 协议）+ 新增「资产管理层」（规则/资料库/skills）+ 新增「部署层」（SSH 批量部署）+ 新增「编排层」（专家团队 + loop）。
 2. **专家团队复用角色路由**：不新造团队概念，而是把 modelgateway 的 role→bot→model 泛化为 role→device+agent+model。
 3. **资产分发复用传输层**：规则/资料库/skills 都是「资产」，统一 Asset 模型 + 传输层下发。
 4. **安全红线**：Excel 部署、资产下发、loop 编排都涉及「对外动作」，需康人工开关控制（对齐康的项目铁律）。

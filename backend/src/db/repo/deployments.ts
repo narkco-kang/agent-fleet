@@ -8,7 +8,7 @@ import type {
   DeploymentTarget,
   DeployTargetStatus,
   PlatformModelConfig,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 
 /**
  * 部署批次（deployment_batches）+ 目标（deployment_targets）CRUD。

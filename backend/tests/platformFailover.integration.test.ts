@@ -23,7 +23,7 @@ let server: http.Server;
 let baseUrl = '';
 
 beforeAll(async () => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-failover-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-failover-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   initDatabase();
 

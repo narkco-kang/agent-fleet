@@ -1,7 +1,7 @@
 # 06 · 记忆架构融合 PRD — 跨设备分布式记忆账本
 
 > 版本 v0.1 · 产品经理：许清楚 · 状态：待架构评审
-> 输入：`05-记忆架构研究`（amg 分析 + 区块链融合）· amg README v0.38.7 · `01-PRD`（AgentMesh 宿主）
+> 输入：`05-记忆架构研究`（amg 分析 + 区块链融合）· amg README v0.38.7 · `01-PRD`（AgentFleet 宿主）
 
 ---
 
@@ -9,17 +9,17 @@
 
 | 项 | 值 |
 |---|---|
-| 项目名 | `agent_mesh_memory`（AgentMesh 记忆账本子模块） |
+| 项目名 | `agent_mesh_memory`（AgentFleet 记忆账本子模块） |
 | 语言 | 中文 |
-| 融合宿主 | AgentMesh（复用其传输层 + leader 协调架构） |
+| 融合宿主 | AgentFleet（复用其传输层 + leader 协调架构） |
 | 融合内核 | amg `agent-memory-graph` v0.38.7（Python，语义记忆图 + 证据门控） |
-| 原始需求复述 | 为 AgentMesh 建立一套「跨设备分布式记忆架构」：融合 amg 的追加式/证据门控语义图，借鉴区块链记账机制（分布式账本 + 哈希链 + 共识），让跨设备团队拥有防篡改、高可用、可追溯的团队事实连续性 |
+| 原始需求复述 | 为 AgentFleet 建立一套「跨设备分布式记忆架构」：融合 amg 的追加式/证据门控语义图，借鉴区块链记账机制（分布式账本 + 哈希链 + 共识），让跨设备团队拥有防篡改、高可用、可追溯的团队事实连续性 |
 
 ---
 
 ## 2. 产品定位与目标
 
-**定位**：AgentMesh 之上的「跨设备分布式记忆账本层」。amg 提供记忆**语义与内容**（决策/任务/产物/证据/有效期），区块链机制提供记忆**时序与分布**（哈希链 + Merkle + 副本 + 共识）。不做通用区块链，只做「可信局域网 + 少量设备」场景下的务实记忆账本。
+**定位**：AgentFleet 之上的「跨设备分布式记忆账本层」。amg 提供记忆**语义与内容**（决策/任务/产物/证据/有效期），区块链机制提供记忆**时序与分布**（哈希链 + Merkle + 副本 + 共识）。不做通用区块链，只做「可信局域网 + 少量设备」场景下的务实记忆账本。
 
 **产品目标（3 个，正交）**
 
@@ -57,7 +57,7 @@
 | P0-1 | 区块 + 哈希链数据模型 | `block = { index, prev_hash, timestamp, merkle_root, changes[], author, hash }`；`hash = sha256(prev_hash ‖ merkle_root ‖ timestamp ‖ author ‖ changes)`；amg 的 `rev`→`index`、`changes[]`→区块内交易 |
 | P0-2 | Merkle 树验证 | 每块 `merkle_root` = 块内 change 的 Merkle 根；可凭 merkle proof 验证「某条记忆在某块中」而无需下载整链 |
 | P0-3 | 单账本存储 | 单文件账本（沿用 amg 单文件 + 原子替换 + 建议锁思路），完整账本持久化 |
-| P0-4 | 跨设备同步（复用传输层） | 新区块经 AgentMesh 局域网 gossip + 中继广播同步到所有设备；不新造传输 |
+| P0-4 | 跨设备同步（复用传输层） | 新区块经 AgentFleet 局域网 gossip + 中继广播同步到所有设备；不新造传输 |
 | P0-5 | 篡改检测 | 收块先验 `prev_hash` 链 + `merkle_root` + 作者签名，通过才追加本地副本，否则拒收并告警 |
 | P0-6 | 与 amg 语义层融合接口 | 在 amg 外层包一层账本协议（amg 作记账内核），提供「语义变更 → 打包成区块」的接口；不改 amg 内部 |
 
@@ -87,7 +87,7 @@
 | M1 记忆语义层（融合 amg） | nodes/edges/evidence/validity/supersede/检索/审计/归档 | amg 内核，不改内部，作为记账「内容」源 |
 | M2 区块化时序层（新增） | 打包 change 成 block、prev_hash 链、merkle_root | `rev`→`index`，哈希环环相扣 |
 | M3 账本存储层 | 单文件账本读写、原子替换、建议锁、本地副本 | 沿用 amg 单文件可靠性思路 |
-| M4 同步层（复用） | 新区块 gossip + 中继广播、断线补同步、区块拉取 | 复用 AgentMesh 传输层，不新造 |
+| M4 同步层（复用） | 新区块 gossip + 中继广播、断线补同步、区块拉取 | 复用 AgentFleet 传输层，不新造 |
 | M5 验证层（新增） | 收块验证 prev_hash / merkle / 签名，拒收告警 | 篡改检测落点 |
 | M6 共识层（P1） | 记账权、最长链、确定性 tie-break、分叉解决 | 许可制 + 弱中心 leader |
 | M7 证据门控层（P1） | conclusion 无证据拒写、证据哈希重算 | amg `gate.py` 复用 |
@@ -103,7 +103,7 @@
 |---|---|---|---|
 | D1 | 共识机制选型 | **许可制账本（permissioned）+ 弱中心记账** | 节点经配对 token 认证天然可信，无需防女巫 |
 | D2 | 是否引入 PoW/PoS | **不引入** | PoW 浪费算力；PoS 无代币/权益概念 |
-| D3 | 记账权 | 协调后端（leader）为默认 block producer，可 round-robin 轮转 | 贴合 AgentMesh 已有 leader 架构 |
+| D3 | 记账权 | 协调后端（leader）为默认 block producer，可 round-robin 轮转 | 贴合 AgentFleet 已有 leader 架构 |
 | D4 | 一致性 | **最长链原则 + 同 index 分叉按 block.hash 字典序确定性选主链** | 无随机性，全网收敛到同一条链 |
 | D5 | 内容共识 | **amg 证据门控**作语义共识——内容合法才进账本 | 无证据不能写 conclusion |
 | D6 | 融合方式 | 不改 amg，**在其上包一层账本协议**；amg 可作为 MCP server 接入 | amg 已成熟、已自带 MCP server |
@@ -117,7 +117,7 @@
 |---|---|---|---|
 | Q1 | 记账权：固定 leader 还是轮转？ | 共识复杂度、单点风险 | 默认固定 leader（协调后端），轮转作 P1 备选 |
 | Q2 | 出块条件：N 条 change 还是 T 秒（或两者先到）？ | 区块粒度、同步频率、检索实时性 | 默认「先到即出块」（如 20 条 或 10s），需实测 |
-| Q3 | amg 作为 MCP server 接入，还是移植核心逻辑进 AgentMesh 设备守护进程？ | 进程形态、耦合度、依赖 | 默认 MCP server 接入（低耦合），移植作 P2 备选 |
+| Q3 | amg 作为 MCP server 接入，还是移植核心逻辑进 AgentFleet 设备守护进程？ | 进程形态、耦合度、依赖 | 默认 MCP server 接入（低耦合），移植作 P2 备选 |
 | Q4 | 账本副本的落盘位置与格式？ | 兼容 amg `graph.json` 还是新账本格式 | 默认新增 `ledger.json`，语义图仍由 amg 维护，账本只存「区块 + change 摘要」 |
 | Q5 | 签名方案：设备 token 签名用对称还是非对称（Ed25519）？ | 安全强度、实现复杂度 | 默认 Ed25519（可验来源），需架构师确认 |
 | Q6 | 冲突/分叉时的用户提示与自动修复策略？ | 体验、数据安全 | 默认自动选主链 + 告警，不自动覆盖丢失分支，需人工确认 |

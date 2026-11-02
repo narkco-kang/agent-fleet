@@ -37,7 +37,7 @@ import {
   runDeploy,
 } from '../src/services/deploy/deployService.js';
 import type { SchedulerSubmitInput } from '../src/services/scheduler.js';
-import type { LoopStep, TaskStatus } from '@agentmesh/shared';
+import type { LoopStep, TaskStatus } from '@agentfleet/shared';
 
 /**
  * QA P0 集成测试 —— 路由网关融合 + 六大新功能 + 安全红线。
@@ -71,7 +71,7 @@ function registerAgent(deviceId: string, agentType: 'grok' | 'codex'): void {
 }
 
 beforeAll(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-qa-p0-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-qa-p0-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   initDatabase();
 });

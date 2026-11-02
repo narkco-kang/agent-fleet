@@ -14,8 +14,8 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@agentmesh/shared": ["../shared/src/index.ts"],
-      "@agentmesh/shared/*": ["../shared/src/*"]
+      "@agentfleet/shared": ["../shared/src/index.ts"],
+      "@agentfleet/shared/*": ["../shared/src/*"]
     },
     "types": ["node"]
   },

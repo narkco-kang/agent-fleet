@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import type { AgentType } from '@agentmesh/shared';
-import { MESSAGE_TYPES } from '@agentmesh/shared';
+import type { AgentType } from '@agentfleet/shared';
+import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from '../services/deviceRegistry.js';
 import { sendToDevice } from '../transport/wsServer.js';
 import {

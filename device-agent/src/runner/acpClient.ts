@@ -55,7 +55,9 @@ const AUTH_TIMEOUT_MS = 15_000;
 const IDLE_DONE_MS = 8_000;
 
 export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
-  const child = spawn(opts.cmd, ['agent', 'stdio'], {
+  // --always-approve：跳过工具权限确认（grok 默认对 write/edit 等工具发 session/request_permission
+  // 等客户端 approve，headless 下会卡住；--always-approve 让其自动批准，工具直接执行）
+  const child = spawn(opts.cmd, ['agent', '--always-approve', 'stdio'], {
     cwd: opts.cwd ?? process.cwd(),
     env: { ...process.env, ...(opts.env ?? {}) },
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -126,10 +128,10 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
     const update = (params?.update ?? {}) as {
       sessionUpdate?: string;
       content?: { type?: string; text?: string };
-      toolName?: string;
+      title?: string;
+      rawInput?: unknown;
       toolInput?: unknown;
       input?: unknown;
-      title?: string;
       message?: string;
     };
     const kind = update.sessionUpdate;
@@ -158,13 +160,15 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
       case 'tool_call':
         opts.onEvent({
           type: 'tool',
-          toolName: update.toolName ?? update.content?.type,
-          toolInput: update.toolInput ?? update.input ?? update.content,
+          // grok 的工具名在 title（如 "search_replace"），输入在 rawInput
+          toolName: update.title ?? 'tool',
+          toolInput: update.rawInput ?? update.toolInput ?? update.input ?? update.content,
         });
         touchIdle();
         return;
       case 'tool_call_update': {
-        const msg = update.message ?? (update.content?.text ?? `工具执行中：${update.toolName ?? ''}`).trim();
+        // grok 的工具进度描述在 title（如 "Edit `/path/hello.py`"）
+        const msg = update.title ?? update.message ?? '';
         if (msg) {
           opts.onEvent({ type: 'status', message: msg });
           touchIdle();
@@ -230,8 +234,6 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
       const snew = await request('session/new', {
         cwd: opts.cwd ?? process.cwd(),
         mcpServers: [],
-        // AgentMesh 任务来自看板，工具执行全自动批准，避免权限确认卡住
-        permissionMode: 'bypassPermissions',
       });
       if (snew.error) {
         end('error', `grok 创建会话失败: ${snew.error.message}`);

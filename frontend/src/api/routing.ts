@@ -5,7 +5,7 @@ import type {
   PlatformModelBinding,
   RoleRoute,
   RoleRoutingDecision,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 import { del, get, post, type ApiOk } from './http';
 
 /**

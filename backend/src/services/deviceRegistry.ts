@@ -1,5 +1,5 @@
 import type WebSocket from 'ws';
-import type { DeviceLoad } from '@agentmesh/shared';
+import type { DeviceLoad } from '@agentfleet/shared';
 import { config } from '../config.js';
 import { setDeviceStatus, setDeviceRelay } from '../db/repo/devices.js';
 

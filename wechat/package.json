@@ -1,5 +1,5 @@
 {
-  "name": "@agentmesh/wechat",
+  "name": "@agentfleet/wechat",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@agentmesh/shared": "0.1.0",
+    "@agentfleet/shared": "0.1.0",
     "@wecom/crypto": "^1.0.1",
     "axios": "^1.7.7",
     "dotenv": "^16.4.5",

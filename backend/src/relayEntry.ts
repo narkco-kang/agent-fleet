@@ -8,7 +8,7 @@ import { createRelayServer } from './transport/relayServer.js';
 const { wss, close } = createRelayServer();
 
 wss.on('listening', () => {
-  console.log(`[relay] AgentMesh 中继服务已启动 ws://0.0.0.0:${wss.options.port}`);
+  console.log(`[relay] AgentFleet 中继服务已启动 ws://0.0.0.0:${wss.options.port}`);
 });
 
 wss.on('error', (err: Error) => {

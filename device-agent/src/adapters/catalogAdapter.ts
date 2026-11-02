@@ -1,4 +1,4 @@
-import type { TaskSubmit } from '@agentmesh/shared';
+import type { TaskSubmit } from '@agentfleet/shared';
 import type { Adapter, AdapterDetection, AdapterEventSink, AdapterRunHandle } from './adapter.js';
 import { detectPlatform } from './detector.js';
 import type { PlatformDef } from './platformCatalog.js';

@@ -10,7 +10,7 @@ import { getTask } from '../src/db/repo/tasks.js';
 import { getDevice, setDeviceTeams, upsertDevice } from '../src/db/repo/devices.js';
 import * as teamService from '../src/services/teams/teamService.js';
 import { enqueueTask, pickTarget } from '../src/services/scheduler.js';
-import type { Team } from '@agentmesh/shared';
+import type { Team } from '@agentfleet/shared';
 
 /**
  * 多设备团队模式：A 设备=软件开发团队，B 设备=内容专家团队。
@@ -45,7 +45,7 @@ function registerDevice(deviceId: string, agentType: 'codex' | 'claude'): void {
 }
 
 beforeAll(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-teams-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-teams-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   initDatabase();
 });

@@ -29,7 +29,7 @@ export interface DeploymentTarget {
   user: string;
   /** SSH 端口（默认 22） */
   port?: number;
-  /** 若目标机是已注册 AgentMesh 设备，部署成功后据此绑定模型 */
+  /** 若目标机是已注册 AgentFleet 设备，部署成功后据此绑定模型 */
   deviceId?: string;
   /** SSH 探测后填充 */
   os: DeployOS;

@@ -1,4 +1,4 @@
--- AgentMesh SQLite 建表 DDL
+-- AgentFleet SQLite 建表 DDL
 -- 基础 5 张表（devices/agents/tasks/messages/sessions）+ 路由网关融合新增 11 张表
 -- （role_routes/assets/asset_deliveries/teams/loops/deployment_batches/
 --   deployment_targets/action_confirmations/usage_records/platform_models/free_checkins）。
@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS deployment_targets (   -- 无密码列（安全红线
   ip         TEXT NOT NULL,
   user       TEXT NOT NULL,
   port       INTEGER NOT NULL DEFAULT 22,
-  device_id  TEXT,                              -- 可选：已注册 AgentMesh 设备 id
+  device_id  TEXT,                              -- 可选：已注册 AgentFleet 设备 id
   os         TEXT NOT NULL DEFAULT 'unknown',
   platforms  TEXT NOT NULL DEFAULT '[]',
   model_configs TEXT NOT NULL DEFAULT '[]',     -- JSON: PlatformModelConfig[]

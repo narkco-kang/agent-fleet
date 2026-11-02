@@ -13,8 +13,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@agentmesh/shared': path.resolve(__dirname, '../shared/src/index.ts'),
-      '@agentmesh/memory': path.resolve(__dirname, '../memory/src/index.ts'),
+      '@agentfleet/shared': path.resolve(__dirname, '../shared/src/index.ts'),
+      '@agentfleet/memory': path.resolve(__dirname, '../memory/src/index.ts'),
     },
   },
 });

@@ -1,4 +1,4 @@
-import type { RoleRoute } from '@agentmesh/shared';
+import type { RoleRoute } from '@agentfleet/shared';
 import { roleRouteStore } from './roleRouteStore.js';
 import { modelGatewayClient, type ModelProbeResult } from './modelGatewayClient.js';
 import {
@@ -8,7 +8,7 @@ import {
   RATING_LABEL,
   type DirectProbeResult,
   type FreeSourceRating,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 
 /** 免费源判定：role 名称或模型 ref 含 free/kilo-auto/free 等免费层特征 */
 export function isFreeSourceRef(ref: string): boolean {

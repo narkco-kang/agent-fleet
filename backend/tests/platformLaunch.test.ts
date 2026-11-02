@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { launchCommandFor } from '@agentmesh/shared';
+import { launchCommandFor } from '@agentfleet/shared';
 
 describe('platformLaunch 打开平台应用命令（OS 自适应）', () => {
   it('macOS GUI 应用用 open -a', () => {

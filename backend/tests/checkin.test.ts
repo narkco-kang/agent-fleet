@@ -15,7 +15,7 @@ let server: http.Server;
 let baseUrl = '';
 
 beforeAll(async () => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-checkin-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-checkin-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   initDatabase();
 

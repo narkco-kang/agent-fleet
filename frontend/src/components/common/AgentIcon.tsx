@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { AgentType } from '@agentmesh/shared';
+import type { AgentType } from '@agentfleet/shared';
 
 /**
  * 平台图标元信息（首字母/简称 + 品牌色）。

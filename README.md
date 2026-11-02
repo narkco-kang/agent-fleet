@@ -1,8 +1,8 @@
-# AgentMesh · Cross-Device AI Orchestration — Every device is a hive. AgentMesh is the swarm.
+# AgentFleet · Cross-Device AI Orchestration — Every device is a hive. AgentFleet is the swarm.
 
-[![AgentMesh — Every device is a hive. AgentMesh is the swarm.](docs/images/banner.png)](docs/images/banner.png)
+[![AgentFleet — Every device is a hive. AgentFleet is the swarm.](docs/images/banner.png)](docs/images/banner.png)
 
-AgentMesh is a **self-hosted cross-device AI orchestration layer**. It doesn't build new agents — it coordinates the AI agents **you've already installed** (Claude Code, Codex, Cursor, Aider, Gemini, Qwen, Grok and 10+ more) into one swarm, so you can run multiple coding agents across machines, watch them work on a live neural graph, and keep tamper-evident shared memory. Unlike multi-agent frameworks that rebuild agents from scratch, AgentMesh sits **above** what you already run.
+AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't build new agents — it coordinates the AI agents **you've already installed** (Claude Code, Codex, Cursor, Aider, Gemini, Qwen, Grok and 10+ more) into one swarm, so you can run multiple coding agents across machines, watch them work on a live neural graph, and keep tamper-evident shared memory. Unlike multi-agent frameworks that rebuild agents from scratch, AgentFleet sits **above** what you already run.
 
 > ⚡ **30-second start**
 > ```bash
@@ -37,11 +37,11 @@ AgentMesh is a **self-hosted cross-device AI orchestration layer**. It doesn't b
 
 ## 🧩 Supported agent platforms and responsibility boundaries
 
-AgentMesh can **deploy / uninstall / discover / route multiple agent platforms**, but local CLI execution and modelgateway execution are two different paths:
+AgentFleet can **deploy / uninstall / discover / route multiple agent platforms**, but local CLI execution and modelgateway execution are two different paths:
 
 - **Install / uninstall**: 13 platforms are mapped to OS-aware npm / pipx / brew / winget / manual-verify scripts, with post-install or post-uninstall verification.
 - **Discover / report**: the per-device daemon detects installed platforms and reports them as workers inside that device swarm.
-- **Deploy-then-use**: a deployment target can carry `deviceId + platform models`; after a successful deployment AgentMesh binds the device+agent platform to built-in modelgateway models and runs tasks through the gateway first.
+- **Deploy-then-use**: a deployment target can carry `deviceId + platform models`; after a successful deployment AgentFleet binds the device+agent platform to built-in modelgateway models and runs tasks through the gateway first.
 - **Local CLI direct execution**: `grok` is the currently stable direct adapter; the other platforms have discovery and dispatch scaffolding, but their headless flags, login state and output formats must be verified per platform before they are marked stable.
 
 | Platform | Install / uninstall | Discover | Gateway model execution | Local CLI direct execution |
@@ -84,7 +84,7 @@ See the full matrix in [`docs/17-Agent平台安装卸载与调用矩阵.md`](doc
 Monorepo workspaces:
 
 ```
-agent-mesh/
+agent-fleet/
 ├── shared/         # protocol (single source of truth)
 ├── backend/        # coordinator + relay + memory ledger + routing + deploy
 ├── frontend/       # adaptive dashboard (dynamic neural graph)

@@ -1,5 +1,5 @@
-import type { AssetDeliver, AssetDeliverAck, AssetDelivery } from '@agentmesh/shared';
-import { MESSAGE_TYPES } from '@agentmesh/shared';
+import type { AssetDeliver, AssetDeliverAck, AssetDelivery } from '@agentfleet/shared';
+import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { randomId } from '../../security/auth.js';
 import { getAsset } from '../../db/repo/assets.js';
 import {

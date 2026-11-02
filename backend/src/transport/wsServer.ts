@@ -1,6 +1,6 @@
 import type WebSocket from 'ws';
-import type { DashboardPatch, DashboardSnapshot, Envelope, TaskEvent, TaskResult } from '@agentmesh/shared';
-import { MESSAGE_TYPES } from '@agentmesh/shared';
+import type { DashboardPatch, DashboardSnapshot, Envelope, TaskEvent, TaskResult } from '@agentfleet/shared';
+import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry, type ConnectionKind } from '../services/deviceRegistry.js';
 import { upsertDevice, touchHeartbeat } from '../db/repo/devices.js';
 import { upsertAgents, setAgentActivated } from '../db/repo/agents.js';

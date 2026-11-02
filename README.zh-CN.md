@@ -1,8 +1,8 @@
-# AgentMesh · 跨设备智能体协同 —— 把每台设备，变成一支 AI 蜂群
+# AgentFleet · 跨设备智能体协同 —— 把每台设备，变成一支 AI 蜂群
 
-[![AgentMesh —— 把每台设备，变成一支 AI 蜂群](docs/images/banner.png)](docs/images/banner.png)
+[![AgentFleet —— 把每台设备，变成一支 AI 蜂群](docs/images/banner.png)](docs/images/banner.png)
 
-AgentMesh 是一个**可自托管的跨设备智能体协同层**。它不造新 agent，而是把你每台设备上**已安装**的 AI agent（Codex / Claude Code / Cursor / Aider / Gemini / Qwen / Grok 等 13+ 平台）统一调度，让你能在一台电脑上同时运行多个 AI 编程助手、跨设备像指挥一支蜂群一样协同，用动态神经图实时看见它们工作，并拥有防篡改的共享记忆。不同于那些从零再造 agent 的多智能体框架，AgentMesh 架设在你已有的 agent 之上。
+AgentFleet 是一个**可自托管的跨设备智能体协同层**。它不造新 agent，而是把你每台设备上**已安装**的 AI agent（Codex / Claude Code / Cursor / Aider / Gemini / Qwen / Grok 等 13+ 平台）统一调度，让你能在一台电脑上同时运行多个 AI 编程助手、跨设备像指挥一支蜂群一样协同，用动态神经图实时看见它们工作，并拥有防篡改的共享记忆。不同于那些从零再造 agent 的多智能体框架，AgentFleet 架设在你已有的 agent 之上。
 
 > ⚡ **30 秒上手**
 > ```bash
@@ -37,7 +37,7 @@ AgentMesh 是一个**可自托管的跨设备智能体协同层**。它不造新
 
 ## 🧩 支持的 agent 平台与能力边界
 
-AgentMesh 可以**一键部署 / 卸载 / 发现 / 路由多个 agent 平台**，但「本地 CLI 真接调用」与「经 modelgateway 执行模型」是两条不同路径：
+AgentFleet 可以**一键部署 / 卸载 / 发现 / 路由多个 agent 平台**，但「本地 CLI 真接调用」与「经 modelgateway 执行模型」是两条不同路径：
 
 - **安装 / 卸载**：13 个平台按 OS 自动生成 npm / pipx / brew / winget / manual verify 脚本，并做安装后或卸载后验证。
 - **发现 / 上报**：设备守护自动探测已安装平台，作为每台设备蜂群里的工蜂上报。
@@ -82,7 +82,7 @@ AgentMesh 可以**一键部署 / 卸载 / 发现 / 路由多个 agent 平台**�
 Monorepo 工作区：
 
 ```
-agent-mesh/
+agent-fleet/
 ├── shared/         # 协议（单一事实源）
 ├── backend/        # 协调器 + 中继 + 记忆账本 + 路由 + 部署
 ├── frontend/       # 自适应看板（动态神经图）

@@ -1,5 +1,5 @@
 /**
- * AgentMesh 后端核心链路端到端集成测试（QA 严过关）
+ * AgentFleet 后端核心链路端到端集成测试（QA 严过关）
  *
  * 前置：后端已启动（Node v24 + AGENTMESH_SKIP_AUTH=1 + 独立 DB）。
  * 运行：node tests/backend-e2e.test.mjs
@@ -116,7 +116,7 @@ async function main() {
   }, 45_000);
   safety.unref();
 
-  console.log('== AgentMesh 后端 E2E 测试 ==\n');
+  console.log('== AgentFleet 后端 E2E 测试 ==\n');
 
   // ── T1.1 健康检查 ──────────────────────────────────────────────
   {

@@ -3,7 +3,7 @@ import type {
   AssetContentType,
   AssetDelivery,
   AssetKind,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 import { del, get, post, put, uploadForm, type ApiOk } from './http';
 
 /**

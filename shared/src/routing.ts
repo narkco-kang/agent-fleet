@@ -5,7 +5,7 @@ import type { AgentType, RoleCapability } from './status.js';
  * 并泛化为「角色 → 设备 + agent + 模型」）。
  *
  * - `primary` / `fallback`：对齐 modelgateway 的 provider/group/model ref
- * - `deviceId` / `agentType` / `model`：AgentMesh 侧泛化字段
+ * - `deviceId` / `agentType` / `model`：AgentFleet 侧泛化字段
  */
 
 /** 角色路由条目 */

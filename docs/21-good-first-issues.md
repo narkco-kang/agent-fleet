@@ -12,7 +12,7 @@
 **正文**：
 ```
 ## Background
-AgentMesh schedules 13+ agent platforms through a unified Adapter interface. Only Grok has a stable direct adapter today (`grokAdapter.ts`). Claude Code is currently a `CatalogAdapter` scaffold — `detect()` works, but `run()` is a placeholder that returns `failed`.
+AgentFleet schedules 13+ agent platforms through a unified Adapter interface. Only Grok has a stable direct adapter today (`grokAdapter.ts`). Claude Code is currently a `CatalogAdapter` scaffold — `detect()` works, but `run()` is a placeholder that returns `failed`.
 
 ## Task
 Implement a real `run()` for Claude Code by copying the Grok adapter as a template.

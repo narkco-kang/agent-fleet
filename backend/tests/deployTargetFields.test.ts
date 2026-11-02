@@ -10,7 +10,7 @@ import { createDeployBatch, getBatchView } from '../src/services/deploy/deploySe
 let tmpDir: string;
 
 beforeAll(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-deploytarget-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-deploytarget-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   config.deployEnabled = true;
   config.actionGuardEnabled = true;

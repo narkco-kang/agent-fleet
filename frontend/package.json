@@ -1,5 +1,5 @@
 {
-  "name": "@agentmesh/frontend",
+  "name": "@agentfleet/frontend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@agentmesh/shared": "0.1.0",
+    "@agentfleet/shared": "0.1.0",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@mui/icons-material": "^6.1.7",

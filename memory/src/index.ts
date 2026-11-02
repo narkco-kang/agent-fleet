@@ -1,5 +1,5 @@
 /**
- * AgentMesh Memory —— 公共入口：聚合导出所有模块。
+ * AgentFleet Memory —— 公共入口：聚合导出所有模块。
  */
 // 类型与错误码
 export * from './types';

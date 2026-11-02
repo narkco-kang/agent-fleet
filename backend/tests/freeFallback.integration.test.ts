@@ -13,7 +13,7 @@ import { enqueueTask, setSchedulerHooks, type GatewayTaskResult } from '../src/s
 
 /**
  * 免费源兜底链路：
- * modelgateway 免费线路返回 ALL_FAILED(502) → AgentMesh 直连 Kilo 免费源执行成功。
+ * modelgateway 免费线路返回 ALL_FAILED(502) → AgentFleet 直连 Kilo 免费源执行成功。
  */
 
 let tmpDir: string;
@@ -23,7 +23,7 @@ let gwUrl = '';
 let kiloUrl = '';
 
 beforeAll(async () => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-free-fallback-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-free-fallback-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   initDatabase();
 

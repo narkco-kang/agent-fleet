@@ -33,7 +33,7 @@ export default function SettingsPage(): JSX.Element {
 
       <div className="grid max-w-3xl grid-cols-1 gap-4">
         <Section title="通信">
-          <Row label="局域网发现" value="mDNS (_agentmesh._tcp)" />
+          <Row label="局域网发现" value="mDNS (_agentfleet._tcp)" />
           <Row label="协调服务" value="ws://127.0.0.1:4173" />
           <Row label="中继服务" value={status?.relayConnected ? '已连接' : '未连接（可配置 RELAY_URL）'} />
           <Row label="在线设备" value={status ? String(status.devicesOnline ?? 0) : '—'} />
@@ -67,7 +67,7 @@ export default function SettingsPage(): JSX.Element {
         </Section>
 
         <Section title="关于">
-          <Row label="版本" value="AgentMesh v0.1.0" />
+          <Row label="版本" value="AgentFleet v0.1.0" />
           <Row label="架构" value="局域网优先 + 云端中继兜底" />
         </Section>
       </div>

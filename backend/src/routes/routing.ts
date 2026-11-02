@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { RoleRoute } from '@agentmesh/shared';
+import type { RoleRoute } from '@agentfleet/shared';
 import { roleRouteStore } from '../services/routing/roleRouteStore.js';
 import { roleRouter } from '../services/routing/roleRouter.js';
 import { modelGatewayClient } from '../services/routing/modelGatewayClient.js';
@@ -13,7 +13,7 @@ import {
   DIRECT_FREE_SOURCES,
   listDirectModels,
   probeDirectSource,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 import { checkin, status as checkinStatus } from '../services/routing/checkinService.js';
 
 /**

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { TaskStatus, DeviceStatus, AgentStatus } from '@agentmesh/shared';
+import type { TaskStatus, DeviceStatus, AgentStatus } from '@agentfleet/shared';
 
 /**
  * 状态徽标（04 §3.2）：语义色映射统一（03 §6.5）。

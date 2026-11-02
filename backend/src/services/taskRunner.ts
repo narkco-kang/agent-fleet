@@ -1,5 +1,5 @@
-import type { AgentType, TaskEvent, TaskEventType, TaskResult, TaskStatus } from '@agentmesh/shared';
-import { MESSAGE_TYPES } from '@agentmesh/shared';
+import type { AgentType, TaskEvent, TaskEventType, TaskResult, TaskStatus } from '@agentfleet/shared';
+import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
 import { getTask, listTasks, setTaskResult, updateTaskStatus } from '../db/repo/tasks.js';
 import { appendMessage } from '../db/repo/messages.js';

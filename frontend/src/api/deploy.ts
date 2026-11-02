@@ -1,4 +1,4 @@
-import type { DeploymentBatch, DeploymentKind, DeploymentTarget } from '@agentmesh/shared';
+import type { DeploymentBatch, DeploymentKind, DeploymentTarget } from '@agentfleet/shared';
 import { get, post, uploadForm, type ApiOk } from './http';
 
 /**

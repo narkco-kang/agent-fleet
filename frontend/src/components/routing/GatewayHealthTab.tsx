@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { PlatformModelBinding } from '@agentmesh/shared';
+import type { PlatformModelBinding } from '@agentfleet/shared';
 import { routingApi } from '../../api/routing';
 import { Card } from '../common/Card';
 

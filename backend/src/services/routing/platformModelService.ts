@@ -1,4 +1,4 @@
-import type { AgentType, PlatformModelBinding, PlatformModelConfig } from '@agentmesh/shared';
+import type { AgentType, PlatformModelBinding, PlatformModelConfig } from '@agentfleet/shared';
 import {
   deleteBinding,
   getBinding,

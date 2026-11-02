@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Team } from '@agentmesh/shared';
+import type { Team } from '@agentfleet/shared';
 import { useDeviceStore, type DeviceRecord } from '../../store/deviceStore';
 import { DeviceCard } from './DeviceCard';
 

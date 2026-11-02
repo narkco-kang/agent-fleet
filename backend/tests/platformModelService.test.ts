@@ -9,7 +9,7 @@ import * as svc from '../src/services/routing/platformModelService.js';
 let tmpDir: string;
 
 beforeAll(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-platformmodel-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-platformmodel-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   initDatabase();
 });

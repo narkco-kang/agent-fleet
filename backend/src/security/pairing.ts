@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { PAIR_CODE_LENGTH, PAIR_CODE_TTL_MS } from '@agentmesh/shared';
+import { PAIR_CODE_LENGTH, PAIR_CODE_TTL_MS } from '@agentfleet/shared';
 
 /**
  * 设备配对码：首次连接时短 TTL 6 位数字码。

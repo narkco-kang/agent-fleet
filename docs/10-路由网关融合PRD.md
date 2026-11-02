@@ -9,16 +9,16 @@
 
 | 项 | 值 |
 |---|---|
-| 项目名 | `agent_mesh`（融合进现有 AgentMesh，不新造系统） |
+| 项目名 | `agent_mesh`（融合进现有 AgentFleet，不新造系统） |
 | 语言 | 中文 |
 | 技术栈 | Vite + React + MUI + Tailwind CSS（沿用）+ 设备守护进程 + modelgateway 协议对接 |
-| 原始需求复述 | 在现有 AgentMesh「设备+agent 平台+任务+记忆」基础上，融合本机自研路由网关 `modelgateway`，并新增六大功能：Excel 批量部署、共享规则、共享资料库、共享 skills、专家团队、Loop 编排 |
+| 原始需求复述 | 在现有 AgentFleet「设备+agent 平台+任务+记忆」基础上，融合本机自研路由网关 `modelgateway`，并新增六大功能：Excel 批量部署、共享规则、共享资料库、共享 skills、专家团队、Loop 编排 |
 
 ---
 
 ## 2. 产品定位与目标
 
-**定位**：AgentMesh 从「跨设备智能体调度层」升级为「跨设备超级智能体团队的**完整管理平台**」，新增四层能力——**路由网关适配 + 资产分发 + 批量部署 + 编排**。
+**定位**：AgentFleet 从「跨设备智能体调度层」升级为「跨设备超级智能体团队的**完整管理平台**」，新增四层能力——**路由网关适配 + 资产分发 + 批量部署 + 编排**。
 
 | 层 | 能力 | 说明 |
 |---|---|---|
@@ -65,12 +65,12 @@
 
 | ID | 优先级 | 需求 | 说明 / 验收 |
 |---|---|---|---|
-| RG-1 | P0 | 角色路由表数据结构 | 对齐 modelgateway `agent-role-routes.json`：role → primary/fallback/bots；AgentMesh 任务可指定 role 而非具体 agent |
+| RG-1 | P0 | 角色路由表数据结构 | 对齐 modelgateway `agent-role-routes.json`：role → primary/fallback/bots；AgentFleet 任务可指定 role 而非具体 agent |
 | RG-2 | P0 | 角色路由决策 | 任务指定 role 时，路由层按 role 表决策到「设备+agent+模型」 |
 | RG-3 | P0 | modelgateway 协议对接 | 经 `/v1/chat/completions`（OpenAI 协议）对接 modelgateway 作为可选后端 |
 | RG-4 | P1 | 故障转移 | 接入 Health 状态机：401/403 禁用、429/5xx 退避 + failover 到 fallback |
 | RG-5 | P1 | 台账额度接入 | 复用 ledger.jsonl 思路，任务执行记 token 台账，展示 `/api/usage` |
-| RG-6 | P2 | 健康两级探针 | 借鉴 L1 `/models` + L2 最小 chat 探针，升级 AgentMesh 现有静态探测为动态健康 |
+| RG-6 | P2 | 健康两级探针 | 借鉴 L1 `/models` + L2 最小 chat 探针，升级 AgentFleet 现有静态探测为动态健康 |
 
 ### 4.2 F1 · Excel 批量部署
 
@@ -113,7 +113,7 @@
 |---|---|---|---|
 | LP-1 | P0 | Loop 数据模型 | `Loop{ id, name, steps: [任务模板], schedule/trigger, targets, state }` |
 | LP-2 | P0 | Loop 创建 | 单设备 / 批量设备 / 跨设备批量 loop |
-| LP-3 | P0 | Loop 调度 | 复用 AgentMesh 任务状态机，新增 loop 编排器按序/条件循环执行 steps |
+| LP-3 | P0 | Loop 调度 | 复用 AgentFleet 任务状态机，新增 loop 编排器按序/条件循环执行 steps |
 | LP-4 | P0 | 每轮状态追踪 | 每轮/每步在各设备状态可查看 |
 | LP-5 | P0 | 人工确认开关 | loop 触发对外动作需人工确认 |
 | LP-6 | P1 | 暂停/取消/重跑 | loop 运行中可暂停、取消、从某步重跑 |
@@ -134,7 +134,7 @@
 **分层关系**
 
 ```
-AgentMesh（既有）         新增
+AgentFleet（既有）         新增
 ─────────────────────     ──────────────────────────
 设备网格层 / Agent 平台层   批量部署层（SSH+Excel）
 任务调度状态机   ←融合→    路由网关适配层（角色路由/故障转移/台账）
@@ -148,7 +148,7 @@ AgentMesh（既有）         新增
 
 | # | 决策 | 结论 |
 |---|---|---|
-| D1 | 融合方式 | 不移植 modelgateway 代码；AgentMesh 新增「路由网关适配层」，modelgateway 作为可选后端协议对接。**AgentMesh 管「谁在哪个设备执行」，modelgateway 管「用哪个模型/角色、坏了怎么切、花了多少」** |
+| D1 | 融合方式 | 不移植 modelgateway 代码；AgentFleet 新增「路由网关适配层」，modelgateway 作为可选后端协议对接。**AgentFleet 管「谁在哪个设备执行」，modelgateway 管「用哪个模型/角色、坏了怎么切、花了多少」** |
 | D2 | 专家团队 | 专家团队 = 角色路由的泛化（role→device+agent+model），不新造团队概念，复用 modelgateway 的 role 模型 |
 | D3 | 资产 | 规则/资料库/skills 统一为 Asset 模型（kind 区分），复用传输层下发 |
 | D4 | 安全红线 | Excel 部署、资产下发、loop 编排均属「对外动作」，一律需人工确认开关（对齐项目铁律） |
@@ -164,7 +164,7 @@ AgentMesh（既有）         新增
 | Q2 | SSH 用密码还是密钥认证？ | 部署连通性、安全 | MVP 密码（对齐 Excel 输入），P1 支持密钥 |
 | Q3 | 专家团队是否复用 modelgateway 的 role 概念（research/execution/reasoning/review…）？ | 数据模型一致性 | 复用 role 概念 + 可自定义扩展角色 |
 | Q4 | Loop 的触发方式：手动 / 定时 / 事件？ | 编排复杂度 | MVP 手动触发，P2 定时+事件 |
-| Q5 | modelgateway 是否必须在线才可用角色路由？还是 AgentMesh 本地兜底角色表？ | 架构可靠性 | AgentMesh 本地存角色路由表副本，modelgateway 在线时增强故障转移/台账 |
+| Q5 | modelgateway 是否必须在线才可用角色路由？还是 AgentFleet 本地兜底角色表？ | 架构可靠性 | AgentFleet 本地存角色路由表副本，modelgateway 在线时增强故障转移/台账 |
 | Q6 | 资产下发目标设备离线时如何补偿？ | 一致性 | 离线排队，上线后补发（对齐断线降级策略） |
 | Q7 | Excel 部署支持哪些 OS 范围（Mac/Windows/Linux）？ | 安装脚本适配工作量 | MVP 先 Mac + Windows |
 | Q8 | 专家团队是否支持「一台设备多个团队 / 一个团队跨设备」并存？ | 模型复杂度 | 支持，Team.members 的 deviceId 可空（表示路由时再定） |

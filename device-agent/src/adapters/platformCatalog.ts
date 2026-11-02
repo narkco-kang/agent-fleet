@@ -1,4 +1,4 @@
-import type { AgentType } from '@agentmesh/shared';
+import type { AgentType } from '@agentfleet/shared';
 import type { PlatformProbe } from './detector.js';
 
 /**

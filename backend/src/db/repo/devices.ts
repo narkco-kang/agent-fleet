@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { AgentType, DeviceSnapshot, DeviceStatus } from '@agentmesh/shared';
+import type { AgentType, DeviceSnapshot, DeviceStatus } from '@agentfleet/shared';
 
 /** devices 表行结构 */
 export interface DeviceRow {

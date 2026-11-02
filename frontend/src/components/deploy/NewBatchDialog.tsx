@@ -7,7 +7,7 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
-import type { DeploymentKind } from '@agentmesh/shared';
+import type { DeploymentKind } from '@agentfleet/shared';
 import { deployApi, type PlatformCatalogItem, type ProbeResult } from '../../api/deploy';
 
 type CreateMode = 'manual' | 'excel' | 'json';

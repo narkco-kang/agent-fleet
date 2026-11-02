@@ -1,4 +1,4 @@
-import type { ActionConfirmation, ActionKind } from '@agentmesh/shared';
+import type { ActionConfirmation, ActionKind } from '@agentfleet/shared';
 import { randomId } from '../security/auth.js';
 import { config } from '../config.js';
 import {

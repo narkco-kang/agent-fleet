@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { AssetDelivery, DeliveryStatus } from '@agentmesh/shared';
+import type { AssetDelivery, DeliveryStatus } from '@agentfleet/shared';
 
 /**
  * 资产分发记录表（asset_deliveries）CRUD。

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { LoopStep, LoopTrigger } from '@agentmesh/shared';
+import type { LoopStep, LoopTrigger } from '@agentfleet/shared';
 import * as loopService from '../services/loop/loopService.js';
 import { loopScheduler } from '../services/loop/loopScheduler.js';
 import { actionGuard } from '../services/actionGuard.js';

@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { ActionConfirmation, ActionKind, ActionStatus } from '@agentmesh/shared';
+import type { ActionConfirmation, ActionKind, ActionStatus } from '@agentfleet/shared';
 
 /**
  * 人工确认记录表（action_confirmations）CRUD。

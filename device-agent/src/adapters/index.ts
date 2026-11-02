@@ -1,4 +1,4 @@
-import type { AgentInfo, AgentType, TaskSubmit } from '@agentmesh/shared';
+import type { AgentInfo, AgentType, TaskSubmit } from '@agentfleet/shared';
 import type { Adapter, AdapterEventSink } from './adapter.js';
 import { GrokAdapter } from './grokAdapter.js';
 import { CatalogAdapter } from './catalogAdapter.js';

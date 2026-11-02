@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import readline from 'node:readline';
-import type { TaskEvent, TaskEventData, TaskEventType } from '@agentmesh/shared';
+import type { TaskEvent, TaskEventData, TaskEventType } from '@agentfleet/shared';
 
 /**
  * 子进程运行器：spawn + readline 按行解析 stdout，映射为 task.event。

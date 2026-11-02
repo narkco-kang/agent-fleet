@@ -1,5 +1,5 @@
-import type { Loop, LoopStep, TaskStatus } from '@agentmesh/shared';
-import { isTerminalLoopState, isTerminalTaskStatus } from '@agentmesh/shared';
+import type { Loop, LoopStep, TaskStatus } from '@agentfleet/shared';
+import { isTerminalLoopState, isTerminalTaskStatus } from '@agentfleet/shared';
 import { randomId } from '../../security/auth.js';
 import { actionGuard } from '../actionGuard.js';
 import type { SchedulerSubmitInput } from '../scheduler.js';

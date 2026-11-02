@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react';
 import Button from '@mui/material/Button';
 
 /**
- * 新手引导：把 AgentMesh 解释为「多蜂群协同系统」，并串起 EchoBird 式
+ * 新手引导：把 AgentFleet 解释为「多蜂群协同系统」，并串起 EchoBird 式
  * Model Nexus → 一键部署 → 平台模型绑定 → 免费源/Provider → 任务调度流程。
  */
 
-const STORAGE_KEY = 'agentmesh.onboarding.dismissed.v2';
+const STORAGE_KEY = 'agentfleet.onboarding.dismissed.v2';
 
 const STEPS = [
   {
     title: '理解系统：设备即蜂群',
-    body: '每台设备是一支本地蜂群：设备守护负责探测这台机器上的 Codex、Claude、Gemini、Aider 等 agent 平台；整个 AgentMesh 则是多设备、多蜂群协同系统。',
+    body: '每台设备是一支本地蜂群：设备守护负责探测这台机器上的 Codex、Claude、Gemini、Aider 等 agent 平台；整个 AgentFleet 则是多设备、多蜂群协同系统。',
   },
   {
     title: '先启动协调器组件',
@@ -50,7 +50,7 @@ export function OnboardingGuide({ open, onClose }: { open: boolean; onClose: () 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4">
       <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
         <div className="border-b border-[#E2E8F0] px-6 py-4">
-          <div className="text-xs font-medium uppercase tracking-wide text-[#4F46E5]">AgentMesh 新手引导</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-[#4F46E5]">AgentFleet 新手引导</div>
           <h2 className="mt-1 text-xl font-semibold text-[#0F172A]">{current.title}</h2>
         </div>
         <div className="px-6 py-5">

@@ -44,7 +44,7 @@ import { loopScheduler, registerLoopExecutor } from './services/loop/loopSchedul
 import { startCheckinLoop } from './services/routing/checkinService.js';
 import { registerGatewayRoutes } from './routes/gateway.js';
 import { gatewayManager } from './services/gateway/gatewayManager.js';
-import { MESSAGE_TYPES } from '@agentmesh/shared';
+import { MESSAGE_TYPES } from '@agentfleet/shared';
 
 /**
  * 后端协调服务入口：
@@ -133,7 +133,7 @@ async function main(): Promise<void> {
   registerGatewayRoutes(app);
 
   await app.listen({ host: config.host, port: config.port });
-  console.log(`[backend] AgentMesh 协调服务已启动 http://${config.host}:${config.port}`);
+  console.log(`[backend] AgentFleet 协调服务已启动 http://${config.host}:${config.port}`);
 
   // 内置 modelgateway：MODELGATEWAY_AUTO_START=1 时后端启动后自动 spawn（默认手动）
   void gatewayManager.maybeAutoStart().catch((err) => {

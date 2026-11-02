@@ -1,5 +1,5 @@
 /**
- * @agentmesh/shared —— 单一事实源统一导出
+ * @agentfleet/shared —— 单一事实源统一导出
  *
  * 所有 workspace 均引用本入口，协议/枚举/常量只在此维护。
  */

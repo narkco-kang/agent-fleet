@@ -39,7 +39,7 @@ function connect(url) {
 const env = (type, payload, from, to) => ({ v: 1, type, id: `r-${Math.random().toString(36).slice(2)}`, ts: Date.now(), from, to, payload });
 
 async function main() {
-  console.log('== AgentMesh 中继透传测试 ==\n');
+  console.log('== AgentFleet 中继透传测试 ==\n');
   const device = connect(`${RELAY}?role=device&deviceId=relay-dev-1`);
   const coord = connect(`${RELAY}?role=coordinator`);
   await device.open();

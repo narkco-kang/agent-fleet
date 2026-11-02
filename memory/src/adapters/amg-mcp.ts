@@ -101,7 +101,7 @@ export class AmgMcpClient {
     return this.request('initialize', {
       protocolVersion: '2024-11-05',
       capabilities: {},
-      clientInfo: { name: 'agentmesh-memory', version: '0.1.0' },
+      clientInfo: { name: 'agentfleet-memory', version: '0.1.0' },
     });
   }
 

@@ -1,5 +1,5 @@
 import { config } from '../../config.js';
-import { computeRating, type FreeSourceRating } from '@agentmesh/shared';
+import { computeRating, type FreeSourceRating } from '@agentfleet/shared';
 
 /**
  * modelgateway 协议对接客户端（可选后端）。
@@ -378,7 +378,7 @@ class ModelGatewayClient {
     try {
       const res = await fetch(`${this.baseUrl()}/v1/chat/completions`, {
         method: 'POST',
-        headers: this.buildHeaders({ model, messages: [{ role: 'user', content: prompt }], agent: 'AgentMeshProbe', platform: 'agentmesh' }, false),
+        headers: this.buildHeaders({ model, messages: [{ role: 'user', content: prompt }], agent: 'AgentFleetProbe', platform: 'agentfleet' }, false),
         body: JSON.stringify({
           model,
           messages: [{ role: 'user', content: prompt }],

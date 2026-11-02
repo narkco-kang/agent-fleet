@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import type { AgentType, RoleCapability, RoleRoute } from '@agentmesh/shared';
+import type { AgentType, RoleCapability, RoleRoute } from '@agentfleet/shared';
 import {
   deleteRoleRoute,
   getRoleRoute,

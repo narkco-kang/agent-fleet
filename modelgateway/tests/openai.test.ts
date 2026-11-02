@@ -76,7 +76,7 @@ function jsonResponse(obj: unknown, status = 200, headers: Record<string, string
 }
 
 const mockReq = {} as IncomingMessage;
-const mg: MgHeaders = { agent: 'AgentMeshProbe', session: 's1', platform: 'agentmesh', task: 't1' };
+const mg: MgHeaders = { agent: 'AgentFleetProbe', session: 's1', platform: 'agentfleet', task: 't1' };
 
 afterEach(() => {
   vi.unstubAllGlobals();

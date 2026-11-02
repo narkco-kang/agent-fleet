@@ -12,7 +12,7 @@ import { getDb } from '../db/database.js';
 export function registerSystemRoutes(app: FastifyInstance): void {
   /** 健康检查 */
   app.get('/api/system/health', async () => {
-    return { ok: true, service: 'agentmesh-backend', ts: Date.now() };
+    return { ok: true, service: 'agentfleet-backend', ts: Date.now() };
   });
 
   /** 连接状态（看板顶栏指示） */

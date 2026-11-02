@@ -6,7 +6,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
-import type { Asset, AssetKind } from '@agentmesh/shared';
+import type { Asset, AssetKind } from '@agentfleet/shared';
 import { assetsApi } from '../../api/assets';
 
 const KIND_OPTIONS: Array<{ value: AssetKind; label: string }> = [

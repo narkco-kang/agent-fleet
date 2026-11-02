@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { RoleRoute, TeamMember } from '@agentmesh/shared';
+import type { RoleRoute, TeamMember } from '@agentfleet/shared';
 import * as teamService from '../services/teams/teamService.js';
 
 /**

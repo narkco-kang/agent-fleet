@@ -1,10 +1,10 @@
 # 17-Agent 平台安装、卸载与调用矩阵
 
-本文明确 AgentMesh 对各 AI agent 平台「负责到哪一步」，避免把 **安装/卸载**、**发现上报**、**本地 CLI 真接调用**、**经 modelgateway 执行模型** 混为一谈。
+本文明确 AgentFleet 对各 AI agent 平台「负责到哪一步」，避免把 **安装/卸载**、**发现上报**、**本地 CLI 真接调用**、**经 modelgateway 执行模型** 混为一谈。
 
 ## 1. 结论
 
-可以把 AgentMesh 理解为：
+可以把 AgentFleet 理解为：
 
 > **多设备 + 多 agent 平台 + 统一模型路由网关的多蜂群协同系统。**
 
@@ -18,8 +18,8 @@
 ## 2. 平台能力矩阵
 
 说明：
-- 「自动安装」= AgentMesh 可生成并执行公开包管理器安装命令。
-- 「自动卸载」= AgentMesh 可生成并执行公开包管理器卸载命令，并验证命令消失。
+- 「自动安装」= AgentFleet 可生成并执行公开包管理器安装命令。
+- 「自动卸载」= AgentFleet 可生成并执行公开包管理器卸载命令，并验证命令消失。
 - 「发现上报」= 设备守护可探测已安装命令并上报看板。
 - 「网关模型执行」= 可在部署或平台模型页绑定 modelgateway 模型，任务由网关执行，不依赖该平台 CLI 的 headless 调用能力。
 - 「本地 CLI 真接」= 设备守护直接启动该平台 CLI 运行任务并流式回传。
@@ -28,7 +28,7 @@
 |---|---|---:|---:|---:|---:|---:|---|
 | `codex` | Codex | ✅ npm `@openai/codex` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；本地 headless 调用待实测稳定化 |
 | `claude` | Claude Code | ✅ npm `@anthropic-ai/claude-code` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；通常需要用户本机已登录 Claude Code |
-| `dsh` | DSH Desktop | 手动/验证 | 手动/验证 | ✅ | ✅ | 骨架 | 安装源不公开标准化，AgentMesh 只验证既有安装 |
+| `dsh` | DSH Desktop | 手动/验证 | 手动/验证 | ✅ | ✅ | 骨架 | 安装源不公开标准化，AgentFleet 只验证既有安装 |
 | `grok` | Grok | 手动/验证 | 手动/验证 | ✅ | ✅ | ✅ 稳定 | `GrokAdapter` 走 ACP（`grok agent stdio`，完整 bot 循环），认证用 `XAI_API_KEY` 或 `grok login` |
 | `cursor` | Cursor | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | 骨架 | Linux 暂无统一自动安装；桌面/agent headless 参数需实测 |
 | `aider` | Aider | ✅ pipx `aider-chat` | ✅ pipx uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；本地调用模板待逐版本验证 |
@@ -42,7 +42,7 @@
 
 ## 3. 默认一键部署集
 
-当 Excel/JSON 未显式填写平台时，AgentMesh 按 OS 使用默认 CLI 优先集：
+当 Excel/JSON 未显式填写平台时，AgentFleet 按 OS 使用默认 CLI 优先集：
 
 | OS | 默认平台 |
 |---|---|
@@ -67,13 +67,13 @@ sequenceDiagram
 
     UI->>B: create deployment batch(targets + platforms + modelConfigs)
     B->>SSH: install / verify selected agent platforms
-    SSH-->>B: [agentmesh:verify] per-platform result
+    SSH-->>B: [agentfleet:verify] per-platform result
     B->>PM: bind deviceId + agentType -> model/fallbacks
     UI->>MG: start / health-check modelgateway
     Note over PM,MG: 之后任务命中该 device+agent 时，优先经 modelgateway 执行模型
 ```
 
-这条路径下，AgentMesh 可以给多个 agent 平台配置模型并执行任务，即使本地 CLI 的 headless 调用尚未逐个平台稳定化，也可以先通过统一网关把任务跑起来。
+这条路径下，AgentFleet 可以给多个 agent 平台配置模型并执行任务，即使本地 CLI 的 headless 调用尚未逐个平台稳定化，也可以先通过统一网关把任务跑起来。
 
 ### 4.2 本地 CLI 真接路径
 
@@ -97,8 +97,8 @@ sequenceDiagram
 
 对外 README 应保持以下表述：
 
-- AgentMesh **负责 13 个平台的安装/卸载脚本生成、验证、发现上报、平台模型绑定与网关执行**。
-- AgentMesh **当前稳定本地 CLI 真接调用 Grok**。
+- AgentFleet **负责 13 个平台的安装/卸载脚本生成、验证、发现上报、平台模型绑定与网关执行**。
+- AgentFleet **当前稳定本地 CLI 真接调用 Grok**。
 - 其他平台的本地 CLI 真接调用不是不可做，而是需要逐平台实测，不应在 README 中提前宣传为已稳定。
 
-这样既能体现 AgentMesh 的多平台能力，也避免误导用户以为所有第三方 CLI 的 headless 调用都已完成并实机验证。
+这样既能体现 AgentFleet 的多平台能力，也避免误导用户以为所有第三方 CLI 的 headless 调用都已完成并实机验证。

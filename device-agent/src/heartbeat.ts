@@ -1,5 +1,5 @@
 import os from 'node:os';
-import { HEARTBEAT_INTERVAL_MS, MESSAGE_TYPES, cryptoRandomId } from '@agentmesh/shared';
+import { HEARTBEAT_INTERVAL_MS, MESSAGE_TYPES, cryptoRandomId } from '@agentfleet/shared';
 import { loadRegistry } from './registry.js';
 import { sendToAll, hasSenders } from './senderRegistry.js';
 

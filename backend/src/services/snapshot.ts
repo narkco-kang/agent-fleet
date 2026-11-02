@@ -6,8 +6,8 @@ import type {
   TaskEvent,
   TaskResult,
   TaskStatus,
-} from '@agentmesh/shared';
-import { SNAPSHOT_TASK_WINDOW } from '@agentmesh/shared';
+} from '@agentfleet/shared';
+import { SNAPSHOT_TASK_WINDOW } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
 import { getDevice, listDevices, toDeviceSnapshot } from '../db/repo/devices.js';
 import { listAgents, toAgentSnapshot } from '../db/repo/agents.js';

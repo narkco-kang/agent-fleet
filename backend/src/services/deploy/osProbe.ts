@@ -1,4 +1,4 @@
-import type { DeployOS } from '@agentmesh/shared';
+import type { DeployOS } from '@agentfleet/shared';
 import type { SshConnection } from './sshClient.js';
 
 /**

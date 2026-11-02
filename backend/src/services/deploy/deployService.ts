@@ -1,4 +1,4 @@
-import type { DeployOS, DeploymentBatch, DeploymentTarget } from '@agentmesh/shared';
+import type { DeployOS, DeploymentBatch, DeploymentTarget } from '@agentfleet/shared';
 import { randomId } from '../../security/auth.js';
 import { config } from '../../config.js';
 import {

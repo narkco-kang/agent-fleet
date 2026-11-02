@@ -1,4 +1,4 @@
-import type { ParsedCommand } from '@agentmesh/shared';
+import type { ParsedCommand } from '@agentfleet/shared';
 
 /**
  * LLM 兜底解析（接口预留）。

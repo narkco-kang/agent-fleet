@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { Asset, AssetContentType, AssetKind } from '@agentmesh/shared';
+import type { Asset, AssetContentType, AssetKind } from '@agentfleet/shared';
 
 /**
  * 资产表（assets）CRUD + 版本递增。

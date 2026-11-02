@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Team } from '@agentmesh/shared';
+import type { Team } from '@agentfleet/shared';
 import { DeviceGrid } from '../components/device/DeviceGrid';
 import { http } from '../api/http';
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Button from '@mui/material/Button';
-import type { DirectFreeSource } from '@agentmesh/shared';
+import type { DirectFreeSource } from '@agentfleet/shared';
 import { routingApi, type AllFreeSourcesReport, type CheckinResult } from '../../api/routing';
 import { Card } from '../common/Card';
 

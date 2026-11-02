@@ -1,6 +1,6 @@
 /**
  * 同步消息类型 + 编解码（对齐 Envelope{type,payload}）。
- * 账本侧定义，不污染 AgentMesh 共享类型，走同一传输信道。
+ * 账本侧定义，不污染 AgentFleet 共享类型，走同一传输信道。
  */
 import { randomUUID } from 'node:crypto';
 import type { Block, MerkleProof } from '../types/block';

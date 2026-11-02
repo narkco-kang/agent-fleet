@@ -1,8 +1,8 @@
 /**
- * 跨设备同步协议消息类型（账本侧扩展，不改 AgentMesh 现有 messageTypes）。
+ * 跨设备同步协议消息类型（账本侧扩展，不改 AgentFleet 现有 messageTypes）。
  *
- * 信封对齐 @agentmesh/shared 的 Envelope：type + payload，业务内容放 payload。
- * 消息类型点分小写，对齐 AgentMesh 命名规范 `域.动作`。
+ * 信封对齐 @agentfleet/shared 的 Envelope：type + payload，业务内容放 payload。
+ * 消息类型点分小写，对齐 AgentFleet 命名规范 `域.动作`。
  */
 import type { Block, MerkleProof } from './block';
 
@@ -17,7 +17,7 @@ export type MemoryMessageType =
   | 'memory.proof_request'
   | 'memory.proof_response';
 
-/** 同步信封（对齐 AgentMesh Envelope）。 */
+/** 同步信封（对齐 AgentFleet Envelope）。 */
 export interface Envelope<T = unknown> {
   v: 1;
   type: string;

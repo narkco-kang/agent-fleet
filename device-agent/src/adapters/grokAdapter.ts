@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import type { TaskSubmit } from '@agentmesh/shared';
+import type { TaskSubmit } from '@agentfleet/shared';
 import type { Adapter, AdapterDetection, AdapterEventSink, AdapterRunHandle } from './adapter.js';
 import { runAcpPrompt } from '../runner/acpClient.js';
 

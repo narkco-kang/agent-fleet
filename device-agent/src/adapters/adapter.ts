@@ -1,4 +1,4 @@
-import type { AgentInfo, AgentType, TaskEvent, TaskSubmit } from '@agentmesh/shared';
+import type { AgentInfo, AgentType, TaskEvent, TaskSubmit } from '@agentfleet/shared';
 
 /**
  * 统一 Adapter 接口：把异构平台（codex/claude/dsh/grok）统一为

@@ -1,5 +1,5 @@
-import type { AgentType, TargetMode, TaskStatus } from '@agentmesh/shared';
-import { MESSAGE_TYPES } from '@agentmesh/shared';
+import type { AgentType, TargetMode, TaskStatus } from '@agentfleet/shared';
+import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
 import {
   assignTaskTarget,
@@ -16,9 +16,9 @@ import { roleRouter } from './routing/roleRouter.js';
 import { modelGatewayClient, type ChatMessage } from './routing/modelGatewayClient.js';
 import { recordUsage } from './routing/usageLedger.js';
 import { isFreeSourceRef } from './routing/freeSourceService.js';
-import { directFreeChat } from '@agentmesh/shared';
+import { directFreeChat } from '@agentfleet/shared';
 import * as platformModelService from './routing/platformModelService.js';
-import type { PlatformModelBinding, RoleRoutingDecision } from '@agentmesh/shared';
+import type { PlatformModelBinding, RoleRoutingDecision } from '@agentfleet/shared';
 
 /**
  * 任务调度器：路由决策（auto/device/agent）+ 认领/限流（max_agents）。

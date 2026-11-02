@@ -1,9 +1,9 @@
 {
-  "name": "@agentmesh/modelgateway",
+  "name": "@agentfleet/modelgateway",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AgentMesh 内置 modelgateway（node:http + @agentmesh/shared，零新增第三方依赖）",
+  "description": "AgentFleet 内置 modelgateway（node:http + @agentfleet/shared，零新增第三方依赖）",
   "main": "src/index.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -12,7 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@agentmesh/shared": "0.1.0",
+    "@agentfleet/shared": "0.1.0",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {

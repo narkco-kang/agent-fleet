@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
-import type { AgentType, PlatformModelConfig } from '@agentmesh/shared';
-import { AGENT_TYPES } from '@agentmesh/shared';
+import type { AgentType, PlatformModelConfig } from '@agentfleet/shared';
+import { AGENT_TYPES } from '@agentfleet/shared';
 
 /**
  * Excel 解析（F1）：读取 .xlsx/.csv → 提取 IP / 账号 / 密码 / 平台。
@@ -14,7 +14,7 @@ export interface ParsedTarget {
   password?: string;
   /** SSH 端口（默认 22） */
   port?: number;
-  /** 可选：已注册 AgentMesh 设备 id，部署成功后据此绑定模型 */
+  /** 可选：已注册 AgentFleet 设备 id，部署成功后据此绑定模型 */
   deviceId?: string;
   platforms: AgentType[];
   /** 部署成功后为各平台绑定的网关模型 */

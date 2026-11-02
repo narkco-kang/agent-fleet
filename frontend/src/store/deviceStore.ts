@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentSnapshot, DeviceSnapshot, DeviceStatus } from '@agentmesh/shared';
+import type { AgentSnapshot, DeviceSnapshot, DeviceStatus } from '@agentfleet/shared';
 
 /**
  * 设备全局态：设备列表 + 在线态 + 每设备 agent 能力。

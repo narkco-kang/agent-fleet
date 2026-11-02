@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { TaskEvent, TaskEventType } from '@agentmesh/shared';
+import type { TaskEvent, TaskEventType } from '@agentfleet/shared';
 
 /** messages 表行结构 */
 export interface MessageRow {

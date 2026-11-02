@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { TaskEvent } from '@agentmesh/shared';
+import type { TaskEvent } from '@agentfleet/shared';
 
 /**
  * 消息流时间线（04 §6.2）：四类气泡（用户/agent/工具调用/系统事件），流式滚动。

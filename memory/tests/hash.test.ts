@@ -19,6 +19,6 @@ describe('sha256Hex', () => {
   });
 
   it('always returns 64 lowercase hex characters', () => {
-    expect(sha256Hex('agentmesh-memory')).toMatch(/^[0-9a-f]{64}$/);
+    expect(sha256Hex('agentfleet-memory')).toMatch(/^[0-9a-f]{64}$/);
   });
 });

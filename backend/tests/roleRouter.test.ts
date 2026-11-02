@@ -13,7 +13,7 @@ import { modelGatewayClient } from '../src/services/routing/modelGatewayClient.j
 let tmpDir: string;
 
 beforeAll(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-route-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-route-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   initDatabase();
 });

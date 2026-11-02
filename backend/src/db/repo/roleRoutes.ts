@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { AgentType, RoleCapability, RoleRoute } from '@agentmesh/shared';
+import type { AgentType, RoleCapability, RoleRoute } from '@agentfleet/shared';
 
 /**
  * 角色路由表（role_routes）CRUD + 导入。

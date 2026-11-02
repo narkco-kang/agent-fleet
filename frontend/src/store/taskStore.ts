@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TaskEvent, TaskSnapshot, TaskStatus } from '@agentmesh/shared';
+import type { TaskEvent, TaskSnapshot, TaskStatus } from '@agentfleet/shared';
 
 /**
  * 任务全局态：任务列表 + 详情消息流（按 taskId 归组）。

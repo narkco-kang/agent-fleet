@@ -1,9 +1,9 @@
 {
-  "name": "agent-mesh",
+  "name": "agent-fleet",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AgentMesh — 跨设备超级智能体协同系统",
+  "description": "AgentFleet — 跨设备超级智能体协同系统",
   "workspaces": [
     "shared",
     "backend",

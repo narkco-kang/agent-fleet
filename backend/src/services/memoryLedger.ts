@@ -1,5 +1,5 @@
 /**
- * 团队记忆账本服务（AgentMesh 集成层）。
+ * 团队记忆账本服务（AgentFleet 集成层）。
  *
  * backend 作为固定 leader，持有 group="team" 的分布式记忆账本：
  * 任务生命周期终态自动记账（构造 change → 立即出块 → Ed25519 签名 → 落盘）。
@@ -13,8 +13,8 @@ import {
   TrustStore,
   generateKeyPair,
   verifyChainSigned,
-} from '@agentmesh/memory';
-import type { Block, MemoryChange } from '@agentmesh/memory';
+} from '@agentfleet/memory';
+import type { Block, MemoryChange } from '@agentfleet/memory';
 
 /** 团队账本落盘目录（可被环境变量覆盖）。 */
 const MEMORY_DIR = process.env.MEMORY_DIR ?? './data/memory';

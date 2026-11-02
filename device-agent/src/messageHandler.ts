@@ -1,12 +1,12 @@
 import os from 'node:os';
 import { spawn } from 'node:child_process';
-import type { Envelope, TaskSubmit, AssetDeliver } from '@agentmesh/shared';
-import { MESSAGE_TYPES, launchCommandFor, type AgentType, type PlatformOpenAck } from '@agentmesh/shared';
+import type { Envelope, TaskSubmit, AssetDeliver } from '@agentfleet/shared';
+import { MESSAGE_TYPES, launchCommandFor, type AgentType, type PlatformOpenAck } from '@agentfleet/shared';
 import { loadRegistry, setToken } from './registry.js';
 import { config } from './config.js';
 import { detectAllAgents, dispatchToAdapter } from './adapters/index.js';
-import type { TaskEvent } from '@agentmesh/shared';
-import { cryptoRandomId } from '@agentmesh/shared';
+import type { TaskEvent } from '@agentfleet/shared';
+import { cryptoRandomId } from '@agentfleet/shared';
 import { handleAssetDeliver } from './assetReceiver.js';
 
 /**

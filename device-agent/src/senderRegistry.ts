@@ -1,4 +1,4 @@
-import type { Envelope } from '@agentmesh/shared';
+import type { Envelope } from '@agentfleet/shared';
 
 /**
  * 活跃发送通道注册表：直连协调服务 socket + 中继连接。

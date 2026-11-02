@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { config } from './config.js';
 
 /**
- * 本机 deviceId + token 持久化（首启生成，存 ~/.agentmesh/registry.json）。
+ * 本机 deviceId + token 持久化（首启生成，存 ~/.agentfleet/registry.json）。
  */
 export interface DeviceRegistryData {
   deviceId: string;

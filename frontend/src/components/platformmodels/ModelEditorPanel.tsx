@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
-import type { PlatformModelBinding } from '@agentmesh/shared';
+import type { PlatformModelBinding } from '@agentfleet/shared';
 import { routingApi } from '../../api/routing';
 import type { DeviceAgentSelection } from './DevicePlatformList';
 

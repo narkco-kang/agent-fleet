@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { AgentType, PlatformModelBinding } from '@agentmesh/shared';
+import type { AgentType, PlatformModelBinding } from '@agentfleet/shared';
 
 /**
  * 平台模型绑定表（platform_models）CRUD。

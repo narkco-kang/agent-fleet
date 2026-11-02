@@ -1,4 +1,4 @@
-import type { AgentType, Origin, ParsedCommand } from '@agentmesh/shared';
+import type { AgentType, Origin, ParsedCommand } from '@agentfleet/shared';
 
 /**
  * 规则解析：/status、/cancel #id、/help、裸文本（转任务）。

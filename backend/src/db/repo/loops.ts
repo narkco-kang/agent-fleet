@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { Loop, LoopState, LoopStep, LoopTrigger } from '@agentmesh/shared';
+import type { Loop, LoopState, LoopStep, LoopTrigger } from '@agentfleet/shared';
 
 /**
  * Loop 表（loops）CRUD（steps/targets 存 JSON）。

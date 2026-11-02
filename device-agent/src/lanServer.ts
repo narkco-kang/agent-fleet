@@ -1,5 +1,5 @@
 import { WebSocketServer, type WebSocket } from 'ws';
-import type { Envelope } from '@agentmesh/shared';
+import type { Envelope } from '@agentfleet/shared';
 import { handleEnvelope, sendRegister, sendCapabilities } from './messageHandler.js';
 import { addSender, removeSender, type Sender } from './senderRegistry.js';
 import { config } from './config.js';

@@ -2,7 +2,7 @@ import {
   DIRECT_FREE_SOURCES,
   resolveBaseUrl,
   type DirectFreeSource,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 import type { PaidProviderConfig } from './config.js';
 
 /**

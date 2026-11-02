@@ -1,5 +1,5 @@
-import type { AgentType, DeployOS } from '@agentmesh/shared';
-import { AGENT_TYPES } from '@agentmesh/shared';
+import type { AgentType, DeployOS } from '@agentfleet/shared';
+import { AGENT_TYPES } from '@agentfleet/shared';
 import type { SshConnection } from './sshClient.js';
 import { getInstallSpec } from './installScripts.js';
 
@@ -10,7 +10,7 @@ import { getInstallSpec } from './installScripts.js';
  * - POSIX 使用 `command -v`，并把 npm/pipx/brew 的全局 bin 目录加入 PATH，
  *   确保 `command -v` 能命中通过包管理器安装的 CLI。
  * - Windows 使用 PowerShell `Get-Command`，脚本经 UTF-16LE base64 编码后执行。
- * - 输出统一为 `[agentmesh:installed] platform=<p> status=installed|missing` 标记。
+ * - 输出统一为 `[agentfleet:installed] platform=<p> status=installed|missing` 标记。
  */
 
 export interface InstalledProbeResult {
@@ -28,7 +28,7 @@ export function buildInstalledProbeScript(os: DeployOS): string {
 export function parseInstalledProbe(output: string): InstalledProbeResult[] {
   const results: InstalledProbeResult[] = [];
   const seen = new Set<string>();
-  const re = /\[agentmesh:installed\]\s+platform=([^\s]+)\s+status=(installed|missing)/g;
+  const re = /\[agentfleet:installed\]\s+platform=([^\s]+)\s+status=(installed|missing)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(output)) !== null) {
     const platform = m[1] as AgentType;
@@ -57,28 +57,28 @@ function buildPosixProbeScript(): string {
     '#!/usr/bin/env bash',
     'set +e',
     'export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"',
-    'echo "[agentmesh] installed_probe begin"',
+    'echo "[agentfleet] installed_probe begin"',
   ];
   for (const platform of AGENT_TYPES) {
     const spec = getInstallSpec(platform);
     const names = spec?.commandNames?.length ? spec.commandNames : [platform];
     const quotedNames = names.map(shellQuote).join(' ');
-    lines.push('agentmesh_found=0');
-    lines.push(`for agentmesh_n in ${quotedNames}; do`);
-    lines.push('  if command -v "$agentmesh_n" >/dev/null 2>&1; then agentmesh_found=1; break; fi');
+    lines.push('agentfleet_found=0');
+    lines.push(`for agentfleet_n in ${quotedNames}; do`);
+    lines.push('  if command -v "$agentfleet_n" >/dev/null 2>&1; then agentfleet_found=1; break; fi');
     lines.push('done');
     lines.push(
-      `if [ "$agentmesh_found" = "1" ]; then echo "[agentmesh:installed] platform=${platform} status=installed"; else echo "[agentmesh:installed] platform=${platform} status=missing"; fi`,
+      `if [ "$agentfleet_found" = "1" ]; then echo "[agentfleet:installed] platform=${platform} status=installed"; else echo "[agentfleet:installed] platform=${platform} status=missing"; fi`,
     );
   }
-  lines.push('echo "[agentmesh] installed_probe end"');
+  lines.push('echo "[agentfleet] installed_probe end"');
   return lines.join('\n');
 }
 
 function buildWindowsProbeScript(): string {
   const psLines = [
     '$ErrorActionPreference = "Continue"',
-    'Write-Output "[agentmesh] installed_probe begin"',
+    'Write-Output "[agentfleet] installed_probe begin"',
   ];
   for (const platform of AGENT_TYPES) {
     const spec = getInstallSpec(platform);
@@ -87,10 +87,10 @@ function buildWindowsProbeScript(): string {
       .map((name) => `(Get-Command ${psQuote(name)} -ErrorAction SilentlyContinue)`)
       .join(' -or ');
     psLines.push(
-      `if (${checks}) { Write-Output ${psQuote(`[agentmesh:installed] platform=${platform} status=installed`)} } else { Write-Output ${psQuote(`[agentmesh:installed] platform=${platform} status=missing`)} }`,
+      `if (${checks}) { Write-Output ${psQuote(`[agentfleet:installed] platform=${platform} status=installed`)} } else { Write-Output ${psQuote(`[agentfleet:installed] platform=${platform} status=missing`)} }`,
     );
   }
-  psLines.push('Write-Output "[agentmesh] installed_probe end"');
+  psLines.push('Write-Output "[agentfleet] installed_probe end"');
   const encoded = Buffer.from(psLines.join('; '), 'utf16le').toString('base64');
   return `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encoded}`;
 }

@@ -6,7 +6,7 @@ import { create } from 'zustand';
  */
 export type ThemeMode = 'light' | 'dark';
 
-const STORAGE_KEY = 'agentmesh.theme';
+const STORAGE_KEY = 'agentfleet.theme';
 
 function readInitial(): ThemeMode {
   if (typeof window === 'undefined') return 'light';

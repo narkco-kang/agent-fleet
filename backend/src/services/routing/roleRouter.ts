@@ -1,4 +1,4 @@
-import type { AgentType, RoleRoute, RoleRoutingDecision } from '@agentmesh/shared';
+import type { AgentType, RoleRoute, RoleRoutingDecision } from '@agentfleet/shared';
 import { roleRouteStore } from './roleRouteStore.js';
 import { modelGatewayClient } from './modelGatewayClient.js';
 import { deviceRegistry } from '../deviceRegistry.js';

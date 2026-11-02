@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { Origin, TargetMode } from '@agentmesh/shared';
+import type { Origin, TargetMode } from '@agentfleet/shared';
 import { getTask, listTasks, toTaskSnapshot } from '../db/repo/tasks.js';
 import { listMessagesByTask, toTaskEvent } from '../db/repo/messages.js';
 import { createSession, getSession, makeTitle } from '../db/repo/sessions.js';

@@ -9,7 +9,7 @@ import { actionGuard } from '../src/services/actionGuard.js';
 let tmpDir: string;
 
 beforeAll(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-guard-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-guard-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   initDatabase();
 });

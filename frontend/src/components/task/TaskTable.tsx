@@ -5,7 +5,7 @@ import { DataTable, type Column } from '../common/DataTable';
 import { StatusBadge } from '../common/StatusBadge';
 import { AgentIcon } from '../common/AgentIcon';
 import { http } from '../../api/http';
-import type { TaskSnapshot } from '@agentmesh/shared';
+import type { TaskSnapshot } from '@agentfleet/shared';
 
 /**
  * 任务列表（04 §C）：状态徽标 + 筛选 + 操作（详情/取消/重试）。

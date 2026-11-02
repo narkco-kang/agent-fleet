@@ -4,7 +4,7 @@ import type {
   TaskEvent,
   TaskEventData,
   TaskSnapshot,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 import { mockAgents, mockDevices } from './mockData';
 
 /**

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import type { AssetDelivery } from '@agentmesh/shared';
+import type { AssetDelivery } from '@agentfleet/shared';
 import { assetsApi } from '../../api/assets';
 import { Card } from '../common/Card';
 

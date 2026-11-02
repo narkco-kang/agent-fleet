@@ -4,7 +4,7 @@ import type {
   RoleRoutingDecision,
   Team,
   TeamMember,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 import { randomId } from '../../security/auth.js';
 import {
   createTeam,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { collectFreeSourceRefs, isFreeSourceRef } from '../src/services/routing/freeSourceService.js';
-import type { RoleRoute } from '@agentmesh/shared';
+import type { RoleRoute } from '@agentfleet/shared';
 
 describe('freeSourceService 免费源收集', () => {
   it('识别 free/kilo-auto/free/中文免费 等免费源 ref', () => {

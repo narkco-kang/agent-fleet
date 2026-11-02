@@ -1,5 +1,5 @@
-import type { AgentType, DeployOS } from '@agentmesh/shared';
-import { AGENT_TYPES } from '@agentmesh/shared';
+import type { AgentType, DeployOS } from '@agentfleet/shared';
+import { AGENT_TYPES } from '@agentfleet/shared';
 
 /**
  * 安装脚本生成（F1 增强）：按目标 OS 自动适配 agent 平台安装方式。
@@ -245,17 +245,17 @@ export function verifyCommandFor(os: DeployOS, platform: AgentType): string {
   const names = spec?.commandNames?.length ? spec.commandNames : [platform];
   if (os === 'windows') {
     const checks = names
-      .map((name) => `if (-not $agentmeshVerifyOk -and (Get-Command ${psQuote(name)} -ErrorAction SilentlyContinue)) { Write-Output ${psQuote(`[agentmesh:verify] platform=${platform} status=ok command=${name}`)}; $agentmeshVerifyOk = $true }`)
+      .map((name) => `if (-not $agentfleetVerifyOk -and (Get-Command ${psQuote(name)} -ErrorAction SilentlyContinue)) { Write-Output ${psQuote(`[agentfleet:verify] platform=${platform} status=ok command=${name}`)}; $agentfleetVerifyOk = $true }`)
       .join('; ');
-    return `$agentmeshVerifyOk = $false; ${checks}; if (-not $agentmeshVerifyOk) { Write-Output ${psQuote(`[agentmesh:verify] platform=${platform} status=missing`)} }`;
+    return `$agentfleetVerifyOk = $false; ${checks}; if (-not $agentfleetVerifyOk) { Write-Output ${psQuote(`[agentfleet:verify] platform=${platform} status=missing`)} }`;
   }
   const checks = names
-    .map((name) => `if command -v ${shellQuote(name)} >/dev/null 2>&1; then echo "[agentmesh:verify] platform=${platform} status=ok command=${name}"; exit 0; fi`)
+    .map((name) => `if command -v ${shellQuote(name)} >/dev/null 2>&1; then echo "[agentfleet:verify] platform=${platform} status=ok command=${name}"; exit 0; fi`)
     .join(' ');
-  return `${checks} echo "[agentmesh:verify] platform=${platform} status=missing"; exit 1`;
+  return `${checks} echo "[agentfleet:verify] platform=${platform} status=missing"; exit 1`;
 }
 
-/** 生成完整安装脚本。deployService 会解析 [agentmesh:verify] 标记决定成功/失败。 */
+/** 生成完整安装脚本。deployService 会解析 [agentfleet:verify] 标记决定成功/失败。 */
 export function buildInstallScript(os: DeployOS, platforms: AgentType[]): string {
   const plan = buildInstallPlan(os, platforms);
   if (os === 'windows') return buildWindowsScript(plan);
@@ -266,7 +266,7 @@ export function buildInstallScript(os: DeployOS, platforms: AgentType[]): string
 export function parseInstallVerification(output: string): InstallVerification[] {
   const results: InstallVerification[] = [];
   const seen = new Set<string>();
-  const re = /\[agentmesh:verify\]\s+platform=([^\s]+)\s+status=(ok|missing)(?:\s+command=([^\s]+))?/g;
+  const re = /\[agentfleet:verify\]\s+platform=([^\s]+)\s+status=(ok|missing)(?:\s+command=([^\s]+))?/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(output)) !== null) {
     const platform = m[1] as AgentType;
@@ -333,7 +333,7 @@ export function buildUninstallPlanStep(os: DeployOS, platform: AgentType): Unins
       command:
         os === 'windows'
           ? `npm uninstall -g ${spec.npmPackage}`
-          : `if command -v npm >/dev/null 2>&1; then npm uninstall -g ${shellQuote(spec.npmPackage)}; else echo "[agentmesh] npm not found, skip"; fi`,
+          : `if command -v npm >/dev/null 2>&1; then npm uninstall -g ${shellQuote(spec.npmPackage)}; else echo "[agentfleet] npm not found, skip"; fi`,
       verifyCommand,
       commandNames: spec.commandNames,
       notes,
@@ -348,7 +348,7 @@ export function buildUninstallPlanStep(os: DeployOS, platform: AgentType): Unins
       command:
         os === 'windows'
           ? `if (Get-Command pipx -ErrorAction SilentlyContinue) { pipx uninstall ${spec.pipxPackage} }`
-          : `if command -v pipx >/dev/null 2>&1; then pipx uninstall ${shellQuote(spec.pipxPackage)} || true; else echo "[agentmesh] pipx not found, skip"; fi`,
+          : `if command -v pipx >/dev/null 2>&1; then pipx uninstall ${shellQuote(spec.pipxPackage)} || true; else echo "[agentfleet] pipx not found, skip"; fi`,
       verifyCommand,
       commandNames: spec.commandNames,
       notes,
@@ -360,7 +360,7 @@ export function buildUninstallPlanStep(os: DeployOS, platform: AgentType): Unins
       platform,
       os,
       method: 'brew-cask',
-      command: `if command -v brew >/dev/null 2>&1; then brew uninstall --cask ${shellQuote(spec.brewCask)} || true; else echo "[agentmesh] brew not found, skip"; fi`,
+      command: `if command -v brew >/dev/null 2>&1; then brew uninstall --cask ${shellQuote(spec.brewCask)} || true; else echo "[agentfleet] brew not found, skip"; fi`,
       verifyCommand,
       commandNames: spec.commandNames,
       notes,
@@ -400,14 +400,14 @@ export function uninstallVerifyCommand(os: DeployOS, platform: AgentType): strin
   const names = spec?.commandNames?.length ? spec.commandNames : [platform];
   if (os === 'windows') {
     const checks = names
-      .map((name) => `if (Get-Command ${psQuote(name)} -ErrorAction SilentlyContinue) { $agentmeshStill = $true }`)
+      .map((name) => `if (Get-Command ${psQuote(name)} -ErrorAction SilentlyContinue) { $agentfleetStill = $true }`)
       .join('; ');
-    return `$agentmeshStill = $false; ${checks}; if ($agentmeshStill) { Write-Output ${psQuote(`[agentmesh:unverify] platform=${platform} status=still_present`)} } else { Write-Output ${psQuote(`[agentmesh:unverify] platform=${platform} status=removed`)} }`;
+    return `$agentfleetStill = $false; ${checks}; if ($agentfleetStill) { Write-Output ${psQuote(`[agentfleet:unverify] platform=${platform} status=still_present`)} } else { Write-Output ${psQuote(`[agentfleet:unverify] platform=${platform} status=removed`)} }`;
   }
   const checks = names
-    .map((name) => `if command -v ${shellQuote(name)} >/dev/null 2>&1; then agentmesh_still=1; fi`)
+    .map((name) => `if command -v ${shellQuote(name)} >/dev/null 2>&1; then agentfleet_still=1; fi`)
     .join('; ');
-  return `agentmesh_still=0; ${checks}; if [ "$agentmesh_still" = "1" ]; then echo "[agentmesh:unverify] platform=${platform} status=still_present"; else echo "[agentmesh:unverify] platform=${platform} status=removed"; fi`;
+  return `agentfleet_still=0; ${checks}; if [ "$agentfleet_still" = "1" ]; then echo "[agentfleet:unverify] platform=${platform} status=still_present"; else echo "[agentfleet:unverify] platform=${platform} status=removed"; fi`;
 }
 
 /** 生成完整卸载脚本 */
@@ -420,7 +420,7 @@ export function buildUninstallScript(os: DeployOS, platforms: AgentType[]): stri
 /** 解析卸载输出 */
 export function parseUninstallVerification(output: string): UninstallVerification[] {
   const results: UninstallVerification[] = [];
-  const re = /\[agentmesh:unverify\]\s+platform=([^\s]+)\s+status=(removed|still_present)/g;
+  const re = /\[agentfleet:unverify\]\s+platform=([^\s]+)\s+status=(removed|still_present)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(output)) !== null) {
     results.push({ platform: m[1] as AgentType, removed: m[2] === 'removed', raw: m[0] });
@@ -438,31 +438,31 @@ function buildPosixUninstallScript(os: DeployOS, plan: UninstallPlanStep[]): str
     '#!/usr/bin/env bash',
     'set +e',
     'export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"',
-    `echo "[agentmesh] uninstall begin os=${os}"`,
+    `echo "[agentfleet] uninstall begin os=${os}"`,
   ];
   for (const step of plan) {
-    lines.push(`echo "[agentmesh] uninstalling ${step.platform} method=${step.method}"`);
+    lines.push(`echo "[agentfleet] uninstalling ${step.platform} method=${step.method}"`);
     lines.push(step.command);
-    lines.push(`echo "[agentmesh] uninstall_exit ${step.platform} code=$?"`);
-    lines.push(`echo "[agentmesh] verifying_removed ${step.platform}"`);
+    lines.push(`echo "[agentfleet] uninstall_exit ${step.platform} code=$?"`);
+    lines.push(`echo "[agentfleet] verifying_removed ${step.platform}"`);
     lines.push(step.verifyCommand);
   }
-  lines.push('echo "[agentmesh] uninstall end"');
+  lines.push('echo "[agentfleet] uninstall end"');
   return lines.join('\n');
 }
 
 function buildWindowsUninstallScript(plan: UninstallPlanStep[]): string {
   const psLines = [
     '$ErrorActionPreference = "Continue"',
-    'Write-Output "[agentmesh] uninstall begin os=windows"',
+    'Write-Output "[agentfleet] uninstall begin os=windows"',
   ];
   for (const step of plan) {
-    psLines.push(`Write-Output ${psQuote(`[agentmesh] uninstalling ${step.platform} method=${step.method}`)}`);
+    psLines.push(`Write-Output ${psQuote(`[agentfleet] uninstalling ${step.platform} method=${step.method}`)}`);
     psLines.push(step.command);
-    psLines.push(`Write-Output ${psQuote(`[agentmesh] uninstall_exit ${step.platform} code=$LASTEXITCODE`)}`);
+    psLines.push(`Write-Output ${psQuote(`[agentfleet] uninstall_exit ${step.platform} code=$LASTEXITCODE`)}`);
     psLines.push(step.verifyCommand);
   }
-  psLines.push('Write-Output "[agentmesh] uninstall end"');
+  psLines.push('Write-Output "[agentfleet] uninstall end"');
   const encoded = Buffer.from(psLines.join('; '), 'utf16le').toString('base64');
   return `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encoded}`;
 }
@@ -481,35 +481,35 @@ function buildPosixScript(os: DeployOS, plan: InstallPlanStep[]): string {
     '#!/usr/bin/env bash',
     'set +e',
     'export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"',
-    `echo "[agentmesh] deploy begin os=${os}"`,
+    `echo "[agentfleet] deploy begin os=${os}"`,
   ];
   for (const step of plan) {
-    lines.push(`echo "[agentmesh] installing ${step.platform} method=${step.method}"`);
+    lines.push(`echo "[agentfleet] installing ${step.platform} method=${step.method}"`);
     lines.push(step.command);
     lines.push('install_code=$?');
-    lines.push(`echo "[agentmesh] install_exit ${step.platform} code=$install_code"`);
-    lines.push(`echo "[agentmesh] verifying ${step.platform}"`);
+    lines.push(`echo "[agentfleet] install_exit ${step.platform} code=$install_code"`);
+    lines.push(`echo "[agentfleet] verifying ${step.platform}"`);
     lines.push(`( ${step.verifyCommand} )`);
-    lines.push(`echo "[agentmesh] verify_exit ${step.platform} code=$?"`);
+    lines.push(`echo "[agentfleet] verify_exit ${step.platform} code=$?"`);
   }
-  lines.push('echo "[agentmesh] deploy end"');
+  lines.push('echo "[agentfleet] deploy end"');
   return lines.join('\n');
 }
 
 function buildWindowsScript(plan: InstallPlanStep[]): string {
   const psLines = [
     '$ErrorActionPreference = "Continue"',
-    'Write-Output "[agentmesh] deploy begin os=windows"',
+    'Write-Output "[agentfleet] deploy begin os=windows"',
   ];
   for (const step of plan) {
-    psLines.push(`Write-Output ${psQuote(`[agentmesh] installing ${step.platform} method=${step.method}`)}`);
+    psLines.push(`Write-Output ${psQuote(`[agentfleet] installing ${step.platform} method=${step.method}`)}`);
     psLines.push(step.command);
-    psLines.push(`Write-Output ${psQuote(`[agentmesh] install_exit ${step.platform} code=$LASTEXITCODE`)}`);
-    psLines.push(`Write-Output ${psQuote(`[agentmesh] verifying ${step.platform}`)}`);
+    psLines.push(`Write-Output ${psQuote(`[agentfleet] install_exit ${step.platform} code=$LASTEXITCODE`)}`);
+    psLines.push(`Write-Output ${psQuote(`[agentfleet] verifying ${step.platform}`)}`);
     psLines.push(step.verifyCommand);
-    psLines.push(`Write-Output ${psQuote(`[agentmesh] verify_exit ${step.platform} code=$LASTEXITCODE`)}`);
+    psLines.push(`Write-Output ${psQuote(`[agentfleet] verify_exit ${step.platform} code=$LASTEXITCODE`)}`);
   }
-  psLines.push('Write-Output "[agentmesh] deploy end"');
+  psLines.push('Write-Output "[agentfleet] deploy end"');
   const encoded = Buffer.from(psLines.join('; '), 'utf16le').toString('base64');
   return `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encoded}`;
 }
@@ -518,7 +518,7 @@ function npmInstallCommand(os: DeployOS, pkg: string): string {
   if (os === 'windows') {
     return `if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { throw "npm is required" }; npm install -g ${pkg}`;
   }
-  return `if ! command -v npm >/dev/null 2>&1; then echo "[agentmesh] npm is required"; else npm install -g ${shellQuote(pkg)}; fi`;
+  return `if ! command -v npm >/dev/null 2>&1; then echo "[agentfleet] npm is required"; else npm install -g ${shellQuote(pkg)}; fi`;
 }
 
 function pipxInstallCommand(os: DeployOS, pkg: string): string {
@@ -529,7 +529,7 @@ function pipxInstallCommand(os: DeployOS, pkg: string): string {
 }
 
 function markerCommand(os: DeployOS, msg: string): string {
-  return os === 'windows' ? `Write-Output ${psQuote(`[agentmesh] ${msg}`)}` : `echo ${shellQuote(`[agentmesh] ${msg}`)}`;
+  return os === 'windows' ? `Write-Output ${psQuote(`[agentfleet] ${msg}`)}` : `echo ${shellQuote(`[agentfleet] ${msg}`)}`;
 }
 
 function shellQuote(s: string): string {

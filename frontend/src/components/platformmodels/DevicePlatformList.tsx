@@ -1,4 +1,4 @@
-import type { AgentSnapshot, AgentType, DeviceSnapshot } from '@agentmesh/shared';
+import type { AgentSnapshot, AgentType, DeviceSnapshot } from '@agentfleet/shared';
 import { AgentIcon } from '../common/AgentIcon';
 
 /**

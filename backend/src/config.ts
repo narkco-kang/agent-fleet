@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { BACKEND_PORT, HEARTBEAT_TIMEOUT_MS, PAIR_CODE_TTL_MS, RELAY_PORT } from '@agentmesh/shared';
+import { BACKEND_PORT, HEARTBEAT_TIMEOUT_MS, PAIR_CODE_TTL_MS, RELAY_PORT } from '@agentfleet/shared';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..', '..');
@@ -41,7 +41,7 @@ export const config: BackendConfig = {
   port: Number(process.env.BACKEND_PORT ?? BACKEND_PORT),
   dbPath: path.resolve(
     rootDir,
-    process.env.DB_PATH ?? './data/agentmesh.db',
+    process.env.DB_PATH ?? './data/agentfleet.db',
   ),
   relayHost: process.env.RELAY_HOST ?? '0.0.0.0',
   relayPort: Number(process.env.RELAY_PORT ?? RELAY_PORT),

@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { AssetDeliver, AssetDeliverAck, AssetKind } from '@agentmesh/shared';
+import type { AssetDeliver, AssetDeliverAck, AssetKind } from '@agentfleet/shared';
 import { config } from './config.js';
 
 /**
  * 资产接收 + 落盘（设备侧）。
  * 接收 asset.deliver，按 kind 落盘到
- *   ~/.agentmesh/{rules|knowledge|skills}/<name>@v<version>
+ *   ~/.agentfleet/{rules|knowledge|skills}/<name>@v<version>
  * 成功后回 asset.deliver_ack{status:'delivered'}。
  */
 

@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { AgentInfo, AgentSnapshot, AgentStatus, AgentType } from '@agentmesh/shared';
+import type { AgentInfo, AgentSnapshot, AgentStatus, AgentType } from '@agentfleet/shared';
 
 /** agents 表行结构 */
 export interface AgentRow {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Drawer from '@mui/material/Drawer';
 import Button from '@mui/material/Button';
 import CloseIcon from '@mui/icons-material/Close';
-import type { DeploymentBatch } from '@agentmesh/shared';
+import type { DeploymentBatch } from '@agentfleet/shared';
 import { deployApi } from '../../api/deploy';
 
 /**

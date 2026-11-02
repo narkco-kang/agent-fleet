@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useDeviceStore, type DeviceRecord } from '../store/deviceStore';
 import { useTaskStore } from '../store/taskStore';
-import type { AgentSnapshot, DeviceSnapshot, TaskSnapshot } from '@agentmesh/shared';
+import type { AgentSnapshot, DeviceSnapshot, TaskSnapshot } from '@agentfleet/shared';
 
 /**
  * 把 store 中的设备/agent/任务/消息流映射为 d3-force 的 nodes/links。

@@ -9,7 +9,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Switch from '@mui/material/Switch';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import type { RoleRoute } from '@agentmesh/shared';
+import type { RoleRoute } from '@agentfleet/shared';
 import { routingApi } from '../../api/routing';
 import { Card } from '../common/Card';
 

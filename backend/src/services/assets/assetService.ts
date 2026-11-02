@@ -1,5 +1,5 @@
-import type { Asset, AssetContentType, AssetKind } from '@agentmesh/shared';
-import { ASSET_KINDS } from '@agentmesh/shared';
+import type { Asset, AssetContentType, AssetKind } from '@agentfleet/shared';
+import { ASSET_KINDS } from '@agentfleet/shared';
 import { randomId } from '../../security/auth.js';
 import {
   createAsset,

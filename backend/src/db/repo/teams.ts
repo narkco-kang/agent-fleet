@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { RoleRoute, Team, TeamMember } from '@agentmesh/shared';
+import type { RoleRoute, Team, TeamMember } from '@agentfleet/shared';
 
 /**
  * 团队表（teams）CRUD（members/routes 存 JSON）。

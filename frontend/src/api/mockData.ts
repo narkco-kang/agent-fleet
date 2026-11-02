@@ -1,4 +1,4 @@
-import type { AgentSnapshot, DeviceSnapshot } from '@agentmesh/shared';
+import type { AgentSnapshot, DeviceSnapshot } from '@agentfleet/shared';
 
 /**
  * Demo / mock 兜底数据：当后端无真实设备接入时，前端注入一组示例

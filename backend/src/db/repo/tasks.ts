@@ -5,7 +5,7 @@ import type {
   TargetMode,
   TaskSnapshot,
   TaskStatus,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 
 /** tasks 表行结构 */
 export interface TaskRow {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AGENT_TYPES } from '@agentmesh/shared';
+import { AGENT_TYPES } from '@agentfleet/shared';
 import {
   buildInstalledProbeScript,
   parseInstalledProbe,
@@ -37,9 +37,9 @@ describe('installedProbe 已装平台探测脚本生成', () => {
 describe('installedProbe 输出解析', () => {
   it('解析 installed/missing 标记并去重（同平台保留首次出现）', () => {
     const out = [
-      '[agentmesh:installed] platform=codex status=installed',
-      '[agentmesh:installed] platform=grok status=missing',
-      '[agentmesh:installed] platform=codex status=missing',
+      '[agentfleet:installed] platform=codex status=installed',
+      '[agentfleet:installed] platform=grok status=missing',
+      '[agentfleet:installed] platform=codex status=missing',
       'some unrelated noise line',
     ].join('\n');
     const results = parseInstalledProbe(out);

@@ -75,7 +75,7 @@ export default function MainLayout(): JSX.Element {
         >
           <div className="flex h-14 items-center gap-2 px-4">
             <HubIcon className="text-[#4F46E5]" />
-            {!isTablet && <span className="font-semibold text-[#0F172A]">AgentMesh</span>}
+            {!isTablet && <span className="font-semibold text-[#0F172A]">AgentFleet</span>}
           </div>
           <nav className="flex flex-col gap-1 px-2">
             {NAV.map((item) => (
@@ -181,7 +181,7 @@ export default function MainLayout(): JSX.Element {
             <span>
               在线设备 {online} · 运行中任务 {running} · 告警 {alerts}
             </span>
-            <span>AgentMesh v0.1.0</span>
+            <span>AgentFleet v0.1.0</span>
           </footer>
         )}
       </div>

@@ -1,6 +1,6 @@
 # 05 · 记忆架构研究：amg 分析与区块链融合洞察
 
-> 目标：全面分析本机自研记忆架构 `agent-memory-graph`（amg），提炼其可融合进 AgentMesh 的能力，并论证「区块链记账机制」如何优化这套记忆架构，作为后续 PRD / 架构设计的输入。
+> 目标：全面分析本机自研记忆架构 `agent-memory-graph`（amg），提炼其可融合进 AgentFleet 的能力，并论证「区块链记账机制」如何优化这套记忆架构，作为后续 PRD / 架构设计的输入。
 
 ---
 
@@ -93,11 +93,11 @@
 
 ---
 
-## 2. 与 AgentMesh 的融合点
+## 2. 与 AgentFleet 的融合点
 
 ### 2.1 现状对比
 
-| 维度 | AgentMesh 现状 | amg |
+| 维度 | AgentFleet 现状 | amg |
 |---|---|---|
 | 记忆模型 | SQLite `sessions/messages/tasks`（扁平消息流） | 语义记忆图（nodes/edges + 证据 + 有效性） |
 | 存储 | 中心化（协调后端 SQLite） | 单机单文件 |
@@ -108,18 +108,18 @@
 
 ### 2.2 融合目标
 
-把 amg 的「**记忆语义层**」接入 AgentMesh，补上 AgentMesh 缺的「团队事实连续性」：跨设备协同中，哪些决策是最终的、哪个产物已验证、谁在做什么、什么已过期——这些由 amg 的证据门控 + 有效性保证，而非靠聊天记录。
+把 amg 的「**记忆语义层**」接入 AgentFleet，补上 AgentFleet 缺的「团队事实连续性」：跨设备协同中，哪些决策是最终的、哪个产物已验证、谁在做什么、什么已过期——这些由 amg 的证据门控 + 有效性保证，而非靠聊天记录。
 
 ### 2.3 融合架构定位
 
 ```
-AgentMesh
+AgentFleet
 ├── 传输层（局域网直连 + 中继）← 已有
 ├── 调度层（任务/设备）← 已有
 ├── 【新增】分布式记忆账本层
 │   ├── 记忆语义层 ← 融合 amg（nodes/edges/evidence/validity/supersede/检索/审计）
 │   ├── 区块链时序层 ← 新增（哈希链 + Merkle + 分布式账本 + 共识）
-│   └── 同步层 ← 复用 AgentMesh 传输层（局域网 gossip + 中继广播）
+│   └── 同步层 ← 复用 AgentFleet 传输层（局域网 gossip + 中继广播）
 ```
 
 ---
@@ -130,7 +130,7 @@ AgentMesh
 
 > 区块链：「没有中心服务器，所有节点保存完整账本副本，单节点毁坏/篡改不影响整体。」
 
-**落地**：每个设备（+ 协调后端）保存一份**完整的记忆账本副本**。记忆写入后经局域网 gossip + 中继广播同步到所有设备。单设备离线/损坏不丢记忆，恢复后补同步。这正契合 AgentMesh「跨设备」定位，也解决 amg 单机单文件「坏了就没了」的弱点。
+**落地**：每个设备（+ 协调后端）保存一份**完整的记忆账本副本**。记忆写入后经局域网 gossip + 中继广播同步到所有设备。单设备离线/损坏不丢记忆，恢复后补同步。这正契合 AgentFleet「跨设备」定位，也解决 amg 单机单文件「坏了就没了」的弱点。
 
 ### 3.2 哈希算法 → 区块链式哈希（amg fingerprint 的升级）
 
@@ -165,7 +165,7 @@ block.hash = sha256(prev_hash ‖ merkle_root ‖ timestamp ‖ author ‖ chang
 | PBFT 拜占庭容错 | ⚠️ 可选 | 需 2/3 节点在线，重 |
 | **许可制账本（permissioned）** | ✅ | 节点经配对 token 认证，天然可信 |
 
-**推荐共识**（许可制 + 弱中心，贴合 AgentMesh 已有 leader 架构）：
+**推荐共识**（许可制 + 弱中心，贴合 AgentFleet 已有 leader 架构）：
 
 1. **记账权**：协调后端（leader）作为默认 block producer；可 round-robin 轮转到各设备（后备用）。
 2. **出块**：每 N 条记忆 change（或每 T 秒）打包一块，广播全网。
@@ -179,10 +179,10 @@ block.hash = sha256(prev_hash ‖ merkle_root ‖ timestamp ‖ author ‖ chang
 
 1. **记忆账本 = amg 语义层 + 区块链时序层**：amg 的 nodes/edges/evidence/validity 作为区块「内容」，区块链的 hash 链/Merkle/账本/共识作为区块「时序与分布」。
 2. **传输复用**：局域网 gossip（设备间直连）+ 中继广播（跨网段），不新造传输。
-3. **融合方式**：不改造 amg 内部（它已成熟），而是**在其上包一层账本协议**（amg 作为「记账内核」，AgentMesh 提供「分布式传播 + 共识」）。可选：把 amg 作为设备守护的一个 MCP server 接入（amg 已自带 MCP server）。
+3. **融合方式**：不改造 amg 内部（它已成熟），而是**在其上包一层账本协议**（amg 作为「记账内核」，AgentFleet 提供「分布式传播 + 共识」）。可选：把 amg 作为设备守护的一个 MCP server 接入（amg 已自带 MCP server）。
 4. **共识务实**：许可制 + 弱中心 leader + 最长链 + 确定性 tie-break，不引入 PoW/PoS。
 5. **诚实边界**：沿用 amg 的「honestly scoped」态度——账本防的是「静默篡改 + 时序伪造」，防不了「持有 token 的节点恶意写入」，威胁模型要写清楚（对表 amg 的 THREAT-MODEL.md §7）。
 
 ---
 
-*本文档为 AgentMesh 记忆架构的融合基线，后续 PRD / 架构设计以此为准。*
+*本文档为 AgentFleet 记忆架构的融合基线，后续 PRD / 架构设计以此为准。*

@@ -2,11 +2,11 @@
  * 共享协议常量 —— 跨文件约定（见 03-开发文档图谱 §6）
  *
  * 单一事实源：后端 / 设备守护 / 前端 / 微信网关四处均通过
- * `@agentmesh/shared` 引用本文件，避免端口、命名、间隔漂移。
+ * `@agentfleet/shared` 引用本文件，避免端口、命名、间隔漂移。
  */
 
 /** mDNS 服务名（局域网发现，bonjour 广播/浏览共用） */
-export const MDNS_SERVICE_TYPE = '_agentmesh._tcp' as const;
+export const MDNS_SERVICE_TYPE = '_agentfleet._tcp' as const;
 
 /** 设备心跳间隔（毫秒），设备守护每 10s 上报一次 */
 export const HEARTBEAT_INTERVAL_MS = 10_000;
@@ -56,10 +56,10 @@ export const ACTOR_DASHBOARD = 'dashboard';
 export const ACTOR_WECHAT = 'wechat';
 
 /** 设备本地持久化目录（相对 home） */
-export const DEVICE_DATA_DIR = '~/.agentmesh';
+export const DEVICE_DATA_DIR = '~/.agentfleet';
 
 /** 后端 SQLite 数据目录 */
 export const BACKEND_DATA_DIR = './data';
 
 /** 后端 SQLite 数据库文件名 */
-export const BACKEND_DB_FILE = 'agentmesh.db';
+export const BACKEND_DB_FILE = 'agentfleet.db';

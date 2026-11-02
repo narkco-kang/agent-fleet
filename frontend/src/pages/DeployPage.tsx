@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
-import type { DeploymentBatch, DeploymentKind } from '@agentmesh/shared';
+import type { DeploymentBatch, DeploymentKind } from '@agentfleet/shared';
 import { deployApi } from '../api/deploy';
 import { GatewayComponentPanel } from '../components/deploy/GatewayComponentPanel';
 import { BatchList } from '../components/deploy/BatchList';

@@ -4,7 +4,7 @@ import type {
   DeviceSnapshot,
   AgentSnapshot,
   Team,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 
 /**
  * REST 客户端（fetch 封装）。BASE_URL 可通过 VITE_API_BASE 覆盖。

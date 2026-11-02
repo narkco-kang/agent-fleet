@@ -5,7 +5,7 @@ import { useTaskStore } from '../store/taskStore';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { MessageTimeline } from '../components/task/MessageTimeline';
 import { http } from '../api/http';
-import type { TaskEvent } from '@agentmesh/shared';
+import type { TaskEvent } from '@agentfleet/shared';
 
 /**
  * 任务详情页（04 §6.2）：元信息 + 消息流时间线 + 操作。

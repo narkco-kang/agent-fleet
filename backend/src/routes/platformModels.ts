@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { AgentType } from '@agentmesh/shared';
+import type { AgentType } from '@agentfleet/shared';
 import * as platformModelService from '../services/routing/platformModelService.js';
 
 /**

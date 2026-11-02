@@ -1,7 +1,7 @@
 # 15 · 管理界面补全 + 神经图深化 + 内置 modelgateway（增量设计）
 
 > 架构师：高见远（Bob）。上游基线：《14-平台模型绑定与部署即用》《10-路由网关融合PRD》。
-> 关键架构修正（用户）：AgentMesh 是 GitHub 开源项目，**不能依赖某开发者本机 modelgateway**，
+> 关键架构修正（用户）：AgentFleet 是 GitHub 开源项目，**不能依赖某开发者本机 modelgateway**，
 > 故 modelgateway 必须**内置为第 7 个 workspace**，随项目 build/部署，任何 clone 用户开箱即用。
 
 ---
@@ -10,7 +10,7 @@
 
 | 难点 | 选型 | 理由 |
 |---|---|---|
-| modelgateway 内置（第 7 workspace） | Node 20 `node:http` + `@agentmesh/shared` + `dotenv` | **零新增第三方依赖**；协议对齐 `modelGatewayClient.ts`，**不改 backend 客户端** |
+| modelgateway 内置（第 7 workspace） | Node 20 `node:http` + `@agentfleet/shared` + `dotenv` | **零新增第三方依赖**；协议对齐 `modelGatewayClient.ts`，**不改 backend 客户端** |
 | 免费源直连逻辑复用 | **下沉到 `shared`** | 单一事实源，backend 与 modelgateway 共用 |
 | 协调器组件部署 | backend 新增 `GatewayManager`（`child_process.spawn`）+ `modelGatewayClient.health()` | 零新依赖；13 平台走 SSH，modelgateway 走本机 spawn，完全分离 |
 | 部署进度展示 | 前端轮询 3–5s | 决策已定，不新增 WS 协议 |
@@ -19,7 +19,7 @@
 
 ### 1.1 关键决策：freeSourceCatalog 直连逻辑放哪？
 
-**下沉到 `shared`（`shared/src/freeSourceCatalog.ts` + `shared/src/freeSourceRating.ts`），backend 与 modelgateway 都从 `@agentmesh/shared` import，删除 backend 旧副本。**
+**下沉到 `shared`（`shared/src/freeSourceCatalog.ts` + `shared/src/freeSourceRating.ts`），backend 与 modelgateway 都从 `@agentfleet/shared` import，删除 backend 旧副本。**
 
 理由：shared 是单一事实源；直连逻辑是纯逻辑 + Node20 原生 fetch，无 backend-only 依赖；backend 反向依赖 modelgateway 破坏分层。backend 仅 3 处 import 需改指 shared。
 
@@ -68,9 +68,9 @@ shared/src/index.ts                # 修改：export 上述两模块
 
 ### 修改：backend
 ```
-backend/src/services/routing/modelGatewayClient.ts   # 改：computeRating import → @agentmesh/shared
-backend/src/services/routing/freeSourceService.ts    # 改：catalog/rating import → @agentmesh/shared
-backend/src/routes/routing.ts                        # 改：catalog import → @agentmesh/shared
+backend/src/services/routing/modelGatewayClient.ts   # 改：computeRating import → @agentfleet/shared
+backend/src/services/routing/freeSourceService.ts    # 改：catalog/rating import → @agentfleet/shared
+backend/src/routes/routing.ts                        # 改：catalog import → @agentfleet/shared
 backend/src/services/routing/freeSourceCatalog.ts    # 删除（下沉 shared）
 backend/src/services/routing/freeSourceRating.ts     # 删除（下沉 shared）
 backend/src/services/gateway/gatewayManager.ts       # 新增：子进程 build/start/stop + 健康检查
@@ -315,7 +315,7 @@ sequenceDiagram
 ## 6. 依赖包（零新增第三方）
 
 ```
-- @agentmesh/shared@0.1.0        # workspace 已有；modelgateway 唯一业务依赖
+- @agentfleet/shared@0.1.0        # workspace 已有；modelgateway 唯一业务依赖
 - dotenv@^16.4.5                 # monorepo 已有
 - node:http / node:child_process # Node20 内置
 - tsx / typescript               # monorepo 已有

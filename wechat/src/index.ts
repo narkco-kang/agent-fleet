@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   });
 
   /** 健康检查 */
-  app.get('/wechat/health', async () => ({ ok: true, service: 'agentmesh-wechat' }));
+  app.get('/wechat/health', async () => ({ ok: true, service: 'agentfleet-wechat' }));
 
   /** 企业微信回调 URL 验证（GET） */
   app.get<{
@@ -50,7 +50,7 @@ async function main(): Promise<void> {
     }
 
     const replyText = await processMessage(inbound.fromUser, inbound.content, 'wechat_work');
-    const encrypted = buildReply(inbound.fromUser, replyText, timestamp ?? String(Date.now()), nonce ?? 'agentmesh');
+    const encrypted = buildReply(inbound.fromUser, replyText, timestamp ?? String(Date.now()), nonce ?? 'agentfleet');
     if (encrypted) {
       return reply.type('application/xml').send(encrypted);
     }
@@ -70,7 +70,7 @@ async function processMessage(fromUser: string, content: string, origin: 'wechat
   const cmd = await llmParser.parse(content, origin);
   switch (cmd.kind) {
     case 'help':
-      return 'AgentMesh 命令：\n/status 查看队列\n/cancel #任务ID 取消任务\n直接发文本即可下发任务\n@agent类型 指定平台（如 @grok 修复bug）';
+      return 'AgentFleet 命令：\n/status 查看队列\n/cancel #任务ID 取消任务\n直接发文本即可下发任务\n@agent类型 指定平台（如 @grok 修复bug）';
     case 'status': {
       try {
         return await fetchQueueSummary();

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { TaskStatus } from '@agentmesh/shared';
+import type { TaskStatus } from '@agentfleet/shared';
 import { initDatabase, closeDatabase } from '../src/db/database.js';
 import { config } from '../src/config.js';
 import * as loopService from '../src/services/loop/loopService.js';
@@ -12,7 +12,7 @@ import type { SchedulerSubmitInput } from '../src/services/scheduler.js';
 let tmpDir: string;
 
 beforeAll(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-loop-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-loop-'));
   config.dbPath = path.join(tmpDir, 'test.db');
   initDatabase();
 });

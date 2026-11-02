@@ -1,6 +1,6 @@
 # 21 · 平台 ACP 与调用方式矩阵
 
-> 结论：AgentMesh 调用各 agent 平台时，要区分「**ACP 协议平台**（走 `agent stdio` 调 bot/agent）」与「**非 ACP CLI 平台**（走各自 headless 命令调单轮）」。
+> 结论：AgentFleet 调用各 agent 平台时，要区分「**ACP 协议平台**（走 `agent stdio` 调 bot/agent）」与「**非 ACP CLI 平台**（走各自 headless 命令调单轮）」。
 > 本文梳理 13 个平台的调用方式与 ACP 支持情况，作为 Adapter 实现的事实依据。
 
 ## 1. ACP 是什么
@@ -10,7 +10,7 @@ ACP（**Agent Client Protocol**）是由 Zed 主导、Anthropic 与 Google 参�
 - 走 ACP 时，agent 以**长期运行的 JSON-RPC 2.0 server**（`<cli> agent stdio`）形态工作，完整 agent 循环：`initialize → authenticate → session/new → session/prompt → session/update 流（思考/工具/文本/计划）→ done`。
 - 不走 ACP 时，通常是「单轮 headless 问答」：`<cli> -p "prompt"`，一次性输出后退出——这调用的是「**模型**」而非「**bot/agent**」。
 
-**关键区分**：AgentMesh 要协调的是「已经装好的 agent 平台（bot）」，所以**能走 ACP 的平台应走 ACP**（得到完整 agent 循环 + 工具调用），而非退化成单轮模型问答。
+**关键区分**：AgentFleet 要协调的是「已经装好的 agent 平台（bot）」，所以**能走 ACP 的平台应走 ACP**（得到完整 agent 循环 + 工具调用），而非退化成单轮模型问答。
 
 ## 2. 13 平台矩阵
 
@@ -32,7 +32,7 @@ ACP（**Agent Client Protocol**）是由 Zed 主导、Anthropic 与 Google 参�
 
 > 标注原则：已确认的写「✅/⚠️/❌」，未确认的一律写「❓ 需实测」——**不编造**。
 
-## 3. AgentMesh Adapter 分层建议
+## 3. AgentFleet Adapter 分层建议
 
 把 `device-agent` 的 Adapter 按调用方式分为三类：
 

@@ -6,7 +6,7 @@ import {
   getBatchView,
 } from '../services/deploy/deployService.js';
 import { listBatches, updateBatchStatus } from '../db/repo/deployments.js';
-import type { DeploymentKind } from '@agentmesh/shared';
+import type { DeploymentKind } from '@agentfleet/shared';
 import { actionGuard } from '../services/actionGuard.js';
 import { config } from '../config.js';
 import { connectSsh } from '../services/deploy/sshClient.js';

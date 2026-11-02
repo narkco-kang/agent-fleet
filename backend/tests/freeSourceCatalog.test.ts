@@ -13,7 +13,7 @@ import {
   parseFreeModelIds,
   parseModelIds,
   probeDirectSource,
-} from '@agentmesh/shared';
+} from '@agentfleet/shared';
 
 let server: http.Server;
 let baseUrl = '';

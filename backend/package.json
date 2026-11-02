@@ -1,5 +1,5 @@
 {
-  "name": "@agentmesh/backend",
+  "name": "@agentfleet/backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,8 +14,8 @@
     "probe:free": "tsx scripts/probe-free.ts"
   },
   "dependencies": {
-    "@agentmesh/shared": "0.1.0",
-    "@agentmesh/memory": "0.1.0",
+    "@agentfleet/shared": "0.1.0",
+    "@agentfleet/memory": "0.1.0",
     "@fastify/multipart": "^9.0.3",
     "@fastify/websocket": "^11.0.0",
     "better-sqlite3": "^11.6.0",
