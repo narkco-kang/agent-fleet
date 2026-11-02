@@ -20,6 +20,8 @@ import {
   setSnapshotProvider,
   setDevicePatchBuilder,
   setAssetAckHandler,
+  setMemorySyncHandler,
+  setCoordinatorKeyProvider,
 } from './transport/wsServer.js';
 import { startLanDiscovery, stopLanDiscovery } from './transport/lanDiscovery.js';
 import { createRelayServer } from './transport/relayServer.js';
@@ -32,6 +34,7 @@ import {
 import { deviceRegistry, setDeviceOfflineHandler } from './services/deviceRegistry.js';
 import { initTaskRunner, onDeviceTaskEvent, onDeviceTaskResult, onDeviceDisconnected } from './services/taskRunner.js';
 import { memoryLedger } from './services/memoryLedger.js';
+import { setupMemorySync, handleMemorySyncMessage } from './services/memorySync.js';
 import { startDispatchLoop } from './services/scheduler.js';
 import { roleRouteStore } from './services/routing/roleRouteStore.js';
 import { registerDeployExecutor } from './services/deploy/deployService.js';
@@ -89,6 +92,10 @@ async function main(): Promise<void> {
   });
   // 心跳超时兜底 → 同样走断连处理（标 interrupted）
   setDeviceOfflineHandler(onDeviceDisconnected);
+  // 记忆同步：出块广播 + 处理设备补同步请求
+  setupMemorySync();
+  setMemorySyncHandler(handleMemorySyncMessage);
+  setCoordinatorKeyProvider(() => memoryLedger.getCoordinatorPublicKey());
   setRelayForward((deviceId, envelope) => relaySend(deviceId, envelope));
   // 看板快照 + 设备 patch 装配（避免 wsServer 与 scheduler 循环 import）
   setSnapshotProvider(buildSnapshot);

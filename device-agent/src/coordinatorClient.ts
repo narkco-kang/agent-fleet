@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
 import type { Envelope } from '@agentfleet/shared';
-import { handleEnvelope, sendRegister, sendCapabilities } from './messageHandler.js';
+import { handleEnvelope, sendRegister, sendCapabilities, sendChainSummary } from './messageHandler.js';
 import { addSender, type Sender } from './senderRegistry.js';
 import { config } from './config.js';
 import { loadRegistry } from './registry.js';
@@ -45,6 +45,8 @@ export function connectCoordinator(): void {
     addSender(sender);
     sendRegister((env) => sender.send(env));
     void sendCapabilities((env) => sender.send(env));
+    // 上报本地记忆链头，触发 coordinator 补同步（落后则回 block_response）
+    void sendChainSummary((env) => sender.send(env));
     console.log(`[coordinator-client] 已出站直连协调服务 ${url.toString()}`);
   });
 

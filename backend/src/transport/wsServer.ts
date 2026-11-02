@@ -46,6 +46,28 @@ export function setAssetAckHandler(fn: (ack: unknown) => void): void {
   assetAckHandler = fn;
 }
 
+/** 记忆同步消息处理器（index.ts 注入 memorySync.handleMemorySyncMessage） */
+let memorySyncHandler: (
+  type: string,
+  fromDeviceId: string,
+  payload: Record<string, unknown>,
+) => void | Promise<void> = () => {};
+
+/** 注入记忆同步消息处理器 */
+export function setMemorySyncHandler(
+  fn: (type: string, fromDeviceId: string, payload: Record<string, unknown>) => void | Promise<void>,
+): void {
+  memorySyncHandler = fn;
+}
+
+/** coordinator 公钥提供者（index.ts 注入 memoryLedger，随设备注册下发给设备验签） */
+let coordinatorKeyProvider: () => string | null = () => null;
+
+/** 注入 coordinator 公钥提供者 */
+export function setCoordinatorKeyProvider(fn: () => string | null): void {
+  coordinatorKeyProvider = fn;
+}
+
 /** 快照装配器（index.ts 注入，避免与 scheduler 循环 import） */
 let snapshotProvider: (() => DashboardSnapshot) | null = null;
 /** 单设备 patch 装配器（index.ts 注入） */
@@ -150,6 +172,12 @@ function handleEnvelope(socket: WebSocket, raw: string, fallbackPeer?: Peer): vo
 
   const peer = peers.get(socket) ?? fallbackPeer;
   const type = envelope.type as string;
+
+  // 记忆同步消息：memory.* 转交 memorySync 处理器（chain_summary / block_request）
+  if (type.startsWith('memory.')) {
+    void memorySyncHandler(type, envelope.from, (envelope.payload ?? {}) as Record<string, unknown>);
+    return;
+  }
 
   switch (type) {
     case MESSAGE_TYPES.DEVICE_REGISTER: {
@@ -292,7 +320,12 @@ function handleDeviceRegister(socket: WebSocket, envelope: Envelope, peer?: Peer
     ts: Date.now(),
     from: 'coordinator',
     to: reg.deviceId,
-    payload: { deviceId: reg.deviceId, accepted: true, paired: true },
+    payload: {
+      deviceId: reg.deviceId,
+      accepted: true,
+      paired: true,
+      coordinatorPublicKey: coordinatorKeyProvider() ?? undefined,
+    },
   });
 }
 

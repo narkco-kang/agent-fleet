@@ -8,6 +8,9 @@ import { detectAllAgents, dispatchToAdapter } from './adapters/index.js';
 import type { TaskEvent } from '@agentfleet/shared';
 import { cryptoRandomId } from '@agentfleet/shared';
 import { handleAssetDeliver } from './assetReceiver.js';
+import { memoryClient } from './memory/memoryClient.js';
+import { encodeChainSummary } from '@agentfleet/memory';
+import type { Block, ChainSummary } from '@agentfleet/memory';
 
 /**
  * 设备侧统一消息处理逻辑（传输无关）。
@@ -38,6 +41,12 @@ export async function handleEnvelope(
 ): Promise<void> {
   const type = envelope.type as string;
 
+  // 记忆同步消息：memory.* 转交本地账本处理
+  if (type.startsWith('memory.')) {
+    await handleMemoryMessage(type, envelope.payload, sender);
+    return;
+  }
+
   switch (type) {
     case MESSAGE_TYPES.DEVICE_PAIR: {
       // 已有 token → 直接 register；否则走 REST 自动配对（协调服务签发签名 token）
@@ -50,7 +59,11 @@ export async function handleEnvelope(
       break;
     }
     case MESSAGE_TYPES.DEVICE_REGISTER_ACK: {
-      // 注册确认（忽略，已注册）
+      // 注册确认：登记 coordinator 公钥（供记忆账本验签）
+      const ack = envelope.payload as { coordinatorPublicKey?: string };
+      if (ack?.coordinatorPublicKey) {
+        memoryClient.registerCoordinatorKey(ack.coordinatorPublicKey);
+      }
       break;
     }
     case MESSAGE_TYPES.TASK_SUBMIT: {
@@ -188,6 +201,30 @@ export async function sendCapabilities(sender: MessageSender): Promise<void> {
     to: 'coordinator',
     payload: { deviceId, agents, ts: Date.now() },
   });
+}
+
+/** 处理记忆同步消息（block_broadcast / block_response）。 */
+async function handleMemoryMessage(
+  type: string,
+  payload: unknown,
+  _sender: MessageSender,
+): Promise<void> {
+  if (type === MESSAGE_TYPES.MEMORY_BLOCK_BROADCAST) {
+    const { block } = payload as { block: Block };
+    await memoryClient.applyBlock(block);
+    return;
+  }
+  if (type === MESSAGE_TYPES.MEMORY_BLOCK_RESPONSE) {
+    const { blocks } = payload as { blocks: Block[] };
+    await memoryClient.applyBlocks(blocks);
+  }
+}
+
+/** 上报本地链头，触发 coordinator 补同步（落后则回 block_response）。 */
+export async function sendChainSummary(sender: MessageSender): Promise<void> {
+  const { deviceId } = loadRegistry();
+  const summary = await memoryClient.chainSummary();
+  sender(encodeChainSummary(summary, deviceId, 'coordinator') as unknown as Envelope);
 }
 
 /** 处理任务下发：派发给 Adapter，流式回传 + 结果回收 */

@@ -6,6 +6,7 @@ import { startHeartbeat } from './heartbeat.js';
 import { connectRelay } from './relayClient.js';
 import { connectCoordinator } from './coordinatorClient.js';
 import { detectAllAgents } from './adapters/index.js';
+import { memoryClient } from './memory/memoryClient.js';
 
 /**
  * 设备守护进程入口：
@@ -15,6 +16,9 @@ async function main(): Promise<void> {
   const { deviceId } = loadRegistry();
   console.log(`[device-agent] 设备 ID: ${deviceId}`);
   console.log(`[device-agent] 设备名: ${config.deviceName} (v${config.version})`);
+
+  // 初始化本地团队记忆账本（follower，接收 backend 广播同步）
+  await memoryClient.init();
 
   // 启动本地 WS Server（协调服务直连入口）
   const lan = await startLanServer();

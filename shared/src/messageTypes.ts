@@ -28,7 +28,13 @@ export type MessageType =
   | 'dashboard.patch'
   // 微信
   | 'wechat.message'
-  | 'wechat.reply';
+  | 'wechat.reply'
+  // 记忆账本同步（backend leader 广播 + 设备补同步）
+  | 'memory.block_broadcast'
+  | 'memory.chain_summary'
+  | 'memory.block_response'
+  | 'memory.block_request'
+  | 'memory.block_reject';
 
 /**
  * 消息类型常量集合（运行时可用，避免字符串漂移）。
@@ -56,4 +62,9 @@ export const MESSAGE_TYPES: Record<string, MessageType> = {
   DASHBOARD_PATCH: 'dashboard.patch',
   WECHAT_MESSAGE: 'wechat.message',
   WECHAT_REPLY: 'wechat.reply',
+  MEMORY_BLOCK_BROADCAST: 'memory.block_broadcast',
+  MEMORY_CHAIN_SUMMARY: 'memory.chain_summary',
+  MEMORY_BLOCK_RESPONSE: 'memory.block_response',
+  MEMORY_BLOCK_REQUEST: 'memory.block_request',
+  MEMORY_BLOCK_REJECT: 'memory.block_reject',
 } as const;
