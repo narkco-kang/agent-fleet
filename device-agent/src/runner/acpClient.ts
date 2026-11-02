@@ -6,9 +6,12 @@ import readline from 'node:readline';
  *
  * 走 `grok agent stdio`（JSON-RPC 2.0 over stdio），而非 `grok --single`（后者是单轮
  * 模型问答）。完整 agent 循环：initialize → authenticate → session/new →
- * session/prompt → 监听 session/update 流（思考/工具/文本/计划）→ done。
+ * session/prompt → 监听 session/update 流（思考/工具/文本/计划）→ 静默超时判定回合结束。
  *
- * 这样 AgentMesh 调用的才是「grok bot」这一 agent 平台，而不是「grok 模型」。
+ * 实测 grok（1.0.x）session/update 的 sessionUpdate 类型：
+ *   agent_thought_chunk（思考）· agent_message_chunk（回答）· tool_call / tool_call_update
+ *   · available_commands_update / session_info_update（元数据，忽略）
+ * grok 回答完一轮后**不发显式 done**，而是保持连接等下一轮；故用「静默超时」判定单轮完成。
  */
 
 export interface AcpEvent {
@@ -30,12 +33,12 @@ interface AcpOptions {
   cwd?: string;
   prompt: string;
   env?: Record<string, string>;
-  /** XAI_API_KEY（有则走 api_key 认证，否则走本机缓存登录态 / 浏览器登录） */
+  /** XAI_API_KEY（有则走 api_key 认证，否则走本机缓存登录态） */
   apiKey?: string;
   onEvent: (ev: AcpEvent) => void;
 }
 
-/** 单条 JSON-RPC 消息（请求/响应/通知） */
+/** 单条 JSON-RPC 消息 */
 interface RpcMessage {
   jsonrpc?: string;
   id?: number;
@@ -46,8 +49,10 @@ interface RpcMessage {
 }
 
 const STEP_TIMEOUT_MS = 30_000;
-/** authenticate 用 OAuth（grok.com）未登录时会挂起等浏览器授权，headless 下设短超时 */
+/** authenticate 未登录时 OAuth 会挂起等浏览器授权，headless 下设短超时 */
 const AUTH_TIMEOUT_MS = 15_000;
+/** 单轮完成判定：无实质事件持续该时长即视为回合结束 */
+const IDLE_DONE_MS = 8_000;
 
 export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   const child = spawn(opts.cmd, ['agent', 'stdio'], {
@@ -59,11 +64,13 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   let nextId = 1;
   let finished = false;
   const pending = new Map<number, (msg: RpcMessage) => void>();
+  let idleTimer: NodeJS.Timeout | null = null;
 
   /** 终态收尾：发 done/error 事件并关闭进程（幂等） */
   function end(type: 'done' | 'error', message?: string): void {
     if (finished) return;
     finished = true;
+    if (idleTimer) clearTimeout(idleTimer);
     if (type === 'done') opts.onEvent({ type: 'done' });
     else opts.onEvent({ type: 'error', message });
     try {
@@ -77,7 +84,14 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
     }
   }
 
-  // 逐行读 stdout（JSON-RPC over stdio 每行一条消息）
+  /** 收到实质事件 → 重置静默定时器（静默超时即判定回合结束） */
+  function touchIdle(): void {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => end('done'), IDLE_DONE_MS);
+    idleTimer.unref();
+  }
+
+  // 逐行读 stdout
   const rl = readline.createInterface({ input: child.stdout });
   rl.on('line', (line) => {
     const trimmed = line.trim();
@@ -89,21 +103,18 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
       return;
     }
 
-    // 响应（带 id）→ 匹配 pending
     if (typeof msg.id === 'number' && pending.has(msg.id)) {
       const cb = pending.get(msg.id);
       pending.delete(msg.id);
       cb?.(msg);
       return;
     }
-
-    // 通知（无 id，带 method）→ 处理 session/update
     if (typeof msg.id === 'undefined' && msg.method === 'session/update') {
       handleSessionUpdate(msg.params as Record<string, unknown>);
     }
   });
 
-  // stderr → 透传为 status 事件（过滤版本提示等噪音）
+  // stderr → status（过滤版本提示噪音）
   const errRl = readline.createInterface({ input: child.stderr });
   errRl.on('line', (line) => {
     if (!line.trim()) return;
@@ -111,47 +122,70 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
     opts.onEvent({ type: 'status', message: `stderr: ${line}` });
   });
 
-  /** 处理 session/update 通知：映射为规范事件 */
   function handleSessionUpdate(params: Record<string, unknown>): void {
     const update = (params?.update ?? {}) as {
       sessionUpdate?: string;
-      content?: { type?: string; text?: string; thinking?: string };
+      content?: { type?: string; text?: string };
       toolName?: string;
       toolInput?: unknown;
+      input?: unknown;
+      title?: string;
       message?: string;
     };
     const kind = update.sessionUpdate;
     if (!kind) return;
 
-    if (kind === 'done') {
-      end('done');
-      return;
+    switch (kind) {
+      case 'done':
+        end('done');
+        return;
+      case 'agent_message_chunk': {
+        const text = update.content?.text;
+        if (text) {
+          opts.onEvent({ type: 'text', text });
+          touchIdle();
+        }
+        return;
+      }
+      case 'agent_thought_chunk': {
+        const text = update.content?.text;
+        if (text) {
+          opts.onEvent({ type: 'thinking', text });
+          touchIdle();
+        }
+        return;
+      }
+      case 'tool_call':
+        opts.onEvent({
+          type: 'tool',
+          toolName: update.toolName ?? update.content?.type,
+          toolInput: update.toolInput ?? update.input ?? update.content,
+        });
+        touchIdle();
+        return;
+      case 'tool_call_update': {
+        const msg = update.message ?? (update.content?.text ?? `工具执行中：${update.toolName ?? ''}`).trim();
+        if (msg) {
+          opts.onEvent({ type: 'status', message: msg });
+          touchIdle();
+        }
+        return;
+      }
+      case 'plan':
+        opts.onEvent({ type: 'status', message: 'grok 已生成执行计划' });
+        touchIdle();
+        return;
+      case 'available_commands_update':
+      case 'session_info_update':
+        return; // 元数据，忽略（不计入静默）
+      default: {
+        const msg = update.message ?? (update.content ? JSON.stringify(update.content) : kind);
+        opts.onEvent({ type: 'status', message: msg });
+        touchIdle();
+      }
     }
-    if (kind === 'agent_message_chunk') {
-      const text = update.content?.text;
-      if (text) opts.onEvent({ type: 'text', text });
-      const thinking = update.content?.thinking;
-      if (thinking) opts.onEvent({ type: 'thinking', text: thinking });
-      return;
-    }
-    if (kind === 'tool_use' || kind === 'tool_call') {
-      opts.onEvent({
-        type: 'tool',
-        toolName: update.toolName ?? update.content?.type,
-        toolInput: update.toolInput ?? update.content,
-      });
-      return;
-    }
-    if (kind === 'plan') {
-      opts.onEvent({ type: 'status', message: 'grok 已生成执行计划' });
-      return;
-    }
-    // 其它 update（permission/error 等）→ status 事件
-    const msg = update.message ?? (update.content ? JSON.stringify(update.content) : kind);
-    opts.onEvent({ type: 'status', message: msg });
   }
 
-  /** 发送 JSON-RPC 请求并等待响应（带超时） */
   function request(method: string, params: Record<string, unknown>, timeoutMs = STEP_TIMEOUT_MS): Promise<RpcMessage> {
     const id = nextId++;
     return new Promise<RpcMessage>((resolve) => {
@@ -167,10 +201,9 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
     });
   }
 
-  // ===== 启动状态机（异步，不阻塞 run 返回）=====
+  // ===== 状态机 =====
   void (async () => {
     try {
-      // 1) initialize
       const init = await request('initialize', {
         protocolVersion: 1,
         clientCapabilities: { terminal: true },
@@ -188,17 +221,17 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
         : (initResult.authMethods?.[0]?.id ?? 'grok.com');
       const model = initResult._meta?.modelState?.currentModelId ?? '';
 
-      // 2) authenticate（未登录时 OAuth 会挂起等浏览器，设短超时）
       const auth = await request('authenticate', { methodId: authMethodId }, AUTH_TIMEOUT_MS);
       if (auth.error) {
         end('error', `grok 未登录（认证${auth.error.code === -1 ? '超时' : '失败'}）：${auth.error.message}。请在本机执行 \`grok login\` 完成登录后重试`);
         return;
       }
 
-      // 3) session/new
       const snew = await request('session/new', {
         cwd: opts.cwd ?? process.cwd(),
         mcpServers: [],
+        // AgentMesh 任务来自看板，工具执行全自动批准，避免权限确认卡住
+        permissionMode: 'bypassPermissions',
       });
       if (snew.error) {
         end('error', `grok 创建会话失败: ${snew.error.message}`);
@@ -206,7 +239,6 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
       }
       const sessionId = (snew.result as { sessionId?: string })?.sessionId ?? '';
 
-      // 4) session/prompt
       const pr = await request('session/prompt', {
         sessionId,
         prompt: [{ type: 'text', text: opts.prompt }],
@@ -220,7 +252,7 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
         type: 'status',
         message: `grok bot 已启动${model ? `（模型 ${model}）` : ''}`,
       });
-      // 后续由 session/update 通知流驱动；done 时 end('done')
+      touchIdle(); // 提交后启动静默定时器，等待 grok 开始输出
     } catch (err) {
       end('error', `grok agent 异常: ${(err as Error).message}`);
     }
@@ -229,8 +261,6 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   child.on('error', (err) => {
     end('error', `子进程启动失败: ${err.message}`);
   });
-
-  // 进程异常退出且尚未 done/error → 视为失败
   child.on('close', (code) => {
     if (!finished) {
       end('error', `grok 进程异常退出（码 ${code}）`);
