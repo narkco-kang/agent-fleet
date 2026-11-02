@@ -13,6 +13,7 @@ import { registerAssetRoutes } from './routes/assets.js';
 import { registerDeployRoutes } from './routes/deploy.js';
 import { registerTeamRoutes } from './routes/teams.js';
 import { registerLoopRoutes } from './routes/loop.js';
+import { registerA2aRoutes } from './routes/a2a.js';
 import {
   handleConnection,
   setTaskBridge,
@@ -140,6 +141,7 @@ async function main(): Promise<void> {
   registerTeamRoutes(app);
   registerLoopRoutes(app);
   registerGatewayRoutes(app);
+  registerA2aRoutes(app);
 
   await app.listen({ host: config.host, port: config.port });
   console.log(`[backend] AgentFleet 协调服务已启动 http://${config.host}:${config.port}`);
