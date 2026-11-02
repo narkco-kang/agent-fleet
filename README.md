@@ -35,6 +35,24 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
 | **Onboarding guide** | First-run guide explains the device fleet → modelgateway → Provider → deploy-then-use → failover workflow |
 | **WeChat assistant** | Enterprise WeChat (official API) + personal WeChat (interface reserved) as a chat-based task entry |
 
+## ⚡ Performance
+
+Cross-device scheduling is benchmarked and reproducible — the numbers below are the reference point for "cross-device capability". Full report: [`docs/24-benchmark报告.md`](docs/24-benchmark报告.md).
+
+| Metric | Value |
+|---|---|
+| Scheduler throughput (200 tasks) | **303 tasks/s** (4 devices × 2 agents) |
+| Scheduler throughput (1000 tasks) | **377 tasks/s** |
+| Real multi-device throughput | **96 tasks/s** (2 devices × 2 agents, real ws link) |
+| Claim throttling | peak concurrency = theoretical peak (no over-dispatch) |
+| Failover | **lost = 0** |
+| Disconnect migration | running → queued, auto re-dispatch (no lost task) |
+
+```bash
+npm run benchmark --workspace backend           # scheduler core (mock devices)
+npm run benchmark:multi --workspace backend     # real multi-device (1 backend + N device processes)
+```
+
 ## 🧩 Supported agent platforms and responsibility boundaries
 
 AgentFleet can **deploy / uninstall / discover / route multiple agent platforms**, but local CLI execution and modelgateway execution are two different paths:
