@@ -191,11 +191,13 @@ export class WorkbuddyAdapter implements Adapter {
     let seq = 0;
     const makeSeq = (): number => ++seq;
 
-    // 优先走 50068 Remote Control（桌面主进程持有登录态，代为执行，登录态自动复用）
+    // 优先走 50068 Remote Control（桌面主进程持有登录态，代为执行，登录态自动复用）。
+    // 账号登录靠 Google/微信/手机号（WorkBuddy 桌面应用处理，不靠密码）；50068 的
+    // gateway password 只是本地 API 访问保护，可通过 gateway.auth=none 关闭。
     const gateway = await probeGateway50068();
     if (gateway !== 'offline') {
-      const password = getGatewayPassword();
-      if (gateway === 'reachable' || password) {
+      // reachable 或已配 password 直接走；auth-required 也尝试（网关可能对 localhost 免认证）
+      if (gateway === 'reachable' || getGatewayPassword()) {
         return this.runViaGateway50068(task, sink, makeSeq);
       }
       sink({
@@ -205,7 +207,7 @@ export class WorkbuddyAdapter implements Adapter {
         status: 'failed',
         data: {
           message:
-            'WorkBuddy 桌面应用已运行，但 50068 需要 gateway password。请在 device-agent 环境设置 CODEBUDDY_GATEWAY_PASSWORD 后重试',
+            'WorkBuddy 桌面应用已运行，但 50068 网关开启了本地访问保护。请将 WorkBuddy 的 gateway.auth 设为 none（或设置 CODEBUDDY_GATEWAY_PASSWORD 环境变量）后重试',
         },
         ts: Date.now(),
       });
@@ -331,7 +333,8 @@ export class WorkbuddyAdapter implements Adapter {
         });
         if (res.status === 401 || res.status === 403) {
           emit('status', 'failed', {
-            message: '50068 需要 gateway password，请在 device-agent 环境设置 CODEBUDDY_GATEWAY_PASSWORD 后重试',
+            message:
+              '50068 网关开启了本地访问保护（gateway.auth=password）。请将 WorkBuddy 的 gateway.auth 设为 none，或设置 CODEBUDDY_GATEWAY_PASSWORD 环境变量后重试',
           });
           return;
         }
