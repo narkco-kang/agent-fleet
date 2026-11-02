@@ -1,6 +1,15 @@
-# AgentMesh · Cross-Device Super-Agent Collaboration System
+# AgentMesh · Cross-Device AI Orchestration — Every device is a hive. AgentMesh is the swarm.
 
-Orchestrate the **AI agent platforms already installed on each device** (Codex / Claude Code / DSH / Grok bot / Cursor / Aider / Gemini / Qwen …): **each device is a local swarm, and AgentMesh is a multi-swarm collaboration system**. A dynamic neural-graph dashboard visualizes device → agent → task invocation topology in real time, and WeChat (personal + enterprise) acts as a task entry point.
+[![AgentMesh — Every device is a hive. AgentMesh is the swarm.](docs/images/banner.png)](docs/images/banner.png)
+
+AgentMesh is a **self-hosted cross-device AI orchestration layer**. It doesn't build new agents — it coordinates the AI agents **you've already installed** (Claude Code, Codex, Cursor, Aider, Gemini, Qwen, Grok and 10+ more) into one swarm, so you can run multiple coding agents across machines, watch them work on a live neural graph, and keep tamper-evident shared memory. Unlike multi-agent frameworks that rebuild agents from scratch, AgentMesh sits **above** what you already run.
+
+> ⚡ **30-second start**
+> ```bash
+> npm install
+> npm run dev:backend     # coordinator :4173
+> npm run dev:frontend    # dashboard :5173 (demo mode even with zero devices)
+> ```
 
 [中文说明](README.zh-CN.md) · English
 

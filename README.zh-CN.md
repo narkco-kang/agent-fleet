@@ -1,6 +1,15 @@
-# AgentMesh · 跨设备超级智能体协同系统
+# AgentMesh · 跨设备智能体协同 —— 把每台设备，变成一支 AI 蜂群
 
-把每台设备上**已安装**的 AI agent 平台（Codex / Claude Code / DSH / Grok bot / Cursor / Aider / Gemini / Qwen …）统一调度：**每台设备是一支本地蜂群，整个 AgentMesh 是多蜂群协同系统**。前端用动态神经图实时呈现「设备 → agent → 任务」的调用拓扑，微信（个人 + 企业）作为任务下发入口。
+[![AgentMesh —— 把每台设备，变成一支 AI 蜂群](docs/images/banner.png)](docs/images/banner.png)
+
+AgentMesh 是一个**可自托管的跨设备智能体协同层**。它不造新 agent，而是把你每台设备上**已安装**的 AI agent（Codex / Claude Code / Cursor / Aider / Gemini / Qwen / Grok 等 13+ 平台）统一调度，让你能在一台电脑上同时运行多个 AI 编程助手、跨设备像指挥一支蜂群一样协同，用动态神经图实时看见它们工作，并拥有防篡改的共享记忆。不同于那些从零再造 agent 的多智能体框架，AgentMesh 架设在你已有的 agent 之上。
+
+> ⚡ **30 秒上手**
+> ```bash
+> npm install
+> npm run dev:backend     # 协调服务 :4173
+> npm run dev:frontend    # 看板 :5173（零设备也自动进入演示模式）
+> ```
 
 [English](README.md) · 中文
 

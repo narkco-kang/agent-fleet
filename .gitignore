@@ -29,6 +29,8 @@ npm-debug.log*
 
 # generated marketing/media artifacts
 /generated-videos/
+# 营销交付物（含未发布的首发文案，不进公开仓库）
+/deliverables/
 
 # WorkBuddy 项目数据（本地记忆/会话接续，不进仓库）
 .workbuddy-ai/
