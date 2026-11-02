@@ -9,6 +9,7 @@ import SettingsPage from './pages/SettingsPage';
 import DeployPage from './pages/DeployPage';
 import PlatformModelsPage from './pages/PlatformModelsPage';
 import RoutingGatewayPage from './pages/RoutingGatewayPage';
+import AssetsPage from './pages/AssetsPage';
 
 /**
  * 应用根组件：路由挂载。
@@ -26,6 +27,7 @@ export default function App(): JSX.Element {
         <Route path="/deploy" element={<DeployPage />} />
         <Route path="/platform-models" element={<PlatformModelsPage />} />
         <Route path="/routing" element={<RoutingGatewayPage />} />
+        <Route path="/assets" element={<AssetsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

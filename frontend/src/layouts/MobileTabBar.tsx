@@ -7,6 +7,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import RouteIcon from '@mui/icons-material/Route';
+import FolderIcon from '@mui/icons-material/Folder';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 
 const TABS = [
@@ -16,6 +17,7 @@ const TABS = [
   { to: '/settings', label: '设置', icon: <SettingsIcon /> },
   { to: '/deploy', label: '部署', icon: <CloudUploadIcon /> },
   { to: '/platform-models', label: '平台模型', icon: <ExtensionIcon /> },
+  { to: '/assets', label: '资产', icon: <FolderIcon /> },
   { to: '/routing', label: '路由网关', icon: <RouteIcon /> },
 ];
 

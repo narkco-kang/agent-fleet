@@ -8,6 +8,7 @@ import AddIcon from '@mui/icons-material/Add';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import RouteIcon from '@mui/icons-material/Route';
+import FolderIcon from '@mui/icons-material/Folder';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useLiveData } from '../hooks/useLiveData';
@@ -24,6 +25,7 @@ const NAV = [
   { to: '/tasks', label: '任务', icon: <AssignmentIcon /> },
   { to: '/deploy', label: '部署', icon: <CloudUploadIcon /> },
   { to: '/platform-models', label: '平台模型', icon: <ExtensionIcon /> },
+  { to: '/assets', label: '资产', icon: <FolderIcon /> },
   { to: '/routing', label: '路由网关', icon: <RouteIcon /> },
   { to: '/settings', label: '设置', icon: <SettingsIcon /> },
 ];

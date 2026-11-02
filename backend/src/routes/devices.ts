@@ -32,13 +32,15 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
     const devices = listDevices().map((row) => {
       const entry = deviceRegistry.get(row.device_id);
       const agents = listAgentsByDevice(row.device_id).map(toAgentSnapshot);
+      const snapshot = toDeviceSnapshot(
+        row,
+        entry?.load ?? { cpu: 0, mem: 0 },
+        entry?.busyAgents ?? 0,
+        teamNameOf(row.team_id),
+      );
       return {
-        ...toDeviceSnapshot(
-          row,
-          entry?.load ?? { cpu: 0, mem: 0 },
-          entry?.busyAgents ?? 0,
-          teamNameOf(row.team_id),
-        ),
+        ...snapshot,
+        status: deviceRegistry.isOnline(row.device_id) ? snapshot.status : 'offline',
         agents,
       };
     });
@@ -53,15 +55,17 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
     }
     const entry = deviceRegistry.get(row.device_id);
     const agents = listAgentsByDevice(row.device_id).map(toAgentSnapshot);
+    const snapshot = toDeviceSnapshot(
+      row,
+      entry?.load ?? { cpu: 0, mem: 0 },
+      entry?.busyAgents ?? 0,
+      teamNameOf(row.team_id),
+    );
     return {
       ok: true,
       data: {
-        ...toDeviceSnapshot(
-          row,
-          entry?.load ?? { cpu: 0, mem: 0 },
-          entry?.busyAgents ?? 0,
-          teamNameOf(row.team_id),
-        ),
+        ...snapshot,
+        status: deviceRegistry.isOnline(row.device_id) ? snapshot.status : 'offline',
         agents,
       },
     };
