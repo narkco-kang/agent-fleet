@@ -29,7 +29,7 @@
 | `codex` | Codex | ✅ npm `@openai/codex` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；本地 headless 调用待实测稳定化 |
 | `claude` | Claude Code | ✅ npm `@anthropic-ai/claude-code` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；通常需要用户本机已登录 Claude Code |
 | `dsh` | DSH Desktop | 手动/验证 | 手动/验证 | ✅ | ✅ | 骨架 | 安装源不公开标准化，AgentMesh 只验证既有安装 |
-| `grok` | Grok | 手动/验证 | 手动/验证 | ✅ | ✅ | ✅ 稳定 | `GrokAdapter` 真接，执行 `grok --single <prompt> --output-format streaming-messages-json --always-approve` |
+| `grok` | Grok | 手动/验证 | 手动/验证 | ✅ | ✅ | ✅ 稳定 | `GrokAdapter` 走 ACP（`grok agent stdio`，完整 bot 循环），认证用 `XAI_API_KEY` 或 `grok login` |
 | `cursor` | Cursor | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | 骨架 | Linux 暂无统一自动安装；桌面/agent headless 参数需实测 |
 | `aider` | Aider | ✅ pipx `aider-chat` | ✅ pipx uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；本地调用模板待逐版本验证 |
 | `gemini` | Gemini CLI | ✅ npm `@google/gemini-cli` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；通常需要用户本机登录或配置 Google 凭证 |

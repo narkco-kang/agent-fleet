@@ -4,12 +4,13 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import type { TaskSubmit } from '@agentmesh/shared';
 import type { Adapter, AdapterDetection, AdapterEventSink, AdapterRunHandle } from './adapter.js';
-import { runProcess } from '../runner/processRunner.js';
+import { runAcpPrompt } from '../runner/acpClient.js';
 
 /**
- * Grok Adapter（真接）：
+ * Grok Adapter（真接，走 ACP 协议调用「grok bot」）：
  *  - detect：约定目录（~/.grok/bin/grok、~/.local/bin/grok）+ which + 版本。
- *  - run：`grok agent headless`（stdio 亦可），spawn + readline 流式解析。
+ *  - run：`grok agent stdio`（ACP），完整 agent 循环（思考/工具/文本/计划），
+ *    而非 `grok --single`（单轮模型问答）。
  */
 export class GrokAdapter implements Adapter {
   readonly agentType = 'grok' as const;
@@ -58,39 +59,54 @@ export class GrokAdapter implements Adapter {
       return { cancel: () => undefined };
     }
 
-    // 真接：`grok -p/--single <prompt> --output-format streaming-messages-json`，
-    // 单轮输出到 stdout 后退出，readline 逐行解析流式事件。
-    const handle = runProcess(
-      task.taskId,
-      {
-        cmd: detection.executable,
-        args: [
-          '--single',
-          task.prompt,
-          '--output-format',
-          'streaming-messages-json',
-          '--always-approve',
-        ],
-        stdin: undefined,
-        env: {},
-        onLine: (_line) => {
-          /* 已由 runProcess 统一解析 */
-        },
+    // 走 ACP 协议调用「grok bot」（grok agent stdio），而非单轮模型问答
+    const handle = runAcpPrompt({
+      cmd: detection.executable,
+      cwd: process.cwd(),
+      prompt: task.prompt,
+      onEvent: (ev) => {
+        const ts = Date.now();
+        switch (ev.type) {
+          case 'text':
+            sink({ taskId: task.taskId, seq: makeSeq(), eventType: 'text', data: { text: ev.text }, ts });
+            break;
+          case 'thinking':
+            sink({ taskId: task.taskId, seq: makeSeq(), eventType: 'thinking', data: { text: ev.text }, ts });
+            break;
+          case 'tool':
+            sink({
+              taskId: task.taskId,
+              seq: makeSeq(),
+              eventType: 'tool_call',
+              data: { toolName: ev.toolName, toolInput: ev.toolInput as Record<string, unknown> },
+              ts,
+            });
+            break;
+          case 'status':
+            sink({ taskId: task.taskId, seq: makeSeq(), eventType: 'status', data: { message: ev.message }, ts });
+            break;
+          case 'done':
+            sink({
+              taskId: task.taskId,
+              seq: makeSeq(),
+              eventType: 'status',
+              status: 'completed',
+              data: { message: 'grok bot 执行完成' },
+              ts,
+            });
+            break;
+          case 'error':
+            sink({
+              taskId: task.taskId,
+              seq: makeSeq(),
+              eventType: 'status',
+              status: 'failed',
+              data: { message: ev.message },
+              ts,
+            });
+            break;
+        }
       },
-      sink,
-      makeSeq,
-    );
-
-    // 进程退出 → 发出结果事件（由上层决定最终 status）
-    handle.done.then(({ code }) => {
-      sink({
-        taskId: task.taskId,
-        seq: makeSeq(),
-        eventType: 'status',
-        status: code === 0 ? 'completed' : 'failed',
-        data: { message: code === 0 ? 'grok 执行完成' : `grok 退出码 ${code}` },
-        ts: Date.now(),
-      });
     });
 
     const runHandle: AdapterRunHandle = {
