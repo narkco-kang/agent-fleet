@@ -36,7 +36,7 @@
 | `cody` | Cody | ✅ npm `@sourcegraph/cody` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 本地调用协议待实测 |
 | `qwen` | Qwen Code | ✅ npm `@qwen-code/qwen-code` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；通常需要用户本机登录或配置凭证 |
 | `doubao` | 豆包 MarsCode | ✅ npm `@bytedance/mars-code` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 本地调用协议待实测 |
-| `kimi` | Kimi CLI | ✅ npm `kimi-cli` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 本地调用协议待实测 |
+| `kimi` | Kimi CLI | ✅ npm `kimi-cli` | ✅ npm uninstall | ✅ | ✅ | ACP 待验证 | 支持 ACP（`kimi acp`，类似 grok），待泛化 acpClient 接入 |
 | `opencode` | OpenCode | ✅ npm `opencode-ai` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；免费源探测里也包含 OpenCode 上游线路 |
 | `windsurf` | Windsurf | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | 待确认（GUI） | GUI/Cascade 为主，headless CLI 参数未证实；Linux 无统一安装 |
 

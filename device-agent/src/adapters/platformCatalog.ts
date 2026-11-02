@@ -138,7 +138,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
-    runSpec: { mode: 'unsupported', note: 'interactive-first CLI，headless/print 参数待确认' },
+    runSpec: { mode: 'unsupported', note: '支持 ACP（kimi acp，类似 grok agent stdio），待泛化 acpClient 接入' },
   },
   {
     agentType: 'opencode',
