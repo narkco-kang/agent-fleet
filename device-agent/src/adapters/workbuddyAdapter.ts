@@ -7,26 +7,48 @@ import type { Adapter, AdapterDetection, AdapterEventSink, AdapterRunHandle } fr
 import { runAcpPrompt } from '../runner/acpClient.js';
 
 /**
- * WorkBuddy Adapter（真接，走 ACP 协议）——与 GrokAdapter 同构。
+ * WorkBuddy Adapter（真接，ACP 协议）——逆向 WorkBuddy.app 定位到的真正智能体内核。
  *
- * WorkBuddy 桌面版基于腾讯 CodeBuddy，其 CLI 二进制名为 `codebuddy`，藏在
- * Electron app 内（不在标准 PATH）：
- *   /Applications/WorkBuddy AI.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy
+ * 逆向结论（类比 DshAdapter 的 Electron 逆向，工具：rizin/ghidra/strings + asar 解包）：
  *
- * 进入 ACP stdio 的正确姿势（实测）：
- *   codebuddy --serve --acp --port <p> --auth none
- * 关键点：
- *  - 只加 `--acp` 会同时起 HTTP server，默认复用固定端口 50068，
- *    与常驻的 WorkBuddy 桌面应用冲突 → `EADDRINUSE` 直接退出；必须显式给随机 --port。
- *  - `--serve --acp` 组合才会在 stdio 上跑 ACP；单独 `--acp` 会立即 exit 0。
- *  - `--auth none` 只关掉 HTTP server 的密码，不影响 ACP stdio。
- *  - 启动后要先做约 6-9s 的配置同步（SetupGalileo/pull config）才响应 initialize。
- *  - 复用本地 CLI 登录态，不需要（且不能）走 ACP authenticate —— 该调用返回 Internal error。
- *  - 设置 HTTP(S)_PROXY 环境变量会让其内部 setProxy 抛
- *    `Right-hand side of 'instanceof' is not callable` 而无法启动，故默认剥离。
+ * 1. WorkBuddy.app 的 agent 内核不是通用 codebuddy，而是一个**专属精简 bundle**：
+ *    app.asar.unpacked/cli/dist/codebuddy-lite-wb.mjs（"wb" = WorkBuddy，rspack 打包）。
+ *    它与通用 bundle 的区别：
+ *    - 内置 `WORKBUDDY_TOOLS`（`@genie/agent-harness/cli/server.mjs` 中导出）。
+ *    - 内置 WorkBuddy 专属多模型网关（deepseek-v4.1-flash-sg / gpt-6-astra / grok-4.7 /
+ *      gemini-3.8-flash / glm-5.3 / kimi-k3.1-pro …）。
+ *    - 剔除 TUI 视图 / LSP / update / record-replay / channel 等 WorkBuddy 结构性不用的桶。
+ *
+ * 2. 三个 bundle 变体由引导脚本 `cli/bin/codebuddy` 分派：
+ *    - 默认            → dist/codebuddy（通用 TUI）
+ *    - FORCE_HEADLESS  → dist/codebuddy-headless（通用 headless）
+ *    - FORCE_LITE_WB   → dist/codebuddy-lite-wb.mjs（**WorkBuddy 专属**，优先级最高）
+ *    分派开关是环境变量 `CODEBUDDY_FORCE_LITE_WB_BUNDLE=1`。**必须设**，否则走通用
+ *    bundle 读的是 `~/.codebuddy` 的 codebuddy 登录态，会卡 `Authentication required`。
+ *
+ * 3. 登录态（关键，之前 /login 卡点的根因）：
+ *    lite-wb bundle 硬编码读取 WorkBuddy 桌面登录态：
+ *      ~/Library/Application Support/CodeBuddyExtension/Data/Public/auth/workbuddy-desktop-ai.info
+ *    token 字段为 `{ $wbEncrypted:1, envelope }` 加密包装，lite-wb 内置 Keychain 解密逻辑，
+ *    headless 下可复用 GUI 已登录态，无需 codebuddy login。
+ *
+ * 4. 进入 ACP stdio 的正确姿势（实测）：
+ *      CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 codebuddy --serve --acp --port <p> --auth none
+ *    关键点：
+ *    - 只加 `--acp` 会同时起 HTTP server，默认复用固定端口 50068，
+ *      与常驻的 WorkBuddy 桌面应用冲突 → `EADDRINUSE` 直接退出；必须显式给随机 --port。
+ *    - `--serve --acp` 组合才会在 stdio 上跑 ACP；`--acp-transport` 默认 stdio。
+ *    - `--auth none` 只关掉 HTTP server 的密码，不影响 ACP stdio。
+ *    - 启动后要先做约 6-9s 的配置同步（SetupGalileo/pull config）才响应 initialize。
+ *    - 复用 WorkBuddy 桌面登录态，不需要（且不能）走 ACP authenticate —— 该调用返回 Internal error。
+ *    - 设置 HTTP(S)_PROXY 环境变量会让其内部 setProxy 抛
+ *      `Right-hand side of 'instanceof' is not callable` 而无法启动，故默认剥离。
  */
 
-/** WorkBuddy.app 内 codebuddy CLI 的绝对路径 */
+/** 触发 WorkBuddy 专属 lite-wb bundle（而非通用 codebuddy bundle）的环境变量 */
+const FORCE_LITE_WB_ENV = 'CODEBUDDY_FORCE_LITE_WB_BUNDLE';
+
+/** WorkBuddy.app 内 codebuddy 引导脚本的绝对路径（据此加载 WorkBuddy 专属内核） */
 const CODEBUDDY_IN_APP = path.join(
   '/Applications',
   'WorkBuddy AI.app',
@@ -84,7 +106,7 @@ function randomHighPort(): number {
 
 export class WorkbuddyAdapter implements Adapter {
   readonly agentType = 'workbuddy' as const;
-  readonly displayName = 'WorkBuddy (CodeBuddy)';
+  readonly displayName = 'WorkBuddy';
   private handles = new Map<string, AdapterRunHandle>();
 
   async detect(): Promise<AdapterDetection> {
@@ -122,7 +144,7 @@ export class WorkbuddyAdapter implements Adapter {
         seq: makeSeq(),
         eventType: 'status',
         status: 'failed',
-        data: { message: '未检测到 WorkBuddy (CodeBuddy) 可执行文件' },
+        data: { message: '未检测到 WorkBuddy 智能体内核（codebuddy 引导脚本缺失）' },
         ts: Date.now(),
       });
       return { cancel: () => undefined };
@@ -137,6 +159,9 @@ export class WorkbuddyAdapter implements Adapter {
       cmd: exe,
       cwd: process.cwd(),
       prompt: task.prompt,
+      // 关键：强制加载 WorkBuddy 专属 lite-wb 内核（而非通用 codebuddy bundle），
+      // 这样才会读 WorkBuddy 桌面登录态（CodeBuddyExtension），而非 ~/.codebuddy。
+      env: { [FORCE_LITE_WB_ENV]: '1' },
       // --serve --acp 才会在 stdio 上跑 ACP；--port 规避 50068 被桌面应用占用
       spawnArgs: ['--serve', '--acp', '--port', String(port), '--auth', 'none'],
       agentLabel: 'workbuddy',

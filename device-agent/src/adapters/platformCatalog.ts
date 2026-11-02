@@ -164,9 +164,10 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'workbuddy',
-    displayName: 'WorkBuddy (CodeBuddy)',
+    displayName: 'WorkBuddy',
     commands: ['codebuddy', 'cbc'],
-    // codebuddy 二进制藏在 Electron app 内部（不在标准 PATH），macOS 绝对路径探测
+    // WorkBuddy 专属智能体内核由 codebuddy 引导脚本加载（CODEBUDDY_FORCE_LITE_WB_BUNDLE=1
+    // → codebuddy-lite-wb.mjs）。引导脚本藏在 Electron app 内部（不在标准 PATH）。
     defaultDirs: ['/Applications/WorkBuddy AI.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy'],
     appNames: ['WorkBuddy AI'],
     versionArgs: ['--version'],
@@ -174,7 +175,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     maxConcurrency: 1,
     runSpec: {
       mode: 'unsupported',
-      note: '真接由专用 WorkbuddyAdapter 负责（codebuddy --serve --acp 走 ACP stdio）；此目录项仅保留探测信息',
+      note: '真接由专用 WorkbuddyAdapter 负责（CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 + --serve --acp 走 ACP stdio，复用 WorkBuddy 桌面登录态）；此目录项仅保留探测信息',
     },
   },
 ];
