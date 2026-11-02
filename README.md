@@ -31,8 +31,8 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
 | **Primary AI agent** | Set a primary AI agent per device or in batch — auto-routing prefers it |
 | **Free-source rating** | Live chat probes against Kilo / OpenCode, rated 优/中/差; keep only 优 and 中 |
 | **Auto check-in** | Startup check-in + scheduled auto check-in + audit for free sources that award credits via check-in |
-| **Model Nexus** | Inspired by EchoBird: batch configure paid Providers, mask API keys, persist them in the local ignored directory, and reuse them across all device swarms |
-| **Onboarding guide** | First-run guide explains the device swarm → modelgateway → Provider → deploy-then-use → failover workflow |
+| **Model Nexus** | Inspired by EchoBird: batch configure paid Providers, mask API keys, persist them in the local ignored directory, and reuse them across the whole fleet |
+| **Onboarding guide** | First-run guide explains the device fleet → modelgateway → Provider → deploy-then-use → failover workflow |
 | **WeChat assistant** | Enterprise WeChat (official API) + personal WeChat (interface reserved) as a chat-based task entry |
 
 ## 🧩 Supported agent platforms and responsibility boundaries
@@ -40,7 +40,7 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
 AgentFleet can **deploy / uninstall / discover / route multiple agent platforms**, but local CLI execution and modelgateway execution are two different paths:
 
 - **Install / uninstall**: 13 platforms are mapped to OS-aware npm / pipx / brew / winget / manual-verify scripts, with post-install or post-uninstall verification.
-- **Discover / report**: the per-device daemon detects installed platforms and reports them as workers inside that device swarm.
+- **Discover / report**: the per-device daemon detects installed platforms and reports them as workers inside that device fleet.
 - **Deploy-then-use**: a deployment target can carry `deviceId + platform models`; after a successful deployment AgentFleet binds the device+agent platform to built-in modelgateway models and runs tasks through the gateway first.
 - **Local CLI direct execution**: `grok` is the currently stable direct adapter; the other platforms have discovery and dispatch scaffolding, but their headless flags, login state and output formats must be verified per platform before they are marked stable.
 
