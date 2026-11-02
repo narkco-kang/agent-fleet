@@ -296,6 +296,40 @@ function handleDeviceRegister(socket: WebSocket, envelope: Envelope, peer?: Peer
   });
 }
 
+/** ws 探活间隔：每 PING_INTERVAL_MS 发一次 ping，一次未回 pong 即判定死连接 */
+const PING_INTERVAL_MS = 1_500;
+
+/**
+ * 给设备连接加 ws ping/pong 探活（TCP 半开连接下最快的断连检测手段）。
+ * SIGKILL 强杀对端时 socket 的 close 事件可能长期不触发（TCP keepalive 默认 2h），
+ * 靠应用层心跳兜底太慢；ws ping/pong 可在约 2×PING_INTERVAL 内识别死连接并 terminate。
+ */
+function armPingPong(socket: WebSocket): void {
+  const alive = { value: true };
+  socket.on('pong', () => {
+    alive.value = true;
+  });
+  const timer = setInterval(() => {
+    if (!alive.value) {
+      socket.terminate();
+      return;
+    }
+    alive.value = false;
+    try {
+      socket.ping();
+    } catch {
+      /* ignore */
+    }
+  }, PING_INTERVAL_MS);
+  timer.unref();
+  socket.on('close', () => clearInterval(timer));
+}
+
+/** 供 lanDiscovery 反向连接复用探活 */
+export function armDevicePingPong(socket: WebSocket): void {
+  armPingPong(socket);
+}
+
 /**
  * 处理一条新 WebSocket 连接（wsServer 入口）。
  */
@@ -328,6 +362,7 @@ export function handleConnection(
   } else if (kind === 'device') {
     // 设备连接：可能是「经中继」或「直连」；注册时再确定
     peers.set(socket, { kind: 'device', deviceId: query.deviceId, socket });
+    armPingPong(socket);
   }
 
   socket.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {

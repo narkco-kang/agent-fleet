@@ -2,7 +2,15 @@ import { Bonjour, type Service } from 'bonjour-service';
 import WebSocket from 'ws';
 import { MDNS_SERVICE_TYPE, MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from '../services/deviceRegistry.js';
-import { handleEnvelopeFor, sendEnvelope, notifyDeviceDisconnected } from './wsServer.js';
+import {
+  handleEnvelopeFor,
+  sendEnvelope,
+  notifyDeviceDisconnected,
+  armDevicePingPong,
+} from './wsServer.js';
+
+/** 反向连接 open 后存活验证窗口：超过此时间未收到任何消息即判定死连接 */
+const OPEN_VERIFY_MS = 3_000;
 
 /**
  * 局域网发现：bonjour 浏览 _agentfleet._tcp，发现设备后发起直连。
@@ -93,6 +101,23 @@ function connectDevice(info: ServiceInfo): void {
       to: info.deviceId,
       payload: { deviceId: info.deviceId, name: info.name },
     });
+    // 反向连接同样加 ws ping/pong 探活（设备 SIGKILL 后秒级识别死连接）
+    armDevicePingPong(socket as never);
+    // 存活验证：open 后 OPEN_VERIFY_MS 内必须收到至少一条消息（如 register 响应），
+    // 否则判定为「进程已死、TCP 握手却完成」的竞态连接，主动关闭避免反复 register 重置 lastHeartbeat
+    let gotMessage = false;
+    const markAlive = (): void => {
+      gotMessage = true;
+    };
+    socket.on('message', markAlive);
+    const verifyTimer = setTimeout(() => {
+      if (!gotMessage) {
+        console.log(`[lan] 设备 ${info.deviceId} open 后无响应，判定死连接并关闭`);
+        socket.terminate();
+      }
+      socket.removeListener('message', markAlive);
+    }, OPEN_VERIFY_MS);
+    verifyTimer.unref();
   });
 
   socket.on('message', (data) => {

@@ -8,11 +8,11 @@
 /** mDNS 服务名（局域网发现，bonjour 广播/浏览共用） */
 export const MDNS_SERVICE_TYPE = '_agentfleet._tcp' as const;
 
-/** 设备心跳间隔（毫秒），设备守护每 10s 上报一次 */
-export const HEARTBEAT_INTERVAL_MS = 10_000;
+/** 设备心跳间隔（毫秒），设备守护每 2s 上报一次（秒级断连感知） */
+export const HEARTBEAT_INTERVAL_MS = 2_000;
 
-/** 心跳超时阈值（毫秒），超过 30s 未心跳判定离线（P0-8） */
-export const HEARTBEAT_TIMEOUT_MS = 30_000;
+/** 心跳超时阈值（毫秒），超过 6s 未心跳判定离线（3 个心跳周期，容错抖动） */
+export const HEARTBEAT_TIMEOUT_MS = 6_000;
 
 /** 协调服务（后端）HTTP + WS 同端口 */
 export const BACKEND_PORT = 4173;

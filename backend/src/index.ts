@@ -29,7 +29,7 @@ import {
   relaySend,
   setRelayMessageHandler,
 } from './services/relayClient.js';
-import { deviceRegistry } from './services/deviceRegistry.js';
+import { deviceRegistry, setDeviceOfflineHandler } from './services/deviceRegistry.js';
 import { initTaskRunner, onDeviceTaskEvent, onDeviceTaskResult, onDeviceDisconnected } from './services/taskRunner.js';
 import { memoryLedger } from './services/memoryLedger.js';
 import { startDispatchLoop } from './services/scheduler.js';
@@ -87,6 +87,8 @@ async function main(): Promise<void> {
     onDeviceTaskResult,
     onDeviceDisconnected,
   });
+  // 心跳超时兜底 → 同样走断连处理（标 interrupted）
+  setDeviceOfflineHandler(onDeviceDisconnected);
   setRelayForward((deviceId, envelope) => relaySend(deviceId, envelope));
   // 看板快照 + 设备 patch 装配（避免 wsServer 与 scheduler 循环 import）
   setSnapshotProvider(buildSnapshot);

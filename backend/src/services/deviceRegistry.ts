@@ -96,7 +96,7 @@ class DeviceRegistry {
       .map((e) => e.deviceId);
   }
 
-  /** 定时清扫：心跳超时 → 标记 offline */
+  /** 定时清扫：心跳超时 → 标记 offline（1s 间隔，配合 6s 超时实现秒级断连感知） */
   startSweeper(): void {
     if (this.sweepTimer) return;
     this.sweepTimer = setInterval(() => {
@@ -105,9 +105,10 @@ class DeviceRegistry {
         if (now - e.lastHeartbeat > config.heartbeatTimeoutMs) {
           this.devices.delete(e.deviceId);
           setDeviceStatus(e.deviceId, 'offline');
+          offlineHandler?.(e.deviceId);
         }
       }
-    }, 5_000);
+    }, 1_000);
     this.sweepTimer.unref();
   }
 
@@ -121,3 +122,11 @@ class DeviceRegistry {
 
 /** 全局单例 */
 export const deviceRegistry = new DeviceRegistry();
+
+/** 心跳超时兜底回调（index.ts 注入 taskRunner.onDeviceDisconnected，标 interrupted） */
+let offlineHandler: ((deviceId: string) => void) | null = null;
+
+/** 注入心跳超时兜底回调 */
+export function setDeviceOfflineHandler(fn: (deviceId: string) => void): void {
+  offlineHandler = fn;
+}

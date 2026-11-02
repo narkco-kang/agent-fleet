@@ -241,21 +241,27 @@ export function onDeviceTaskResult(result: TaskResult): void {
   });
 }
 
-/** 设备断线：其 running 任务标记 interrupted（P0-8） */
+/** 设备断线：其 running 任务自动迁移（改回 queued 重新派发到其他在线设备） */
 export function onDeviceDisconnected(deviceId: string): void {
   console.log(`[taskRunner] 设备断线: ${deviceId}`);
   const tasks = listTasks({ deviceId }).filter((t) => t.status === 'running');
   for (const t of tasks) {
-    updateTaskStatus(t.task_id, 'interrupted', { error: '设备断线' });
     appendMessage(
       t.task_id,
       nextSeq(t.task_id),
       'status',
       'interrupted',
-      { message: '设备断线，任务中断' },
+      { message: '设备断线，任务自动迁移到其他设备' },
       Date.now(),
       randomId('msg'),
     );
+    // 自动迁移：改回 queued 并释放占用，dispatch 会重新派发到其他在线设备
+    updateTaskStatus(t.task_id, 'queued', { error: '设备断线，已自动迁移' });
+    const rec = running.get(t.task_id);
+    if (rec) {
+      release(rec.deviceId, rec.agentType);
+      running.delete(t.task_id);
+    }
     broadcastToDashboards({
       v: 1,
       type: MESSAGE_TYPES.DASHBOARD_PATCH,
@@ -263,9 +269,8 @@ export function onDeviceDisconnected(deviceId: string): void {
       ts: Date.now(),
       from: 'coordinator',
       to: 'dashboard',
-      payload: taskStatusPatch(t.task_id, 'interrupted'),
+      payload: taskStatusPatch(t.task_id, 'queued'),
     });
-    finalize(t.task_id, 'interrupted');
   }
   deviceRegistry.remove(deviceId);
 }

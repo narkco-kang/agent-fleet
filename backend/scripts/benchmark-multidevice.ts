@@ -20,8 +20,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
-// 直接用 node 跑 tsx cli，避免 npx 再包一层子进程（否则 kill 杀不掉真实进程）
-const TSX_CLI = path.join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+// 用 node --import tsx 直接跑（不 spawn 子进程），否则 kill 杀不掉真正的 device-agent 进程
+const TSX_ARGS = ['--import', 'tsx', 'src/index.ts'];
 
 const AGENT_POOL = [
   'codex', 'claude', 'gemini', 'cursor', 'aider', 'qwen', 'kimi',
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
   process.on('exit', cleanup);
 
   // 1) 起 backend（临时 DB + 固定端口）
-  const backend = spawn(process.execPath, [TSX_CLI, 'src/index.ts'], {
+  const backend = spawn(process.execPath, TSX_ARGS, {
     cwd: path.join(ROOT, 'backend'),
     env: { ...process.env, BACKEND_PORT: String(PORT), DB_PATH: dbPath },
     stdio: 'ignore',
@@ -118,7 +118,7 @@ async function main(): Promise<void> {
 
   // 2) 起 N 个 bench 模式 device-agent（独立数据目录 → 独立 deviceId）
   for (let d = 0; d < args.devices; d++) {
-    const proc = spawn(process.execPath, [TSX_CLI, 'src/index.ts'], {
+    const proc = spawn(process.execPath, TSX_ARGS, {
       cwd: path.join(ROOT, 'device-agent'),
       env: {
         ...process.env,
@@ -174,17 +174,23 @@ async function main(): Promise<void> {
         /* ignore */
       }
     }, args.failDeviceAtMs);
-    // 诊断：kill 后 3s 查询设备在线数（确认断连是否被 backend 感知）
+    // 诊断：kill 后每 1s 查一次设备，看 lastHeartbeat 是否停止更新（共 8 次）
     setTimeout(async () => {
-      try {
-        const rr = await fetchJson(`${base}/api/devices`);
-        const devices = (rr.data as Array<{ deviceId?: string; status?: string }>) ?? [];
-        const online = devices.filter((d) => d.status === 'online').length;
-        console.log(`# [诊断] kill 后 3s 设备数=${devices.length}，在线=${online}`);
-      } catch {
-        /* ignore */
+      for (let k = 0; k < 8; k++) {
+        try {
+          const rr = await fetchJson(`${base}/api/devices`);
+          const devices = (rr.data as Array<{ deviceId?: string; status?: string; lastHeartbeat?: number }>) ?? [];
+          const now = Date.now();
+          const detail = devices
+            .map((d) => `${d.deviceId?.slice(-6)}:${d.status}:${d.lastHeartbeat ? Math.round((now - d.lastHeartbeat) / 1000) : '?'}s`)
+            .join(' | ');
+          console.log(`# [诊断] kill后${k + 1}s ${detail}`);
+        } catch {
+          /* ignore */
+        }
+        await sleep(1000);
       }
-    }, args.failDeviceAtMs + 3000);
+    }, args.failDeviceAtMs + 1000);
   }
 
   // 6) 轮询直到全部终态
