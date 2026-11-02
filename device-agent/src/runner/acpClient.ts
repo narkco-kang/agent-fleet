@@ -33,6 +33,8 @@ interface AcpOptions {
   cwd?: string;
   prompt: string;
   env?: Record<string, string>;
+  /** 需要从子进程环境中移除的键（如会触发上游 CLI 崩溃的代理变量） */
+  unsetEnv?: string[];
   /** XAI_API_KEY（有则走 api_key 认证，否则走本机缓存登录态） */
   apiKey?: string;
   /**
@@ -40,6 +42,24 @@ interface AcpOptions {
    * 不传 = 走 general-purpose 主 agent，由 grok 自行委派子代理（subagents 默认开启）。
    */
   agentProfile?: string;
+  /**
+   * 平台启动参数（决定如何让该 CLI 进入 ACP stdio 模式）。
+   * 缺省为 grok：['agent', '--always-approve', 'stdio']。
+   * 其他平台各不相同，例如 codebuddy：['--serve', '--acp', '--port', '<p>', '--auth', 'none']。
+   */
+  spawnArgs?: string[];
+  /** 平台显示名，用于状态/错误消息（缺省 'grok'） */
+  agentLabel?: string;
+  /**
+   * 跳过 authenticate 步骤。
+   * grok 必须先 authenticate 才能用模型；codebuddy 的 ACP authenticate 会返回
+   * Internal error，它直接复用本地 CLI 登录态，因此跳过。
+   */
+  skipAuthenticate?: boolean;
+  /** 多等一段时间再发 initialize（某些 CLI 启动要做配置同步，如 codebuddy 约 6-9s） */
+  initializeDelayMs?: number;
+  /** session/prompt 的等待上限（思考久的平台可调大，缺省 STEP_TIMEOUT_MS*4） */
+  promptTimeoutMs?: number;
   onEvent: (ev: AcpEvent) => void;
 }
 
@@ -62,12 +82,19 @@ const IDLE_THINKING_MS = 15_000; // 思考中：留缓冲
 const IDLE_TOOL_MS = 60_000; // 工具执行中：命令可能较慢
 const IDLE_SUBAGENT_MS = 300_000; // 等待后台子代理（grok 自行委派）时：子代理可能跑很久
 
+/** grok 进入 ACP stdio 的默认参数 */
+const GROK_SPAWN_ARGS = ['agent', '--always-approve', 'stdio'];
+
 export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   // --always-approve：跳过工具权限确认（grok 默认对 write/edit 等工具发 session/request_permission
   // 等客户端 approve，headless 下会卡住；--always-approve 让其自动批准，工具直接执行）
-  const child = spawn(opts.cmd, ['agent', '--always-approve', 'stdio'], {
+  const spawnArgs = opts.spawnArgs ?? GROK_SPAWN_ARGS;
+  const label = opts.agentLabel ?? 'grok';
+  const childEnv: NodeJS.ProcessEnv = { ...process.env, ...(opts.env ?? {}) };
+  for (const k of opts.unsetEnv ?? []) delete childEnv[k];
+  const child = spawn(opts.cmd, spawnArgs, {
     cwd: opts.cwd ?? process.cwd(),
-    env: { ...process.env, ...(opts.env ?? {}) },
+    env: childEnv,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
@@ -129,11 +156,11 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
     }
   });
 
-  // stderr → status（过滤版本提示噪音）
+  // stderr → status（过滤版本提示与插件加载等噪音）
   const errRl = readline.createInterface({ input: child.stderr });
   errRl.on('line', (line) => {
     if (!line.trim()) return;
-    if (/new version|available|update|warning/i.test(line)) return;
+    if (/new version|available|update|warning|mods: loaded/i.test(line)) return;
     opts.onEvent({ type: 'status', message: `stderr: ${line}` });
   });
 
@@ -195,12 +222,14 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
         return;
       }
       case 'plan':
-        opts.onEvent({ type: 'status', message: 'grok 已生成执行计划' });
+        opts.onEvent({ type: 'status', message: `${label} 已生成执行计划` });
         touchIdle(IDLE_THINKING_MS);
         return;
       case 'available_commands_update':
       case 'session_info_update':
-        return; // 元数据，忽略（不计入静默）
+      case 'config_option_update':
+      case 'usage_update':
+        return; // 元数据（可用命令/会话信息/配置项/token 用量），忽略（不计入静默）
       default: {
         const msg = update.message ?? (update.content ? JSON.stringify(update.content) : kind);
         opts.onEvent({ type: 'status', message: msg });
@@ -227,27 +256,38 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   // ===== 状态机 =====
   void (async () => {
     try {
+      // 部分 CLI 启动后要先做配置同步/预热，过早发 initialize 会被忽略
+      if (opts.initializeDelayMs && opts.initializeDelayMs > 0) {
+        await new Promise((r) => setTimeout(r, opts.initializeDelayMs));
+      }
       const init = await request('initialize', {
         protocolVersion: 1,
         clientCapabilities: { terminal: true },
       });
       if (init.error) {
-        end('error', `grok agent 初始化失败: ${init.error.message}`);
+        end('error', `${label} agent 初始化失败: ${init.error.message}`);
         return;
       }
       const initResult = init.result as {
         authMethods?: Array<{ id: string; name?: string }>;
         _meta?: { agentVersion?: string; modelState?: { currentModelId?: string } };
       };
-      const authMethodId = opts.apiKey
-        ? 'xai.api_key'
-        : (initResult.authMethods?.[0]?.id ?? 'grok.com');
       const model = initResult._meta?.modelState?.currentModelId ?? '';
 
-      const auth = await request('authenticate', { methodId: authMethodId }, AUTH_TIMEOUT_MS);
-      if (auth.error) {
-        end('error', `grok 未登录（认证${auth.error.code === -1 ? '超时' : '失败'}）：${auth.error.message}。请在本机执行 \`grok login\` 完成登录后重试`);
-        return;
+      // 认证：grok 必须显式 authenticate；codebuddy 复用本地登录态且 authenticate 会报 Internal error
+      if (!opts.skipAuthenticate) {
+        const authMethodId = opts.apiKey
+          ? 'xai.api_key'
+          : (initResult.authMethods?.[0]?.id ?? 'grok.com');
+
+        const auth = await request('authenticate', { methodId: authMethodId }, AUTH_TIMEOUT_MS);
+        if (auth.error) {
+          end(
+            'error',
+            `${label} 未登录（认证${auth.error.code === -1 ? '超时' : '失败'}）：${auth.error.message}。请在本机执行 \`${label} login\` 完成登录后重试`,
+          );
+          return;
+        }
       }
 
       const snew = await request('session/new', {
@@ -256,7 +296,7 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
         ...(opts.agentProfile ? { agentProfile: opts.agentProfile } : {}),
       });
       if (snew.error) {
-        end('error', `grok 创建会话失败: ${snew.error.message}`);
+        end('error', `${label} 创建会话失败: ${snew.error.message}`);
         return;
       }
       const sessionId = (snew.result as { sessionId?: string })?.sessionId ?? '';
@@ -264,19 +304,38 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
       const pr = await request('session/prompt', {
         sessionId,
         prompt: [{ type: 'text', text: opts.prompt }],
-      });
+      }, opts.promptTimeoutMs ?? STEP_TIMEOUT_MS * 4);
       if (pr.error) {
-        end('error', `grok 提交任务失败: ${pr.error.message}`);
+        end('error', `${label} 提交任务失败: ${pr.error.message}`);
+        return;
+      }
+      // ACP 用 stopReason 表达终态；refusal 通常意味着模型层认证/额度失败
+      const stopReason = (pr.result as { stopReason?: string; _meta?: Record<string, unknown> } | undefined)
+        ?.stopReason;
+      if (stopReason === 'refusal') {
+        const rawErr = (pr.result as { _meta?: Record<string, unknown> })?._meta?.[
+          'codebuddy.ai/errorMessage'
+        ];
+        let detail = '';
+        try {
+          detail = rawErr ? (JSON.parse(String(rawErr)) as { data?: { details?: string } }).data?.details ?? '' : '';
+        } catch {
+          detail = rawErr ? String(rawErr) : '';
+        }
+        end(
+          'error',
+          `${label} 拒绝了本次请求（模型层未授权）。${detail || '请在本机完成该 CLI 的登录（如 /login）后重试'}`,
+        );
         return;
       }
 
       opts.onEvent({
         type: 'status',
-        message: `grok bot 已启动${model ? `（模型 ${model}）` : ''}`,
+        message: `${label} agent 已启动${model ? `（模型 ${model}）` : ''}`,
       });
-      touchIdle(IDLE_THINKING_MS); // 提交后启动静默定时器，等待 grok 开始输出
+      touchIdle(IDLE_THINKING_MS); // 提交后启动静默定时器，等待开始输出
     } catch (err) {
-      end('error', `grok agent 异常: ${(err as Error).message}`);
+      end('error', `${label} agent 异常: ${(err as Error).message}`);
     }
   })();
 
@@ -285,7 +344,7 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   });
   child.on('close', (code) => {
     if (!finished) {
-      end('error', `grok 进程异常退出（码 ${code}）`);
+      end('error', `${label} 进程异常退出（码 ${code}）`);
     }
   });
 

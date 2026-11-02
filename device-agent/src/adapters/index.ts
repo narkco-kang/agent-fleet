@@ -2,16 +2,24 @@ import type { AgentInfo, AgentType, TaskSubmit } from '@agentfleet/shared';
 import type { Adapter, AdapterEventSink } from './adapter.js';
 import { GrokAdapter } from './grokAdapter.js';
 import { DshAdapter } from './dshAdapter.js';
+import { WorkbuddyAdapter } from './workbuddyAdapter.js';
 import { CatalogAdapter } from './catalogAdapter.js';
 import { PLATFORM_CATALOG } from './platformCatalog.js';
 import { BenchAdapter } from './benchAdapter.js';
 
 /**
  * Adapter 注册表：统一探测 + 按类型查找 + 任务派发。
- * - GrokAdapter 真接（ACP）+ DshAdapter 真接（Electron Node 模式 headless）
+ * - 专用 Adapter 真接（ACP / Electron Node 等平台特有方式）：
+ *   GrokAdapter（grok agent stdio，ACP）
+ *   DshAdapter（Electron Node 模式 headless）
+ *   WorkbuddyAdapter（codebuddy --serve --acp，ACP over stdio）
  * - 其余平台由 CatalogAdapter 从目录表自动生成（探测 + runSpec 真接/占位）
  * - AGENTFLEET_BENCH=1 时全部替换为 BenchAdapter（mock 执行，供调度 benchmark）
  */
+
+/** 已有专用 Adapter 的平台，不再由 CatalogAdapter 生成（否则同类型两个实例） */
+const DEDICATED_ADAPTER_TYPES: AgentType[] = ['grok', 'dsh', 'workbuddy'];
+
 const BENCH_MODE = process.env.AGENTFLEET_BENCH === '1';
 const BENCH_AGENT_TYPES = (process.env.BENCH_AGENTS ?? 'codex,claude,gemini')
   .split(',')
@@ -23,7 +31,10 @@ export const adapters: Adapter[] = BENCH_MODE
   : [
       new GrokAdapter(),
       new DshAdapter(),
-      ...PLATFORM_CATALOG.filter((def) => def.agentType !== 'dsh').map((def) => new CatalogAdapter(def)),
+      new WorkbuddyAdapter(),
+      ...PLATFORM_CATALOG.filter((def) => !DEDICATED_ADAPTER_TYPES.includes(def.agentType)).map(
+        (def) => new CatalogAdapter(def),
+      ),
     ];
 
 /** 按 agentType 查找 Adapter */

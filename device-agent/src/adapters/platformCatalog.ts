@@ -173,12 +173,8 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
     runSpec: {
-      mode: 'cli-text',
-      // --port：codebuddy 默认绑固定端口，与运行中的 WorkBuddy 桌面应用冲突时
-      // 会直接 EADDRINUSE 退出（exit 1 / 99ms），必须每次给一个随机端口
-      args: ['-p', '{prompt}', '--port', '{port}'],
-      textOutput: true,
-      note: 'codebuddy -p 单轮（headless 已确认 --print/--output-format stream-json，待实机验证）',
+      mode: 'unsupported',
+      note: '真接由专用 WorkbuddyAdapter 负责（codebuddy --serve --acp 走 ACP stdio）；此目录项仅保留探测信息',
     },
   },
 ];
