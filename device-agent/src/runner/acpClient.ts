@@ -51,8 +51,10 @@ interface RpcMessage {
 const STEP_TIMEOUT_MS = 30_000;
 /** authenticate 未登录时 OAuth 会挂起等浏览器授权，headless 下设短超时 */
 const AUTH_TIMEOUT_MS = 15_000;
-/** 单轮完成判定：无实质事件持续该时长即视为回合结束 */
-const IDLE_DONE_MS = 8_000;
+/** 分层静默超时：不同阶段容忍的「无事件」时长不同 */
+const IDLE_ANSWER_MS = 8_000; // 最终回答后：很快静默
+const IDLE_THINKING_MS = 15_000; // 思考中：留缓冲
+const IDLE_TOOL_MS = 60_000; // 工具执行中：命令可能较慢
 
 export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   // --always-approve：跳过工具权限确认（grok 默认对 write/edit 等工具发 session/request_permission
@@ -87,9 +89,9 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   }
 
   /** 收到实质事件 → 重置静默定时器（静默超时即判定回合结束） */
-  function touchIdle(): void {
+  function touchIdle(timeoutMs: number): void {
     if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => end('done'), IDLE_DONE_MS);
+    idleTimer = setTimeout(() => end('done'), timeoutMs);
     idleTimer.unref();
   }
 
@@ -145,7 +147,7 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
         const text = update.content?.text;
         if (text) {
           opts.onEvent({ type: 'text', text });
-          touchIdle();
+          touchIdle(IDLE_ANSWER_MS);
         }
         return;
       }
@@ -153,7 +155,7 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
         const text = update.content?.text;
         if (text) {
           opts.onEvent({ type: 'thinking', text });
-          touchIdle();
+          touchIdle(IDLE_THINKING_MS);
         }
         return;
       }
@@ -164,20 +166,20 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
           toolName: update.title ?? 'tool',
           toolInput: update.rawInput ?? update.toolInput ?? update.input ?? update.content,
         });
-        touchIdle();
+        touchIdle(IDLE_TOOL_MS);
         return;
       case 'tool_call_update': {
         // grok 的工具进度描述在 title（如 "Edit `/path/hello.py`"）
         const msg = update.title ?? update.message ?? '';
         if (msg) {
           opts.onEvent({ type: 'status', message: msg });
-          touchIdle();
+          touchIdle(IDLE_TOOL_MS);
         }
         return;
       }
       case 'plan':
         opts.onEvent({ type: 'status', message: 'grok 已生成执行计划' });
-        touchIdle();
+        touchIdle(IDLE_THINKING_MS);
         return;
       case 'available_commands_update':
       case 'session_info_update':
@@ -185,7 +187,7 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
       default: {
         const msg = update.message ?? (update.content ? JSON.stringify(update.content) : kind);
         opts.onEvent({ type: 'status', message: msg });
-        touchIdle();
+        touchIdle(IDLE_THINKING_MS);
       }
     }
   }
@@ -254,7 +256,7 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
         type: 'status',
         message: `grok bot 已启动${model ? `（模型 ${model}）` : ''}`,
       });
-      touchIdle(); // 提交后启动静默定时器，等待 grok 开始输出
+      touchIdle(IDLE_THINKING_MS); // 提交后启动静默定时器，等待 grok 开始输出
     } catch (err) {
       end('error', `grok agent 异常: ${(err as Error).message}`);
     }
