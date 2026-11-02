@@ -1,17 +1,26 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import SendIcon from '@mui/icons-material/Send';
-import type { Asset, AssetKind } from '@agentfleet/shared';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import UploadIcon from '@mui/icons-material/Upload';
+import type { Asset, AssetKind, AssetSource } from '@agentfleet/shared';
 import { assetsApi } from '../api/assets';
 import { Card } from '../components/common/Card';
 import { AssetEditorDialog } from '../components/assets/AssetEditorDialog';
 import { DeliverDialog } from '../components/assets/DeliverDialog';
 import { DeliveryRecords } from '../components/assets/DeliveryRecords';
+import { GithubSkillsDialog } from '../components/assets/GithubSkillsDialog';
 
 const KIND_LABEL: Record<AssetKind, string> = {
   rule: '规则',
   knowledge: '资料库',
   skill: 'skills',
+};
+
+const SOURCE_LABEL: Record<AssetSource, string> = {
+  manual: '手动',
+  github: 'GitHub',
+  imported: '导入',
 };
 
 type KindFilter = AssetKind | 'all';
@@ -31,6 +40,9 @@ export default function AssetsPage(): JSX.Element {
   const [deliverOpen, setDeliverOpen] = useState(false);
   const [deliverFor, setDeliverFor] = useState<Asset | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [githubOpen, setGithubOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const batchFileRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback((): void => {
     assetsApi
@@ -58,6 +70,24 @@ export default function AssetsPage(): JSX.Element {
     setDeliverOpen(true);
   };
 
+  /** 批量上传多文件（当前 tab 的 kind，all 时默认 skill） */
+  const onBatchUpload = async (e: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    const targetKind: AssetKind = kind === 'all' ? 'skill' : kind;
+    setUploading(true);
+    try {
+      const r = await assetsApi.batchUpload(targetKind, files);
+      window.alert(`成功导入 ${r.data.count} 个「${KIND_LABEL[targetKind]}」`);
+      refresh();
+    } catch (err) {
+      window.alert((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const onDelete = async (a: Asset): Promise<void> => {
     if (!window.confirm(`确认删除资产「${a.name}」？`)) return;
     try {
@@ -80,6 +110,26 @@ export default function AssetsPage(): JSX.Element {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-[#0F172A]">资产管理</h1>
         <div className="flex gap-2">
+          <button
+            onClick={() => setGithubOpen(true)}
+            className="inline-flex items-center gap-1 rounded-lg border border-[#0891B2] bg-white px-3 py-1.5 text-sm font-medium text-[#0891B2] hover:bg-[#ECFEFF]"
+          >
+            <CloudDownloadIcon fontSize="small" /> GitHub 抓取
+          </button>
+          <button
+            onClick={() => batchFileRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-1 rounded-lg border border-[#4F46E5] bg-white px-3 py-1.5 text-sm font-medium text-[#4F46E5] hover:bg-[#EEF2FF]"
+          >
+            <UploadIcon fontSize="small" /> {uploading ? '导入中…' : '批量上传'}
+          </button>
+          <input
+            ref={batchFileRef}
+            type="file"
+            multiple
+            onChange={(e) => void onBatchUpload(e)}
+            className="hidden"
+          />
           <button
             onClick={() => openDeliver(null)}
             className="inline-flex items-center gap-1 rounded-lg border border-[#4F46E5] bg-white px-3 py-1.5 text-sm font-medium text-[#4F46E5] hover:bg-[#EEF2FF]"
@@ -118,7 +168,9 @@ export default function AssetsPage(): JSX.Element {
             <thead>
               <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
                 <th className="px-4 py-2 font-medium">名称</th>
+                <th className="px-4 py-2 font-medium">概述 / 作用</th>
                 <th className="px-4 py-2 font-medium">类型</th>
+                <th className="px-4 py-2 font-medium">来源</th>
                 <th className="px-4 py-2 font-medium">版本</th>
                 <th className="px-4 py-2 font-medium">标签</th>
                 <th className="px-4 py-2 font-medium">更新时间</th>
@@ -128,7 +180,7 @@ export default function AssetsPage(): JSX.Element {
             <tbody>
               {assets.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-[#94A3B8]">
+                  <td colSpan={8} className="px-4 py-8 text-center text-[#94A3B8]">
                     暂无资产，点击右上角「新建资产」开始创建
                   </td>
                 </tr>
@@ -140,7 +192,23 @@ export default function AssetsPage(): JSX.Element {
                     style={{ height: 48 }}
                   >
                     <td className="px-4 py-2 text-[#334155]">{a.name}</td>
+                    <td className="max-w-[280px] truncate px-4 py-2 text-[#64748B]" title={a.description}>
+                      {a.description || '—'}
+                    </td>
                     <td className="px-4 py-2 text-[#334155]">{KIND_LABEL[a.kind]}</td>
+                    <td className="px-4 py-2 text-[#334155]">
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] ${
+                          a.source === 'github'
+                            ? 'bg-[#ECFEFF] text-[#0891B2]'
+                            : a.source === 'imported'
+                              ? 'bg-[#FEF3C7] text-[#B45309]'
+                              : 'bg-[#F1F5F9] text-[#64748B]'
+                        }`}
+                      >
+                        {SOURCE_LABEL[a.source] ?? '手动'}
+                      </span>
+                    </td>
                     <td className="px-4 py-2 text-[#334155]">v{a.version}</td>
                     <td className="px-4 py-2 text-[#64748B]">
                       {a.tags.length ? a.tags.map((t) => `#${t}`).join(' ') : '—'}
@@ -195,6 +263,11 @@ export default function AssetsPage(): JSX.Element {
           refresh();
           setRefreshKey((k) => k + 1);
         }}
+      />
+      <GithubSkillsDialog
+        open={githubOpen}
+        onClose={() => setGithubOpen(false)}
+        onImported={() => refresh()}
       />
     </div>
   );

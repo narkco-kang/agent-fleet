@@ -102,6 +102,8 @@ CREATE TABLE IF NOT EXISTS assets (
   asset_id     TEXT PRIMARY KEY,
   kind         TEXT NOT NULL,                 -- rule|knowledge|skill
   name         TEXT NOT NULL,
+  description  TEXT NOT NULL DEFAULT '',      -- 概述/注释（显示在列表）
+  source       TEXT NOT NULL DEFAULT 'manual',-- manual|github|imported
   content      TEXT NOT NULL DEFAULT '',
   content_type TEXT NOT NULL DEFAULT 'text',  -- text|file
   version      INTEGER NOT NULL DEFAULT 1,

@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { Asset, AssetContentType, AssetKind } from '@agentfleet/shared';
+import type { Asset, AssetContentType, AssetKind, AssetSource } from '@agentfleet/shared';
 
 /**
  * 资产表（assets）CRUD + 版本递增。
@@ -9,6 +9,8 @@ export interface AssetRow {
   asset_id: string;
   kind: AssetKind;
   name: string;
+  description: string;
+  source: AssetSource;
   content: string;
   content_type: AssetContentType;
   version: number;
@@ -23,6 +25,8 @@ export function rowToAsset(row: AssetRow): Asset {
     id: row.asset_id,
     kind: row.kind,
     name: row.name,
+    description: row.description ?? '',
+    source: (row.source as AssetSource) ?? 'manual',
     content: row.content,
     contentType: row.content_type,
     version: row.version,
@@ -37,6 +41,8 @@ export interface AssetCreateInput {
   assetId: string;
   kind: AssetKind;
   name: string;
+  description?: string;
+  source?: AssetSource;
   content: string;
   contentType?: AssetContentType;
   tags?: string[];
@@ -47,13 +53,15 @@ export function createAsset(input: AssetCreateInput): Asset {
   const now = Date.now();
   getDb()
     .prepare(
-      `INSERT INTO assets (asset_id, kind, name, content, content_type, version, tags, created_at, updated_at)
-       VALUES (@assetId, @kind, @name, @content, @contentType, 1, @tags, @now, @now)`,
+      `INSERT INTO assets (asset_id, kind, name, description, source, content, content_type, version, tags, created_at, updated_at)
+       VALUES (@assetId, @kind, @name, @description, @source, @content, @contentType, 1, @tags, @now, @now)`,
     )
     .run({
       assetId: input.assetId,
       kind: input.kind,
       name: input.name,
+      description: input.description ?? '',
+      source: input.source ?? 'manual',
       content: input.content,
       contentType: input.contentType ?? 'text',
       tags: JSON.stringify(input.tags ?? []),
@@ -73,7 +81,14 @@ export function getAsset(assetId: string): Asset | undefined {
 /** 更新资产内容（version 递增 +1） */
 export function updateAsset(
   assetId: string,
-  patch: { name?: string; content?: string; contentType?: AssetContentType; tags?: string[] },
+  patch: {
+    name?: string;
+    description?: string;
+    source?: AssetSource;
+    content?: string;
+    contentType?: AssetContentType;
+    tags?: string[];
+  },
 ): Asset | undefined {
   const prev = getAsset(assetId);
   if (!prev) return undefined;
@@ -83,6 +98,8 @@ export function updateAsset(
     .prepare(
       `UPDATE assets SET
         name = @name,
+        description = @description,
+        source = @source,
         content = @content,
         content_type = @contentType,
         version = @version,
@@ -93,6 +110,8 @@ export function updateAsset(
     .run({
       assetId,
       name: patch.name ?? prev.name,
+      description: patch.description ?? prev.description,
+      source: patch.source ?? prev.source,
       content: patch.content ?? prev.content,
       contentType: patch.contentType ?? prev.contentType,
       version: prev.version + 1,

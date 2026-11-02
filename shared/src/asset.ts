@@ -4,11 +4,18 @@ import type { AssetContentType, AssetKind, DeliveryStatus } from './status.js';
  * 资产协议：规则 / 资料库 / skills 统一 Asset 模型，复用传输层分发。
  */
 
+/** 资产来源：manual 手动创建 / github GitHub 抓取导入 / imported 文件批量导入 */
+export type AssetSource = 'manual' | 'github' | 'imported';
+
 /** 统一资产 */
 export interface Asset {
   id: string;
   kind: AssetKind;
   name: string;
+  /** 概述/注释（显示在资产列表，说明该 skill/规则的作用） */
+  description: string;
+  /** 来源：manual / github / imported */
+  source: AssetSource;
   /** text 内容；contentType=file 时为路径/引用 */
   content: string;
   contentType: AssetContentType;

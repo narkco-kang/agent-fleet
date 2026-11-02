@@ -10,6 +10,7 @@ import { registerMemoryRoutes } from './routes/memory.js';
 import { registerRoutingRoutes } from './routes/routing.js';
 import { registerPlatformModelRoutes } from './routes/platformModels.js';
 import { registerAssetRoutes } from './routes/assets.js';
+import { registerSkillCatalogRoutes } from './routes/skillCatalog.js';
 import { registerDeployRoutes } from './routes/deploy.js';
 import { registerTeamRoutes } from './routes/teams.js';
 import { registerSwarmRoutes } from './routes/swarm.js';
@@ -141,6 +142,7 @@ async function main(): Promise<void> {
   registerRoutingRoutes(app);
   registerPlatformModelRoutes(app);
   registerAssetRoutes(app);
+  registerSkillCatalogRoutes(app);
   registerDeployRoutes(app);
   registerTeamRoutes(app);
   registerSwarmRoutes(app);

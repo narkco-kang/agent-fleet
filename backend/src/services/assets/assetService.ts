@@ -1,4 +1,4 @@
-import type { Asset, AssetContentType, AssetKind } from '@agentfleet/shared';
+import type { Asset, AssetContentType, AssetKind, AssetSource } from '@agentfleet/shared';
 import { ASSET_KINDS } from '@agentfleet/shared';
 import { randomId } from '../../security/auth.js';
 import {
@@ -16,6 +16,8 @@ import {
 export interface AssetCreateInput {
   kind: AssetKind;
   name: string;
+  description?: string;
+  source?: AssetSource;
   content: string;
   contentType?: AssetContentType;
   tags?: string[];
@@ -23,6 +25,8 @@ export interface AssetCreateInput {
 
 export interface AssetUpdateInput {
   name?: string;
+  description?: string;
+  source?: AssetSource;
   content?: string;
   contentType?: AssetContentType;
   tags?: string[];
@@ -30,6 +34,11 @@ export interface AssetUpdateInput {
 
 function isAssetKind(kind: unknown): kind is AssetKind {
   return typeof kind === 'string' && (ASSET_KINDS as readonly string[]).includes(kind);
+}
+
+/** 校验来源字段（可选，缺省 manual） */
+function normalizeSource(source: unknown): AssetSource {
+  return source === 'github' || source === 'imported' ? source : 'manual';
 }
 
 /** 创建资产（version=1） */
@@ -44,6 +53,8 @@ export function create(input: AssetCreateInput): Asset {
     assetId: randomId('asset'),
     kind: input.kind,
     name: input.name,
+    description: input.description ?? '',
+    source: normalizeSource(input.source),
     content: input.content ?? '',
     contentType: input.contentType ?? 'text',
     tags: input.tags ?? [],
@@ -54,6 +65,8 @@ export function create(input: AssetCreateInput): Asset {
 export function update(assetId: string, patch: AssetUpdateInput): Asset | undefined {
   return updateAsset(assetId, {
     name: patch.name,
+    description: patch.description,
+    source: patch.source === undefined ? undefined : normalizeSource(patch.source),
     content: patch.content,
     contentType: patch.contentType,
     tags: patch.tags,

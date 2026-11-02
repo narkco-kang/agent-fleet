@@ -47,6 +47,7 @@ export function AssetEditorDialog({
   onSaved: () => void;
 }): JSX.Element {
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [kindValue, setKindValue] = useState<AssetKind>('rule');
@@ -58,11 +59,13 @@ export function AssetEditorDialog({
     if (!open) return;
     if (asset) {
       setName(asset.name);
+      setDescription(asset.description ?? '');
       setContent(asset.content);
       setTags(asset.tags.join(', '));
       setKindValue(asset.kind);
     } else {
       setName('');
+      setDescription('');
       setContent('');
       setTags('');
       setKindValue(kind ?? 'rule');
@@ -113,12 +116,14 @@ export function AssetEditorDialog({
     setError(null);
     try {
       const tagList = parseTags(tags);
+      const desc = description.trim();
       if (asset) {
-        await assetsApi.update(asset.id, { name: trimmedName, content, tags: tagList });
+        await assetsApi.update(asset.id, { name: trimmedName, description: desc, content, tags: tagList });
       } else {
         await assetsApi.create({
           kind: kindValue,
           name: trimmedName,
+          description: desc,
           content,
           contentType: 'text',
           tags: tagList,
@@ -159,6 +164,14 @@ export function AssetEditorDialog({
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
+          />
+          <TextField
+            label="概述 / 注释（说明该 skill / 规则的作用，显示在列表）"
+            size="small"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            fullWidth
+            placeholder="例如：自动生成单元测试并运行覆盖率检查"
           />
           <TextField
             label="内容"

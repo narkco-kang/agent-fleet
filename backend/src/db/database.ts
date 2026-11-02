@@ -118,6 +118,17 @@ function runMigrations(database: Database.Database): void {
   if (!agentCols.includes('bots')) {
     database.exec(`ALTER TABLE agents ADD COLUMN bots TEXT NOT NULL DEFAULT '[]'`);
   }
+
+  // assets 新增列 description（概述/注释）+ source（来源），老库补齐
+  const assetCols = (
+    database.prepare(`PRAGMA table_info(assets)`).all() as Array<{ name: string }>
+  ).map((c) => c.name);
+  if (!assetCols.includes('description')) {
+    database.exec(`ALTER TABLE assets ADD COLUMN description TEXT NOT NULL DEFAULT ''`);
+  }
+  if (!assetCols.includes('source')) {
+    database.exec(`ALTER TABLE assets ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`);
+  }
 }
 
 /** 获取数据库实例（未初始化则先初始化） */

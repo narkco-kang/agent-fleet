@@ -3,11 +3,12 @@ import type {
   AssetContentType,
   AssetDelivery,
   AssetKind,
+  AssetSource,
 } from '@agentfleet/shared';
 import { del, get, post, put, uploadForm, type ApiOk } from './http';
 
 /**
- * 资产管理 API：规则 / 资料库 / skills 统一 CRUD + 分发（人工确认）。
+ * 资产管理 API：规则 / 资料库 / skills 统一 CRUD + 分发（人工确认）+ GitHub skills 目录。
  */
 
 /** 分发请求结果（POST /api/assets/deliver 返回，未确认前不产生任何下发） */
@@ -18,6 +19,17 @@ export interface DeliveryRequestResult {
   assetCount: number;
   targetCount: number;
   summary: string;
+}
+
+/** GitHub skills 仓库搜索结果 */
+export interface GithubSkillRepo {
+  fullName: string;
+  name: string;
+  description: string;
+  stars: number;
+  url: string;
+  language: string;
+  topics: string[];
 }
 
 /** 构造查询串（忽略空值） */
@@ -42,6 +54,8 @@ export const assetsApi = {
   create: (body: {
     kind: AssetKind;
     name: string;
+    description?: string;
+    source?: AssetSource;
     content: string;
     contentType?: AssetContentType;
     tags?: string[];
@@ -56,10 +70,26 @@ export const assetsApi = {
     return uploadForm<ApiOk<Asset>>('/api/assets', form);
   },
 
+  /** 批量上传多文件（skills/规则批量导入，每个文件一个资产） */
+  batchUpload: (kind: AssetKind, files: File[], description?: string) => {
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+    form.append('kind', kind);
+    if (description) form.append('description', description);
+    return uploadForm<ApiOk<{ created: Asset[]; count: number }>>('/api/assets/batch', form);
+  },
+
   /** 更新资产（version 递增） */
   update: (
     id: string,
-    patch: { name?: string; content?: string; contentType?: AssetContentType; tags?: string[] },
+    patch: {
+      name?: string;
+      description?: string;
+      source?: AssetSource;
+      content?: string;
+      contentType?: AssetContentType;
+      tags?: string[];
+    },
   ) => put<ApiOk<Asset>>(`/api/assets/${id}`, patch),
 
   /** 删除资产 */
@@ -78,6 +108,18 @@ export const assetsApi = {
     get<ApiOk<AssetDelivery[]>>(
       `/api/assets/deliveries${buildQuery({ status: filter?.status, deviceId: filter?.deviceId })}`,
     ),
+
+  // ===== Skills 目录（GitHub 抓取 + 导入）=====
+
+  /** 实时抓取 GitHub 最多星 skills 仓库 */
+  searchGithubSkills: (query?: string, limit = 20) =>
+    get<ApiOk<GithubSkillRepo[]>>(
+      `/api/skills/github${buildQuery({ query, limit: String(limit) })}`,
+    ),
+
+  /** 批量导入 GitHub 仓库为 skill 资产 */
+  importGithubSkills: (repos: Array<{ fullName: string; description?: string; url?: string; topics?: string[] }>) =>
+    post<ApiOk<{ created: Asset[]; skipped: string[] }>>('/api/skills/import', { repos }),
 };
 
 export type { Asset, AssetContentType, AssetDelivery, AssetKind };

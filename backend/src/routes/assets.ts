@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { AssetContentType, AssetKind } from '@agentfleet/shared';
+import type { AssetContentType, AssetKind, AssetSource } from '@agentfleet/shared';
 import * as assetService from '../services/assets/assetService.js';
 import {
   handleAssetDeliverAck,
@@ -20,12 +20,22 @@ type MultipartPart =
 export function registerAssetRoutes(app: FastifyInstance): void {
   /** 创建资产（JSON 文本 / multipart 二进制文件） */
   app.post<{
-    Body: { kind: AssetKind; name: string; content: string; contentType?: AssetContentType; tags?: string[] };
+    Body: {
+      kind: AssetKind;
+      name: string;
+      description?: string;
+      source?: AssetSource;
+      content: string;
+      contentType?: AssetContentType;
+      tags?: string[];
+    };
   }>('/api/assets', async (req, reply) => {
     const isMultipart = (req.headers['content-type'] ?? '').includes('multipart/form-data');
     if (isMultipart) {
       let kind = 'skill';
       let name = '';
+      let description = '';
+      let source: AssetSource = 'imported';
       let buffer: Buffer | null = null;
       for await (const part of (req as unknown as { parts(): AsyncIterable<MultipartPart> }).parts()) {
         if (part.type === 'file') {
@@ -35,6 +45,10 @@ export function registerAssetRoutes(app: FastifyInstance): void {
           kind = part.value;
         } else if (part.type === 'field' && part.fieldname === 'name') {
           name = part.value;
+        } else if (part.type === 'field' && part.fieldname === 'description') {
+          description = part.value;
+        } else if (part.type === 'field' && part.fieldname === 'source') {
+          source = part.value as AssetSource;
         }
       }
       if (!buffer) return reply.code(400).send({ ok: false, error: 'file required' });
@@ -42,6 +56,8 @@ export function registerAssetRoutes(app: FastifyInstance): void {
         const asset = assetService.create({
           kind: kind as AssetKind,
           name: name || 'asset',
+          description,
+          source,
           content: buffer.toString('base64'),
           contentType: 'file',
         });
@@ -57,6 +73,48 @@ export function registerAssetRoutes(app: FastifyInstance): void {
     } catch (err) {
       return reply.code(400).send({ ok: false, error: (err as Error).message });
     }
+  });
+
+  /** 批量上传（multipart 多文件 → 每个文件一个资产，用于 skills/规则批量导入） */
+  app.post<{
+    Body: { kind?: AssetKind; description?: string; source?: AssetSource };
+  }>('/api/assets/batch', async (req, reply) => {
+    const isMultipart = (req.headers['content-type'] ?? '').includes('multipart/form-data');
+    if (!isMultipart) {
+      return reply.code(400).send({ ok: false, error: 'multipart/form-data required' });
+    }
+
+    let kind: AssetKind = 'skill';
+    let description = '';
+    let source: AssetSource = 'imported';
+    const files: Array<{ name: string; buffer: Buffer }> = [];
+
+    for await (const part of (req as unknown as { parts(): AsyncIterable<MultipartPart> }).parts()) {
+      if (part.type === 'file') {
+        files.push({ name: part.filename || `file-${files.length + 1}`, buffer: await part.toBuffer() });
+      } else if (part.type === 'field' && part.fieldname === 'kind') {
+        kind = part.value as AssetKind;
+      } else if (part.type === 'field' && part.fieldname === 'description') {
+        description = part.value;
+      } else if (part.type === 'field' && part.fieldname === 'source') {
+        source = part.value as AssetSource;
+      }
+    }
+
+    if (files.length === 0) return reply.code(400).send({ ok: false, error: 'at least one file required' });
+
+    const created = files.map((f) =>
+      assetService.create({
+        kind,
+        name: f.name,
+        description,
+        source,
+        content: f.buffer.toString('base64'),
+        contentType: 'file',
+      }),
+    );
+
+    return { ok: true, data: { created, count: created.length } };
   });
 
   /** 资产列表 */
@@ -75,7 +133,14 @@ export function registerAssetRoutes(app: FastifyInstance): void {
   /** 更新资产（version 递增） */
   app.put<{
     Params: { id: string };
-    Body: { name?: string; content?: string; contentType?: AssetContentType; tags?: string[] };
+    Body: {
+      name?: string;
+      description?: string;
+      source?: AssetSource;
+      content?: string;
+      contentType?: AssetContentType;
+      tags?: string[];
+    };
   }>('/api/assets/:id', async (req, reply) => {
     const asset = assetService.update(req.params.id, req.body ?? {});
     if (!asset) return reply.code(404).send({ ok: false, error: 'asset_not_found' });
