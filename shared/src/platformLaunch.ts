@@ -37,6 +37,7 @@ const LAUNCH_SPECS: Record<AgentType, LaunchSpec> = {
   kimi: { cli: 'kimi' },
   opencode: { cli: 'opencode' },
   windsurf: { appNames: ['Windsurf'], cli: 'windsurf' },
+  workbuddy: { appNames: ['WorkBuddy AI'], cli: 'codebuddy' },
 };
 
 /** 生成在指定 OS 上打开某平台应用的命令 */

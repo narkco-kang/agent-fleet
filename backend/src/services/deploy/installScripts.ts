@@ -111,6 +111,11 @@ const INSTALL_SPECS: Record<AgentType, PlatformInstallSpec> = {
     brewCask: 'windsurf',
     wingetId: 'Codeium.Windsurf',
   },
+  workbuddy: {
+    platform: 'workbuddy',
+    commandNames: ['codebuddy', 'cbc'],
+    manualReason: 'WorkBuddy (CodeBuddy) is an Electron app; install from the official channel, verify an existing installation only.',
+  },
 };
 
 /** Excel 未指定平台时，根据 OS 自动选择可通过公开包管理器部署的 CLI 优先集 */
@@ -559,6 +564,7 @@ export const PLATFORM_DISPLAY_NAMES: Record<AgentType, string> = {
   kimi: 'Kimi CLI',
   opencode: 'OpenCode',
   windsurf: 'Windsurf',
+  workbuddy: 'WorkBuddy (CodeBuddy)',
 };
 
 /** 平台目录条目（扁平化 install spec，供前端渲染勾选网格） */

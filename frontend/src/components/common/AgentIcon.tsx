@@ -18,6 +18,7 @@ const AGENT_META: Record<AgentType, { label: string; bg: string; fg: string }> =
   kimi: { label: 'K', bg: '#111827', fg: '#FFFFFF' },
   opencode: { label: 'Op', bg: '#334155', fg: '#FFFFFF' },
   windsurf: { label: 'W', bg: '#2563EB', fg: '#FFFFFF' },
+  workbuddy: { label: 'WB', bg: '#2563EB', fg: '#FFFFFF' },
 };
 
 export function AgentIcon({ agentType, size = 24 }: { agentType: AgentType; size?: number }): ReactNode {

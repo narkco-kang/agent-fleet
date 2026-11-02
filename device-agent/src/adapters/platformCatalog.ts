@@ -162,6 +162,18 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     maxConcurrency: 1,
     runSpec: { mode: 'unsupported', note: 'GUI/Cascade 为主，headless CLI 方式待确认（windsurf CLI 存在但 print/headless 参数未证实）' },
   },
+  {
+    agentType: 'workbuddy',
+    displayName: 'WorkBuddy (CodeBuddy)',
+    commands: ['codebuddy', 'cbc'],
+    // codebuddy 二进制藏在 Electron app 内部（不在标准 PATH），macOS 绝对路径探测
+    defaultDirs: ['/Applications/WorkBuddy AI.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy'],
+    appNames: ['WorkBuddy AI'],
+    versionArgs: ['--version'],
+    capabilities: ['coding', 'reasoning'],
+    maxConcurrency: 1,
+    runSpec: { mode: 'cli-text', args: ['-p', '{prompt}'], textOutput: true, note: 'codebuddy -p 单轮（headless 已确认 --print/--output-format stream-json，待实机验证）' },
+  },
 ];
 
 /** 按 agentType 查平台定义 */

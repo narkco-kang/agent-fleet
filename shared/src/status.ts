@@ -46,7 +46,8 @@ export type AgentType =
   | 'doubao'
   | 'kimi'
   | 'opencode'
-  | 'windsurf';
+  | 'windsurf'
+  | 'workbuddy';
 
 /** 路由模式（扩展 role：角色路由；team：按设备团队模式路由） */
 export type TargetMode = 'auto' | 'device' | 'agent' | 'role' | 'team';
@@ -161,6 +162,7 @@ export const AGENT_TYPES: readonly AgentType[] = [
   'kimi',
   'opencode',
   'windsurf',
+  'workbuddy',
 ] as const;
 
 export const TARGET_MODES: readonly TargetMode[] = ['auto', 'device', 'agent', 'role', 'team'] as const;

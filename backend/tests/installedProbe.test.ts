@@ -54,12 +54,12 @@ describe('installedProbe 输出解析', () => {
 });
 
 describe('listPlatformCatalog 平台目录', () => {
-  it('返回 13 个平台，顺序与 AGENT_TYPES 一致', () => {
+  it('返回 14 个平台，顺序与 AGENT_TYPES 一致', () => {
     const catalog = listPlatformCatalog();
-    expect(catalog).toHaveLength(13);
+    expect(catalog).toHaveLength(14);
     expect(catalog.map((c) => c.platform)).toEqual([...AGENT_TYPES]);
     expect(catalog[0].platform).toBe('codex');
-    expect(catalog[catalog.length - 1].platform).toBe('windsurf');
+    expect(catalog[catalog.length - 1].platform).toBe('workbuddy');
   });
 
   it('每个条目都有非空 displayName 与非空 commandNames 数组', () => {
