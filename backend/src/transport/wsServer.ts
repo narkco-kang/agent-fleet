@@ -56,6 +56,11 @@ export function setTaskBridge(bridge: TaskBridge): void {
   taskBridge = bridge;
 }
 
+/** 通知设备断连（供 lanDiscovery 反向连接的 close 复用，统一标 interrupted + 移除） */
+export function notifyDeviceDisconnected(deviceId: string): void {
+  taskBridge?.onDeviceDisconnected(deviceId);
+}
+
 /** 注入快照装配器 */
 export function setSnapshotProvider(fn: () => DashboardSnapshot): void {
   snapshotProvider = fn;

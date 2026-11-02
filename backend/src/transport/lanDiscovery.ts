@@ -2,7 +2,7 @@ import { Bonjour, type Service } from 'bonjour-service';
 import WebSocket from 'ws';
 import { MDNS_SERVICE_TYPE, MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from '../services/deviceRegistry.js';
-import { handleEnvelopeFor, sendEnvelope } from './wsServer.js';
+import { handleEnvelopeFor, sendEnvelope, notifyDeviceDisconnected } from './wsServer.js';
 
 /**
  * 局域网发现：bonjour 浏览 _agentfleet._tcp，发现设备后发起直连。
@@ -106,10 +106,8 @@ function connectDevice(info: ServiceInfo): void {
 
   socket.on('close', () => {
     connectedDevices.delete(info.deviceId);
-    const entry = deviceRegistry.get(info.deviceId);
-    if (entry?.kind === 'lan' && entry.socket === (socket as never)) {
-      deviceRegistry.remove(info.deviceId);
-    }
+    // 反向连接断开 → 统一走断连处理（标 interrupted + 移除），与入站连接行为一致
+    notifyDeviceDisconnected(info.deviceId);
   });
 
   socket.on('error', (err) => {

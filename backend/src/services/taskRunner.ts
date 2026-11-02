@@ -243,6 +243,7 @@ export function onDeviceTaskResult(result: TaskResult): void {
 
 /** 设备断线：其 running 任务标记 interrupted（P0-8） */
 export function onDeviceDisconnected(deviceId: string): void {
+  console.log(`[taskRunner] 设备断线: ${deviceId}`);
   const tasks = listTasks({ deviceId }).filter((t) => t.status === 'running');
   for (const t of tasks) {
     updateTaskStatus(t.task_id, 'interrupted', { error: '设备断线' });

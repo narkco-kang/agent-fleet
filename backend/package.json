@@ -12,7 +12,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "probe:free": "tsx scripts/probe-free.ts",
-    "benchmark": "tsx scripts/benchmark-scheduler.ts"
+    "benchmark": "tsx scripts/benchmark-scheduler.ts",
+    "benchmark:multi": "tsx scripts/benchmark-multidevice.ts"
   },
   "dependencies": {
     "@agentfleet/shared": "0.1.0",
