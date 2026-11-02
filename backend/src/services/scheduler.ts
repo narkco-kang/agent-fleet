@@ -103,9 +103,13 @@ export function enqueueTask(input: SchedulerSubmitInput): string {
  */
 export function dispatch(): void {
   const queued = listTasks({ status: 'queued' });
+  if (queued.length === 0) return;
+  // 预构建一次，避免循环内对每个任务重复全表查询（O(tasks²) 退化）
+  const pairs = onlineDeviceAgents();
+  const primaryAgents = listPrimaryAgents();
   for (const task of queued) {
     // 1) 先尝试本地设备/团队（本地优先，避免有设备却走网关）
-    const target = pickTarget(task);
+    const target = pickTargetCached(task, pairs, primaryAgents);
     if (!target) {
       // 2) 本地无可用目标 → 角色/团队路由是否可降级到网关
       const decision = resolveGatewayDecision(task);
@@ -125,6 +129,8 @@ export function dispatch(): void {
     }
 
     if (!claimAgent(deviceId, agent.agent_type)) continue; // 认领失败，保持 queued
+    // 同步内存快照：让本批 dispatch 后续的 pickBest 不再选中已满员的 agent
+    agent.busy_count += 1;
 
     const deviceName = deviceRegistry.get(deviceId)?.name ?? deviceId;
     assignTaskTarget(task.task_id, deviceId, agent.agent_type);
@@ -191,7 +197,23 @@ export function pickTarget(task: {
   target_team_id?: string | null;
   require_capability: string | null;
 }): DeviceAgent | null {
-  const pairs = onlineDeviceAgents();
+  return pickTargetCached(task, onlineDeviceAgents(), listPrimaryAgents());
+}
+
+/** 复用预构建的 pairs/primaryAgents，避免循环内重复全表查询 */
+function pickTargetCached(
+  task: {
+    task_id: string;
+    target_mode: TargetMode;
+    target_device_id: string | null;
+    target_agent_type: AgentType | null;
+    target_role: string | null;
+    target_team_id?: string | null;
+    require_capability: string | null;
+  },
+  pairs: DeviceAgent[],
+  primaryAgents: Map<string, AgentType>,
+): DeviceAgent | null {
   if (pairs.length === 0) return null;
 
   // 团队模式：只在团队绑定的设备上选目标（A 设备=软件开发团队，B 设备=内容专家团队）
@@ -227,7 +249,6 @@ export function pickTarget(task: {
   const candidates = pairs.filter((p) =>
     agentMatches(p.agent, task.target_agent_type, task.require_capability),
   );
-  const primaryAgents = listPrimaryAgents();
   const primaryCandidates = candidates.filter(
     (p) => primaryAgents.get(p.deviceId) === p.agent.agent_type,
   );
@@ -318,14 +339,16 @@ function agentMatches(
   return true;
 }
 
-/** 空闲优先选择：占用最低、负载最低 */
+/** 空闲优先选择：占用最低、负载最低（busy_count 直接用 agent 行，避免重复查库；只选未满员的 agent） */
 function pickBest(candidates: DeviceAgent[]): DeviceAgent | null {
   if (candidates.length === 0) return null;
   return candidates
-    .filter((p) => p.agent.status !== 'error')
+    .filter(
+      (p) => p.agent.status !== 'error' && p.agent.busy_count < p.agent.max_concurrency,
+    )
     .sort((a, b) => {
-      const busyA = busyOf(a.deviceId, a.agent.agent_type);
-      const busyB = busyOf(b.deviceId, b.agent.agent_type);
+      const busyA = a.agent.busy_count;
+      const busyB = b.agent.busy_count;
       if (busyA !== busyB) return busyA - busyB;
       const loadA = deviceRegistry.get(a.deviceId)?.load.cpu ?? 1;
       const loadB = deviceRegistry.get(b.deviceId)?.load.cpu ?? 1;
@@ -340,15 +363,6 @@ function onlineDeviceAgents(): DeviceAgent[] {
   return agents
     .filter((a: AgentRow) => onlineIds.has(a.device_id))
     .map((agent: AgentRow) => ({ deviceId: agent.device_id, agent }));
-}
-
-/** 认领占用计数 */
-function busyOf(deviceId: string, agentType: AgentType): number {
-  // 直接用 DB busy_count（agents 表）
-  const agent = listAgents().find(
-    (a: AgentRow) => a.device_id === deviceId && a.agent_type === agentType,
-  );
-  return agent?.busy_count ?? 0;
 }
 
 /** 释放占用（任务结束后） */

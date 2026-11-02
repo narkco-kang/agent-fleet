@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "probe:free": "tsx scripts/probe-free.ts"
+    "probe:free": "tsx scripts/probe-free.ts",
+    "benchmark": "tsx scripts/benchmark-scheduler.ts"
   },
   "dependencies": {
     "@agentfleet/shared": "0.1.0",
