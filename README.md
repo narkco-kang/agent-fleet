@@ -34,6 +34,7 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
 | **Model Nexus** | Inspired by EchoBird: batch configure paid Providers, mask API keys, persist them in the local ignored directory, and reuse them across the whole fleet |
 | **Onboarding guide** | First-run guide explains the device fleet → modelgateway → Provider → deploy-then-use → failover workflow |
 | **WeChat assistant** | Enterprise WeChat (official API) + personal WeChat (interface reserved) as a chat-based task entry |
+| **A2A endpoint** | Agent Card (`/.well-known/agent.json`) + JSON-RPC `tasks/send` / `tasks/get` / `tasks/cancel` — external agents discover and delegate to the fleet |
 
 ## ⚡ Performance
 
