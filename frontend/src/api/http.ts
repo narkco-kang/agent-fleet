@@ -80,6 +80,11 @@ export const http = {
   getDevice: (id: string) =>
     request<ApiOk<DeviceSnapshot & { agents: AgentSnapshot[] }>>(`/api/devices/${id}`),
   deleteDevice: (id: string) => request<ApiOk<never>>(`/api/devices/${id}`, { method: 'DELETE' }),
+  openPlatform: (deviceId: string, agentType: string) =>
+    request<ApiOk<{ dispatched: boolean; deviceId: string; agentType: string }>>(
+      `/api/devices/${deviceId}/platforms/${agentType}/open`,
+      { method: 'POST' },
+    ),
   pairDevice: (deviceId: string, name?: string) =>
     request<ApiOk<{ pairingCode: string }>>('/api/devices/pair', {
       method: 'POST',

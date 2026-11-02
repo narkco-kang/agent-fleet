@@ -11,6 +11,8 @@ export type MessageType =
   | 'device.pair_ack'
   | 'device.relay_online'
   | 'device.relay_offline'
+  | 'device.platform_open'
+  | 'device.platform_open_ack'
   // 任务下发 / 流转
   | 'task.submit'
   | 'task.submit_ack'
@@ -40,6 +42,8 @@ export const MESSAGE_TYPES: Record<string, MessageType> = {
   DEVICE_PAIR_ACK: 'device.pair_ack',
   DEVICE_RELAY_ONLINE: 'device.relay_online',
   DEVICE_RELAY_OFFLINE: 'device.relay_offline',
+  DEVICE_PLATFORM_OPEN: 'device.platform_open',
+  DEVICE_PLATFORM_OPEN_ACK: 'device.platform_open_ack',
   TASK_SUBMIT: 'task.submit',
   TASK_SUBMIT_ACK: 'task.submit_ack',
   TASK_EVENT: 'task.event',

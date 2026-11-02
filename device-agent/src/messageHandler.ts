@@ -1,6 +1,7 @@
 import os from 'node:os';
+import { spawn } from 'node:child_process';
 import type { Envelope, TaskSubmit, AssetDeliver } from '@agentmesh/shared';
-import { MESSAGE_TYPES } from '@agentmesh/shared';
+import { MESSAGE_TYPES, launchCommandFor, type AgentType, type PlatformOpenAck } from '@agentmesh/shared';
 import { loadRegistry, setToken } from './registry.js';
 import { config } from './config.js';
 import { detectAllAgents, dispatchToAdapter } from './adapters/index.js';
@@ -73,6 +74,20 @@ export async function handleEnvelope(
         v: 1,
         type: MESSAGE_TYPES.ASSET_DELIVER_ACK,
         id: cryptoRandomId('assetack'),
+        ts: Date.now(),
+        from: loadRegistry().deviceId,
+        to: 'coordinator',
+        payload: ack,
+      });
+      break;
+    }
+    case MESSAGE_TYPES.DEVICE_PLATFORM_OPEN: {
+      const p = envelope.payload as { agentType?: string };
+      const ack = openPlatformApp(p?.agentType ?? '');
+      sender({
+        v: 1,
+        type: MESSAGE_TYPES.DEVICE_PLATFORM_OPEN_ACK,
+        id: cryptoRandomId('popenack'),
         ts: Date.now(),
         from: loadRegistry().deviceId,
         to: 'coordinator',
@@ -242,6 +257,38 @@ async function handleTaskSubmit(task: TaskSubmit, sender: MessageSender): Promis
       data: { message: `任务下发失败: ${(err as Error).message}` },
       ts: Date.now(),
     });
+  }
+}
+
+/** 打开平台应用：生成启动命令并 detach spawn，回执 PlatformOpenAck */
+function openPlatformApp(agentType: string): PlatformOpenAck {
+  const deviceId = loadRegistry().deviceId;
+  const launch = launchCommandFor(agentType as AgentType, os.platform());
+  if (launch.method === 'unsupported') {
+    return {
+      deviceId,
+      agentType: agentType as AgentType,
+      ok: false,
+      message: launch.note ?? '该平台无法自动打开',
+    };
+  }
+  try {
+    const child = spawn(launch.command, { shell: true, detached: true, stdio: 'ignore' });
+    child.unref();
+    return {
+      deviceId,
+      agentType: agentType as AgentType,
+      ok: true,
+      command: launch.command,
+      message: '已打开平台应用，请在设备上完成登录激活',
+    };
+  } catch (err) {
+    return {
+      deviceId,
+      agentType: agentType as AgentType,
+      ok: false,
+      message: `打开失败: ${(err as Error).message}`,
+    };
   }
 }
 

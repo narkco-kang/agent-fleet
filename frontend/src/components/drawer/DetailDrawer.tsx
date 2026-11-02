@@ -1,16 +1,19 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import Drawer from '@mui/material/Drawer';
+import Button from '@mui/material/Button';
 import CloseIcon from '@mui/icons-material/Close';
 import { useDeviceStore } from '../../store/deviceStore';
 import { useTaskStore } from '../../store/taskStore';
 import { StatusBadge } from '../common/StatusBadge';
+import { http } from '../../api/http';
 
 /**
  * 右侧详情抽屉（04 §3.6）：点神经图节点后展开该节点详情。
+ * agent 节点额外提供「打开平台应用登录激活」入口。
  */
 export type DetailTarget =
   | { kind: 'device'; id: string; title: string }
-  | { kind: 'agent'; id: string; title: string; deviceId: string }
+  | { kind: 'agent'; id: string; title: string; deviceId: string; agentType: string }
   | { kind: 'task'; id: string; title: string }
   | { kind: 'message'; id: string; title: string };
 
@@ -92,9 +95,25 @@ function TaskDetail({ taskId }: { taskId: string }): ReactNode {
   );
 }
 
-function AgentDetail({ target }: { target: { deviceId: string; title: string } }): ReactNode {
+function AgentDetail({ target }: { target: { deviceId: string; title: string; agentType: string } }): ReactNode {
   const device = useDeviceStore((s) => s.devices.find((d) => d.deviceId === target.deviceId));
-  const agent = device?.agents.find((a) => a.displayName === target.title);
+  const agent = device?.agents.find((a) => a.agentType === target.agentType) ?? device?.agents.find((a) => a.displayName === target.title);
+  const [opening, setOpening] = useState(false);
+  const [openMsg, setOpenMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const openPlatform = async (): Promise<void> => {
+    setOpening(true);
+    setOpenMsg(null);
+    try {
+      await http.openPlatform(target.deviceId, target.agentType);
+      setOpenMsg({ ok: true, text: '已发送打开指令，请在设备上完成登录激活' });
+    } catch (err) {
+      setOpenMsg({ ok: false, text: (err as Error).message });
+    } finally {
+      setOpening(false);
+    }
+  };
+
   if (!agent) return <div className="text-sm text-[#94A3B8]">Agent 不存在</div>;
   return (
     <div className="space-y-3">
@@ -104,6 +123,31 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string } }
       <InfoRow label="可执行" value={agent.executable} />
       <InfoRow label="能力" value={agent.capabilities.join(', ')} />
       <InfoRow label="并发" value={`${agent.busyCount}/${agent.maxConcurrency}`} />
+
+      <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+        <div className="text-xs text-[#64748B]">
+          未登录或需要重新登录？点击下方按钮，本设备会弹出该平台应用。
+        </div>
+        <Button
+          size="small"
+          variant="contained"
+          fullWidth
+          disabled={opening}
+          onClick={openPlatform}
+          sx={{ mt: 1.5 }}
+        >
+          {opening ? '打开中…' : '打开平台应用登录激活'}
+        </Button>
+        {openMsg && (
+          <div
+            className={`mt-2 rounded-md px-2 py-1.5 text-xs ${
+              openMsg.ok ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-[#FEE2E2] text-[#B91C1C]'
+            }`}
+          >
+            {openMsg.text}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

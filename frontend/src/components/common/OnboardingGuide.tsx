@@ -6,7 +6,7 @@ import Button from '@mui/material/Button';
  * Model Nexus → 一键部署 → 平台模型绑定 → 免费源/Provider → 任务调度流程。
  */
 
-const STORAGE_KEY = 'agentmesh.onboarding.dismissed.v1';
+const STORAGE_KEY = 'agentmesh.onboarding.dismissed.v2';
 
 const STEPS = [
   {
@@ -24,6 +24,10 @@ const STEPS = [
   {
     title: '部署即用',
     body: '在「部署」页上传 Excel/JSON，填写 deviceId、platforms、models。部署成功后会自动把设备 agent 平台绑定到网关模型。',
+  },
+  {
+    title: '登录激活平台',
+    body: '在首页神经图中点击某个 agent 神经元（圆角方块），右侧详情里点「打开平台应用登录激活」，设备会弹出对应平台应用，完成登录后该平台即被激活、可用于派发任务。',
   },
   {
     title: '观察与切换',

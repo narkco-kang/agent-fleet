@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import type { AgentType } from '@agentmesh/shared';
+import { MESSAGE_TYPES } from '@agentmesh/shared';
 import { deviceRegistry } from '../services/deviceRegistry.js';
+import { sendToDevice } from '../transport/wsServer.js';
 import {
   deleteDevice,
   getDevice,
@@ -148,6 +150,30 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
       }
       const changed = setPrimaryAgents(deviceIds, (agentType as AgentType) ?? null);
       return { ok: true, data: { changed, primaryAgentType: agentType } };
+    },
+  );
+
+  /** 打开平台应用（登录激活）：向在线设备下发 device.platform_open */
+  app.post<{ Params: { id: string; agentType: string } }>(
+    '/api/devices/:id/platforms/:agentType/open',
+    async (req, reply) => {
+      const { id, agentType } = req.params;
+      const row = getDevice(id);
+      if (!row) return reply.code(404).send({ ok: false, error: 'device_not_found' });
+      if (!deviceRegistry.isOnline(id)) {
+        return reply.code(409).send({ ok: false, error: 'device_offline' });
+      }
+      const sent = sendToDevice(id, {
+        v: 1,
+        type: MESSAGE_TYPES.DEVICE_PLATFORM_OPEN,
+        id: `popen-${Date.now()}`,
+        ts: Date.now(),
+        from: 'coordinator',
+        to: id,
+        payload: { deviceId: id, agentType },
+      });
+      if (!sent) return reply.code(409).send({ ok: false, error: 'device_not_reachable' });
+      return { ok: true, data: { dispatched: true, deviceId: id, agentType } };
     },
   );
 }

@@ -322,7 +322,7 @@ function toDetail(node: GraphNode): DetailTarget {
     return { kind: 'device', id: node.data.deviceId, title: node.data.name };
   }
   if (node.type === 'agent') {
-    return { kind: 'agent', id: node.id, title: node.data.displayName, deviceId: node.deviceId };
+    return { kind: 'agent', id: node.id, title: node.data.displayName, deviceId: node.deviceId, agentType: node.data.agentType };
   }
   if (node.type === 'task') {
     return { kind: 'task', id: node.data.taskId, title: node.data.prompt.slice(0, 40) };

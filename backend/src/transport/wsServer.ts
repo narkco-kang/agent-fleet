@@ -181,6 +181,15 @@ function handleEnvelope(socket: WebSocket, raw: string, fallbackPeer?: Peer): vo
       assetAckHandler(envelope.payload);
       break;
     }
+    case MESSAGE_TYPES.DEVICE_PLATFORM_OPEN_ACK: {
+      const ack = envelope.payload as { deviceId?: string; agentType?: string; ok?: boolean; message?: string };
+      if (ack?.ok === false) {
+        console.warn(`[platform-open] ${ack.deviceId}/${ack.agentType} 打开失败: ${ack.message ?? 'unknown'}`);
+      } else {
+        console.log(`[platform-open] ${ack.deviceId}/${ack.agentType} 已打开: ${ack.message ?? ''}`);
+      }
+      break;
+    }
     default: {
       // 未知类型：按 03 §6.4 不静默吞，回一个 system 事件
       if (peer?.kind === 'device' && peer.deviceId) {

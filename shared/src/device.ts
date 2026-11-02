@@ -62,6 +62,22 @@ export interface AgentInfo {
 /** 探测方式 */
 export type DetectMethod = 'path' | 'which' | 'default_dir' | 'npm' | 'app';
 
+/** 打开平台应用请求（协调 → 设备，用户登录激活平台） */
+export interface PlatformOpen {
+  deviceId: string;
+  agentType: AgentType;
+}
+
+/** 打开平台应用回执（设备 → 协调） */
+export interface PlatformOpenAck {
+  deviceId: string;
+  agentType: AgentType;
+  ok: boolean;
+  /** 实际执行的启动命令（诊断用） */
+  command?: string;
+  message?: string;
+}
+
 /** 配对请求（device.pair） */
 export interface DevicePair {
   deviceId: string;

@@ -18,3 +18,4 @@ export * from './loop.js';
 export * from './action.js';
 export * from './freeSourceRating.js';
 export * from './freeSourceCatalog.js';
+export * from './platformLaunch.js';
