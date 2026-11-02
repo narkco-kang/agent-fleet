@@ -13,6 +13,12 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
 
 [中文说明](README.zh-CN.md) · English
 
+## 📊 At a glance
+
+<div align="center">
+  <img src="docs/images/overview.png" alt="AgentFleet at a glance — cross-device failover, incremental deployment, shared memory" width="860">
+</div>
+
 ## ✨ Features
 
 | Capability | Description |

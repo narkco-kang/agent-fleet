@@ -13,6 +13,12 @@ AgentFleet 是一个**可自托管的跨设备智能体协同层**。它不造�
 
 [English](README.md) · 中文
 
+## 📊 一图看懂
+
+<div align="center">
+  <img src="docs/images/overview.png" alt="AgentFleet 一图看懂——跨设备容错、增量部署、共享记忆" width="860">
+</div>
+
 ## ✨ 功能特性
 
 | 能力 | 说明 |
