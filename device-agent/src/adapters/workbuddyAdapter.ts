@@ -104,6 +104,25 @@ function randomHighPort(): number {
   return 40000 + Math.floor(Math.random() * 15000);
 }
 
+/**
+ * 探测 WorkBuddy 桌面主进程的 50068 Remote Control 网关。
+ *  - reachable     ：网关在且免认证（可直接远程调用）
+ *  - auth-required ：网关在但需要 gateway password（Bearer 认证）
+ *  - offline       ：桌面应用未运行（50068 不可达）
+ * 50068 可达 = WorkBuddy 桌面应用运行且已登录，是 workbuddy 平台真正可用的判据。
+ */
+async function probeGateway50068(): Promise<'reachable' | 'auth-required' | 'offline'> {
+  try {
+    const res = await fetch('http://127.0.0.1:50068/api/v1/health', {
+      signal: AbortSignal.timeout(2_000),
+    });
+    if (res.status === 401 || res.status === 403) return 'auth-required';
+    return 'reachable';
+  } catch {
+    return 'offline';
+  }
+}
+
 export class WorkbuddyAdapter implements Adapter {
   readonly agentType = 'workbuddy' as const;
   readonly displayName = 'WorkBuddy';
@@ -122,13 +141,16 @@ export class WorkbuddyAdapter implements Adapter {
         maxConcurrency: 1,
       };
     }
+    const gateway = await probeGateway50068();
+    const capabilities: string[] = ['coding', 'reasoning', 'tools'];
+    if (gateway !== 'offline') capabilities.push('remote-control');
     return {
       found: true,
       agentType: 'workbuddy',
       executable: exe,
-      version: this.readVersion(exe),
+      version: `${this.readVersion(exe)}${gateway === 'reachable' ? ' (gateway)' : gateway === 'auth-required' ? ' (gateway auth)' : ''}`,
       detectMethod: 'app',
-      capabilities: ['coding', 'reasoning', 'tools'],
+      capabilities,
       maxConcurrency: 1,
     };
   }
