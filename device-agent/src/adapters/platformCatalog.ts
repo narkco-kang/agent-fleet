@@ -105,6 +105,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding'],
     maxConcurrency: 1,
+    runSpec: { mode: 'unsupported', note: 'headless/print 参数待确认' },
   },
   {
     agentType: 'qwen',
@@ -115,6 +116,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
+    runSpec: { mode: 'cli-text', args: ['-p', '{prompt}'], textOutput: true, note: 'qwen -p print 模式（v0.3+ 支持 stream-json，待实机验证）' },
   },
   {
     agentType: 'doubao',
@@ -125,6 +127,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
+    runSpec: { mode: 'unsupported', note: 'headless/print 参数待确认' },
   },
   {
     agentType: 'kimi',
@@ -135,6 +138,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
+    runSpec: { mode: 'unsupported', note: 'interactive-first CLI，headless/print 参数待确认' },
   },
   {
     agentType: 'opencode',
@@ -145,6 +149,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding'],
     maxConcurrency: 1,
+    runSpec: { mode: 'cli-text', args: ['run', '{prompt}'], textOutput: true, note: 'opencode run 非交互单轮（待实机验证）' },
   },
   {
     agentType: 'windsurf',
