@@ -13,6 +13,8 @@ import {
   TrustStore,
   generateKeyPair,
   verifyChainSigned,
+  scrubSecrets,
+  MemorySearchIndex,
 } from '@agentfleet/memory';
 import type { Block, MemoryChange } from '@agentfleet/memory';
 
@@ -27,6 +29,8 @@ class MemoryLedgerService {
   private readonly producer: BlockProducer;
   /** amg 语义 rev（单调递增，重启后从账本 change 总数续起）。 */
   private rev = 0;
+  /** 语义检索索引（借鉴 AgentMemory：BM25 关键词召回，可重建、可丢弃，账本仍 append-only）。 */
+  private readonly searchIndex = new MemorySearchIndex();
 
   constructor() {
     const kp = generateKeyPair();
@@ -38,10 +42,12 @@ class MemoryLedgerService {
     });
   }
 
-  /** 初始化：加载账本（不存在则创建 genesis），并从已有 change 总数续 rev。 */
+  /** 初始化：加载账本（不存在则创建 genesis），并从已有 change 总数续 rev + 重建检索索引。 */
   async init(): Promise<void> {
     const doc = await this.ledger.load();
     this.rev = doc.blocks.reduce((n, b) => n + b.changes.length, 0);
+    // 从账本回放全部 change，重建语义检索索引（启动即恢复召回能力）
+    this.searchIndex.rebuild(doc.blocks.flatMap((b) => b.changes));
   }
 
   /**
@@ -56,6 +62,12 @@ class MemoryLedgerService {
     status: string;
     resultText?: string;
   }): Promise<Block | null> {
+    // 写入前脱敏：账本 append-only 不可删，secret 必须在落盘前剥离
+    const note = scrubSecrets(
+      `${input.agentType}@${input.deviceId} 「${input.prompt.slice(0, 60)}」${
+        input.resultText ? ` → ${input.resultText.slice(0, 60)}` : ''
+      }`,
+    );
     const change: MemoryChange = {
       id: `task:${input.taskId}:${input.status}`,
       op: 'set_status',
@@ -63,12 +75,11 @@ class MemoryLedgerService {
       by: 'coordinator',
       at: new Date().toISOString(),
       rev: ++this.rev,
-      note: `${input.agentType}@${input.deviceId} 「${input.prompt.slice(0, 60)}」${
-        input.resultText ? ` → ${input.resultText.slice(0, 60)}` : ''
-      }`,
+      note,
       status: input.status,
     };
     this.mempool.add(change);
+    this.searchIndex.add(change); // 立即入检索索引（不等出块）
     return this.flush();
   }
 
@@ -106,8 +117,17 @@ class MemoryLedgerService {
       tipHash: doc.tip.hash,
       healthy,
       error,
+      indexed: this.searchIndex.size(),
       updatedAt: doc.updatedAt,
     };
+  }
+
+  /** 语义召回：关键词搜索记忆账本（借鉴 AgentMemory 的 keyless BM25）。 */
+  search(query: string, limit = 10): Array<{ change: MemoryChange; score: number }> {
+    return this.searchIndex.search(query, limit).map((h) => ({
+      change: h.change,
+      score: h.score,
+    }));
   }
 
   /** 供测试/诊断生成一条任意 change（随机 uuid，不幂等）。 */

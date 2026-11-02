@@ -42,3 +42,6 @@ export * from './sync/catchup';
 // amg 适配
 export * from './adapters/amg-mapper';
 export * from './adapters/amg-mcp';
+
+// 语义检索层（借鉴 AgentMemory：BM25 召回 + secret 脱敏）
+export * from './search';
