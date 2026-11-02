@@ -17,6 +17,7 @@
     "dev:backend": "npm run dev --workspace backend",
     "dev:frontend": "npm run dev --workspace frontend",
     "dev:agent": "npm run dev --workspace device-agent",
+    "dev:local": "node scripts/dev-local.mjs",
     "dev:relay": "npm run relay --workspace backend",
     "dev:wechat": "npm run dev --workspace wechat",
     "dev:gateway": "npm run dev --workspace modelgateway",
