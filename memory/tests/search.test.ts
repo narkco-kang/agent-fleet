@@ -112,6 +112,18 @@ describe('MemorySearchIndex', () => {
     const similar = idx.findSimilar('修复登录超时的问题', 0.6, 5);
     expect(similar[0]?.item.id).toBe('t1');
   });
+
+  it('hybridSearch fuses BM25 + similarity (RRF)', () => {
+    const idx = new MemorySearchIndex();
+    // t2 与 query 措辞不同但字符高度相似（只有 token 级差异）
+    idx.add(change('t1', '登录超时登录超时登录超时'));
+    idx.add(change('t2', '修复登录超时的问题'));
+    idx.add(change('t3', '生成季度营收图表'));
+    const hits = idx.hybridSearch('修复登录超时', 10);
+    // t2（相似）应排在 t3（无关）之前
+    const ids = hits.map((h) => h.change.id);
+    expect(ids.indexOf('t2')).toBeLessThan(ids.indexOf('t3'));
+  });
 });
 
 describe('similarity', () => {

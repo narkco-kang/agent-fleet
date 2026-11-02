@@ -8,7 +8,7 @@ export function registerMemoryRoutes(app: FastifyInstance): void {
   app.get('/api/memory/summary', async () => memoryLedger.summary());
 
   /** 语义召回：关键词搜索记忆账本（借鉴 AgentMemory 的 keyless BM25）。 */
-  app.get<{ Querystring: { q?: string; limit?: string } }>(
+  app.get<{ Querystring: { q?: string; limit?: string; mode?: string } }>(
     '/api/memory/search',
     async (req, reply) => {
       const q = req.query.q?.trim();
@@ -16,7 +16,9 @@ export function registerMemoryRoutes(app: FastifyInstance): void {
         return reply.code(400).send({ ok: false, error: 'q required' });
       }
       const limit = Math.min(Math.max(Number(req.query.limit ?? 10) || 10, 1), 50);
-      return { ok: true, data: memoryLedger.search(q, limit) };
+      const mode = req.query.mode === 'bm25' ? 'bm25' : 'hybrid';
+      const data = mode === 'bm25' ? memoryLedger.search(q, limit) : memoryLedger.hybridSearch(q, limit);
+      return { ok: true, mode, data };
     },
   );
 

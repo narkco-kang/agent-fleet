@@ -179,6 +179,14 @@ class MemoryLedgerService {
     }));
   }
 
+  /** 混合检索：BM25 + 相似度 RRF 融合（更鲁棒，召回措辞不同但语义相似）。 */
+  hybridSearch(query: string, limit = 10): Array<{ change: MemoryChange; score: number }> {
+    return this.searchIndex.hybridSearch(query, limit).map((h) => ({
+      change: h.change,
+      score: h.score,
+    }));
+  }
+
   /** 相似记忆：找与给定文本 Jaccard 相似度 >= threshold 的历史记录（近重复/推荐）。 */
   findSimilar(text: string, threshold = 0.6, limit = 5): Array<{ change: MemoryChange; score: number }> {
     return this.searchIndex.findSimilar(text, threshold, limit).map((h) => ({

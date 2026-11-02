@@ -72,6 +72,39 @@ export class MemorySearchIndex {
     return findSimilar(query, candidates, threshold, limit);
   }
 
+  /**
+   * 混合检索（RRF 融合）：把 BM25（关键词）+ Jaccard（字符相似）两个信号
+   * 用 Reciprocal Rank Fusion 融合排序，比单一 BM25 更能召回「措辞不同但语义相似」的记忆。
+   * 借鉴 AgentMemory 的三重检索 RRF 融合（k=60）。
+   */
+  hybridSearch(query: string, limit = 10): MemorySearchHit[] {
+    const K = 60;
+    const rrf = new Map<string, number>();
+
+    // 信号 1：BM25 关键词
+    this.bm25.search(tokenize(query), 50).forEach((h, i) => {
+      rrf.set(h.id, (rrf.get(h.id) ?? 0) + 1 / (K + i + 1));
+    });
+
+    // 信号 2：Jaccard 字符相似（阈值 0 拿全部，靠 RRF 统一排序）
+    const candidates = Array.from(this.changes.values()).map((c) => ({
+      item: c,
+      text: changeText(c),
+    }));
+    findSimilar(query, candidates, 0, 50).forEach((h, i) => {
+      rrf.set(h.item.id, (rrf.get(h.item.id) ?? 0) + 1 / (K + i + 1));
+    });
+
+    return Array.from(rrf.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([id, score]): MemorySearchHit | null => {
+        const change = this.changes.get(id);
+        return change ? { change, score } : null;
+      })
+      .filter((h): h is MemorySearchHit => h !== null);
+  }
+
   size(): number {
     return this.bm25.size();
   }
