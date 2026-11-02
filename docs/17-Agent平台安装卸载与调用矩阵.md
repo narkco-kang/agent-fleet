@@ -26,19 +26,19 @@
 
 | 平台 key | 显示名 | 自动安装 | 自动卸载 | 发现上报 | 网关模型执行 | 本地 CLI 真接 | 说明 |
 |---|---|---:|---:|---:|---:|---:|---|
-| `codex` | Codex | ✅ npm `@openai/codex` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；本地 headless 调用待实测稳定化 |
-| `claude` | Claude Code | ✅ npm `@anthropic-ai/claude-code` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；通常需要用户本机已登录 Claude Code |
-| `dsh` | DSH Desktop | 手动/验证 | 手动/验证 | ✅ | ✅ | 骨架 | 安装源不公开标准化，AgentFleet 只验证既有安装 |
+| `codex` | Codex | ✅ npm `@openai/codex` | ✅ npm uninstall | ✅ | ✅ | cli-text 待验证 | 默认部署集之一；`codex exec "{prompt}"` 单轮，待实机验证 |
+| `claude` | Claude Code | ✅ npm `@anthropic-ai/claude-code` | ✅ npm uninstall | ✅ | ✅ | cli-stream 待验证 | 默认部署集之一；`claude -p "{prompt}" --output-format stream-json`，需用户本机已登录 |
+| `dsh` | DSH Desktop | 手动/验证 | 手动/验证 | ✅ | ✅ | **headless 已确认（逆向）** | 逆向确认 `dsh headless "<prompt>"` 单轮可行（`ELECTRON_RUN_AS_NODE=1` 跑 `harness-node-entry.mjs` + `app.asar/.../lib/bin.js`）；报错仅「缺 credentials + agent-loop 插件」，需登录 + profile 配置，待专用 DshAdapter |
 | `grok` | Grok | 手动/验证 | 手动/验证 | ✅ | ✅ | ✅ 稳定 | `GrokAdapter` 走 ACP（`grok agent stdio`，完整 bot 循环），认证用 `XAI_API_KEY` 或 `grok login` |
-| `cursor` | Cursor | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | 骨架 | Linux 暂无统一自动安装；桌面/agent headless 参数需实测 |
-| `aider` | Aider | ✅ pipx `aider-chat` | ✅ pipx uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；本地调用模板待逐版本验证 |
-| `gemini` | Gemini CLI | ✅ npm `@google/gemini-cli` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；通常需要用户本机登录或配置 Google 凭证 |
+| `cursor` | Cursor | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | cli-text 待验证 | `cursor-agent -p "{prompt}"` headless（print 模式，`--force` 允许改文件）；Linux 无统一安装 |
+| `aider` | Aider | ✅ pipx `aider-chat` | ✅ pipx uninstall | ✅ | ✅ | cli-text 单轮 | 默认部署集之一；`aider --message "{prompt}" --no-git --yes` 单轮（无 headless agent 循环） |
+| `gemini` | Gemini CLI | ✅ npm `@google/gemini-cli` | ✅ npm uninstall | ✅ | ✅ | cli-text 待验证 | 默认部署集之一；`gemini -p "{prompt}"` 单轮，需用户本机登录 |
 | `cody` | Cody | ✅ npm `@sourcegraph/cody` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 本地调用协议待实测 |
 | `qwen` | Qwen Code | ✅ npm `@qwen-code/qwen-code` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；通常需要用户本机登录或配置凭证 |
 | `doubao` | 豆包 MarsCode | ✅ npm `@bytedance/mars-code` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 本地调用协议待实测 |
 | `kimi` | Kimi CLI | ✅ npm `kimi-cli` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 本地调用协议待实测 |
 | `opencode` | OpenCode | ✅ npm `opencode-ai` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；免费源探测里也包含 OpenCode 上游线路 |
-| `windsurf` | Windsurf | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | 骨架 | Linux 暂无统一自动安装；桌面/agent headless 参数需实测 |
+| `windsurf` | Windsurf | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | 待确认（GUI） | GUI/Cascade 为主，headless CLI 参数未证实；Linux 无统一安装 |
 
 ## 3. 默认一键部署集
 

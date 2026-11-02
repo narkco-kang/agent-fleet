@@ -62,6 +62,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['shell', 'coding'],
     maxConcurrency: 1,
+    runSpec: { mode: 'unsupported', args: ['headless', '{prompt}'], note: '逆向确认 dsh headless 单轮可行（ELECTRON_RUN_AS_NODE=1 跑 harness-node-entry + lib/bin.js）；需登录 credentials + profile 配 agent-loop，待专用 DshAdapter' },
   },
   {
     agentType: 'cursor',
@@ -72,6 +73,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
+    runSpec: { mode: 'cli-text', args: ['-p', '{prompt}'], textOutput: true, note: 'cursor-agent -p headless（print 模式，--force 允许改文件，待实机验证）' },
   },
   {
     agentType: 'aider',
@@ -153,6 +155,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding'],
     maxConcurrency: 1,
+    runSpec: { mode: 'unsupported', note: 'GUI/Cascade 为主，headless CLI 方式待确认（windsurf CLI 存在但 print/headless 参数未证实）' },
   },
 ];
 
