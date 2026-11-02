@@ -10,6 +10,7 @@ import ExtensionIcon from '@mui/icons-material/Extension';
 import RouteIcon from '@mui/icons-material/Route';
 import FolderIcon from '@mui/icons-material/Folder';
 import PsychologyIcon from '@mui/icons-material/Psychology';
+import GroupsIcon from '@mui/icons-material/Groups';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useLiveData } from '../hooks/useLiveData';
@@ -30,6 +31,7 @@ const NAV = [
   { to: '/assets', label: '资产', icon: <FolderIcon /> },
   { to: '/memory', label: '记忆', icon: <PsychologyIcon /> },
   { to: '/routing', label: '路由网关', icon: <RouteIcon /> },
+  { to: '/swarm', label: '蜂群团队', icon: <GroupsIcon /> },
   { to: '/settings', label: '设置', icon: <SettingsIcon /> },
 ];
 

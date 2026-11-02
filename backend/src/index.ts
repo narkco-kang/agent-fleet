@@ -12,6 +12,7 @@ import { registerPlatformModelRoutes } from './routes/platformModels.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerDeployRoutes } from './routes/deploy.js';
 import { registerTeamRoutes } from './routes/teams.js';
+import { registerSwarmRoutes } from './routes/swarm.js';
 import { registerLoopRoutes } from './routes/loop.js';
 import { registerA2aRoutes } from './routes/a2a.js';
 import {
@@ -38,6 +39,7 @@ import { memoryLedger } from './services/memoryLedger.js';
 import { setupMemorySync, handleMemorySyncMessage } from './services/memorySync.js';
 import { startDispatchLoop } from './services/scheduler.js';
 import { roleRouteStore } from './services/routing/roleRouteStore.js';
+import { seedPresets as seedSwarmPresets } from './services/swarm/roleTeamService.js';
 import { registerDeployExecutor } from './services/deploy/deployService.js';
 import {
   registerDeliveryExecutor,
@@ -75,6 +77,8 @@ async function main(): Promise<void> {
   }
   const seeded = roleRouteStore.seedDefaults();
   if (seeded > 0) console.log(`[backend] 已播种 ${seeded} 条默认角色路由`);
+  const seededSwarm = seedSwarmPresets();
+  if (seededSwarm > 0) console.log(`[backend] 已播种 ${seededSwarm} 个预设蜂群角色团队`);
 
   // 对外动作执行器注册（确认 → 执行）+ 资产 ack 桥接 + 补发/loop 定时器
   registerDeployExecutor();
@@ -139,6 +143,7 @@ async function main(): Promise<void> {
   registerAssetRoutes(app);
   registerDeployRoutes(app);
   registerTeamRoutes(app);
+  registerSwarmRoutes(app);
   registerLoopRoutes(app);
   registerGatewayRoutes(app);
   registerA2aRoutes(app);

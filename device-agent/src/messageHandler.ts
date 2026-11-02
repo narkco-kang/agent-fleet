@@ -248,6 +248,10 @@ export async function sendChainSummary(sender: MessageSender): Promise<void> {
 /** 处理任务下发：派发给 Adapter，流式回传 + 结果回收 */
 async function handleTaskSubmit(task: TaskSubmit, sender: MessageSender): Promise<void> {
   const agentType = task.target.agentType ?? 'grok';
+  // 蜂群 persona 注入：systemPrompt 合并到 prompt 前缀（无 systemPrompt 时行为回归不变）
+  const effectiveTask: TaskSubmit = task.systemPrompt
+    ? { ...task, prompt: `${task.systemPrompt}\n\n---\n\n任务指令：\n${task.prompt}` }
+    : task;
   const startedAt = Date.now();
   let seq = 0;
   let text = '';
@@ -293,7 +297,7 @@ async function handleTaskSubmit(task: TaskSubmit, sender: MessageSender): Promis
   };
 
   try {
-    const handle = await dispatchToAdapter(agentType, task, sendTaskEvent);
+    const handle = await dispatchToAdapter(agentType, effectiveTask, sendTaskEvent);
     runningTasks.set(task.taskId, {
       agentType,
       text,

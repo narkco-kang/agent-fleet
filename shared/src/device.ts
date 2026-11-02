@@ -120,6 +120,10 @@ export interface DeviceSnapshot {
   teamId?: string | null;
   /** 团队展示名（快照冗余，便于前端直接展示） */
   teamName?: string | null;
+  /** 该设备绑定的蜂群角色团队（swarm 模式路由用，未绑定则为 null） */
+  roleTeamId?: string | null;
+  /** 蜂群角色团队展示名（快照冗余，便于前端直接展示） */
+  roleTeamName?: string | null;
   load: DeviceLoad;
   busyAgents: number;
 }

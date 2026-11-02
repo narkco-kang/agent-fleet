@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -6,7 +6,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
-import type { AgentBot } from '@agentfleet/shared';
+import type { AgentBot, RoleTeam, SubRole } from '@agentfleet/shared';
 import { http } from '../../api/http';
 import { useDeviceStore } from '../../store/deviceStore';
 
@@ -23,13 +23,38 @@ export function NewTaskDialog({
   onCreated?: (taskId: string) => void;
 }): JSX.Element {
   const [prompt, setPrompt] = useState('');
-  const [mode, setMode] = useState<'auto' | 'device' | 'agent'>('auto');
+  const [mode, setMode] = useState<'auto' | 'device' | 'agent' | 'swarm'>('auto');
   const [agentType, setAgentType] = useState('grok');
   const [bot, setBot] = useState('');
+  const [swarmTeams, setSwarmTeams] = useState<RoleTeam[]>([]);
+  const [roleTeamId, setRoleTeamId] = useState('');
+  const [subRoles, setSubRoles] = useState<SubRole[]>([]);
+  const [subRole, setSubRole] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const devices = useDeviceStore((s) => s.devices);
+
+  // 加载蜂群角色团队（swarm 下发入口）
+  useEffect(() => {
+    http.getSwarmTeams().then((r) => setSwarmTeams(r.data)).catch(() => setSwarmTeams([]));
+  }, []);
+
+  // 选中团队后加载其子角色
+  useEffect(() => {
+    if (!roleTeamId) {
+      setSubRoles([]);
+      setSubRole('');
+      return;
+    }
+    http
+      .getSwarmTeam(roleTeamId)
+      .then((r) => {
+        setSubRoles(r.data.subRoles);
+        setSubRole(r.data.subRoles[0]?.slug ?? '');
+      })
+      .catch(() => setSubRoles([]));
+  }, [roleTeamId]);
 
   // 收集所选 agent 平台在所有在线设备上的 bot 列表（去重）
   const bots: AgentBot[] = useMemo(() => {
@@ -50,6 +75,10 @@ export function NewTaskDialog({
       setError('请输入任务描述');
       return;
     }
+    if (mode === 'swarm' && !roleTeamId) {
+      setError('请选择蜂群角色团队');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -60,6 +89,8 @@ export function NewTaskDialog({
           mode,
           agentType: mode === 'agent' ? agentType : undefined,
           agentProfile: mode === 'agent' && bot ? bot : undefined,
+          roleTeamId: mode === 'swarm' ? roleTeamId : undefined,
+          subRole: mode === 'swarm' ? subRole : undefined,
         },
       });
       onCreated?.(res.data.taskId);
@@ -90,12 +121,46 @@ export function NewTaskDialog({
             select
             label="路由模式"
             value={mode}
-            onChange={(e) => setMode(e.target.value as 'auto' | 'device' | 'agent')}
+            onChange={(e) => setMode(e.target.value as 'auto' | 'device' | 'agent' | 'swarm')}
           >
             <MenuItem value="auto">自动（空闲优先 + 能力匹配）</MenuItem>
             <MenuItem value="device">指定设备</MenuItem>
             <MenuItem value="agent">指定 agent 平台</MenuItem>
+            <MenuItem value="swarm">蜂群角色团队（swarm）</MenuItem>
           </TextField>
+          {mode === 'swarm' && (
+            <>
+              <TextField
+                fullWidth
+                select
+                label="角色团队"
+                value={roleTeamId}
+                onChange={(e) => setRoleTeamId(e.target.value)}
+              >
+                <MenuItem value="">选择团队…</MenuItem>
+                {swarmTeams.map((t) => (
+                  <MenuItem key={t.roleTeamId} value={t.roleTeamId}>
+                    {t.name}（{t.slug}）
+                  </MenuItem>
+                ))}
+              </TextField>
+              {roleTeamId && (
+                <TextField
+                  fullWidth
+                  select
+                  label="子角色"
+                  value={subRole}
+                  onChange={(e) => setSubRole(e.target.value)}
+                >
+                  {subRoles.map((s) => (
+                    <MenuItem key={s.subRoleId} value={s.slug}>
+                      {s.name}（{s.slug}）
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </>
+          )}
           {mode === 'agent' && (
             <TextField
               fullWidth

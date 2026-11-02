@@ -17,6 +17,7 @@ import { listAgentsByDevice, toAgentSnapshot } from '../db/repo/agents.js';
 import { getTeam } from '../db/repo/teams.js';
 import { createPairing, getPendingPair, verifyPairing } from '../security/pairing.js';
 import { issueToken } from '../security/auth.js';
+import { roleTeamNameOf } from '../services/snapshot.js';
 
 /** 团队名（未绑定返回 null） */
 function teamNameOf(teamId: string | null): string | null {
@@ -37,6 +38,7 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
         entry?.load ?? { cpu: 0, mem: 0 },
         entry?.busyAgents ?? 0,
         teamNameOf(row.team_id),
+        roleTeamNameOf(row.role_team_id),
       );
       return {
         ...snapshot,
@@ -60,6 +62,7 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
       entry?.load ?? { cpu: 0, mem: 0 },
       entry?.busyAgents ?? 0,
       teamNameOf(row.team_id),
+      roleTeamNameOf(row.role_team_id),
     );
     return {
       ok: true,

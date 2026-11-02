@@ -17,6 +17,8 @@ export interface DeviceRow {
   owner: string;
   primary_agent_type: AgentType | null;
   team_id: string | null;
+  role_team_id: string | null;
+  sub_role_bindings: string;
   created_at: number;
 }
 
@@ -159,6 +161,78 @@ export function getDeviceTeam(deviceId: string): string | null {
   return row?.team_id ?? null;
 }
 
+/** 设置设备绑定的蜂群角色团队（roleTeamId 为 null 表示解绑） */
+export function setDeviceRoleTeam(deviceId: string, roleTeamId: string | null): boolean {
+  return getDb()
+    .prepare(`UPDATE devices SET role_team_id = ? WHERE device_id = ?`)
+    .run(roleTeamId, deviceId).changes > 0;
+}
+
+/** 批量绑定设备到同一蜂群角色团队（roleTeamId 为 null 表示解绑） */
+export function setDeviceRoleTeams(deviceIds: string[], roleTeamId: string | null): number {
+  if (deviceIds.length === 0) return 0;
+  const stmt = getDb().prepare(`UPDATE devices SET role_team_id = ? WHERE device_id = ?`);
+  let n = 0;
+  for (const id of deviceIds) n += stmt.run(roleTeamId, id).changes;
+  return n;
+}
+
+/** 查询某蜂群角色团队绑定的设备 id 列表 */
+export function listDevicesByRoleTeam(roleTeamId: string): string[] {
+  const rows = getDb()
+    .prepare(`SELECT device_id FROM devices WHERE role_team_id = ? ORDER BY created_at ASC`)
+    .all(roleTeamId) as Array<{ device_id: string }>;
+  return rows.map((r) => r.device_id);
+}
+
+/** 查询全部设备 → 蜂群角色团队映射 */
+export function listDeviceRoleTeams(): Map<string, string> {
+  const rows = getDb()
+    .prepare(`SELECT device_id, role_team_id FROM devices WHERE role_team_id IS NOT NULL`)
+    .all() as Array<{ device_id: string; role_team_id: string }>;
+  return new Map(rows.map((r) => [r.device_id, r.role_team_id]));
+}
+
+/** 查询设备绑定的蜂群角色团队 id */
+export function getDeviceRoleTeam(deviceId: string): string | null {
+  const row = getDb()
+    .prepare(`SELECT role_team_id FROM devices WHERE device_id = ?`)
+    .get(deviceId) as { role_team_id: string | null } | undefined;
+  return row?.role_team_id ?? null;
+}
+
+/** 读取设备软绑定（{子角色 slug: AgentType}） */
+export function getSubRoleBindings(deviceId: string): Record<string, AgentType> {
+  const row = getDb()
+    .prepare(`SELECT sub_role_bindings FROM devices WHERE device_id = ?`)
+    .get(deviceId) as { sub_role_bindings: string } | undefined;
+  try {
+    return JSON.parse(row?.sub_role_bindings || '{}') as Record<string, AgentType>;
+  } catch {
+    return {};
+  }
+}
+
+/** 整体覆盖设备软绑定（{子角色 slug: AgentType}） */
+export function setSubRoleBindings(deviceId: string, bindings: Record<string, AgentType>): boolean {
+  return getDb()
+    .prepare(`UPDATE devices SET sub_role_bindings = ? WHERE device_id = ?`)
+    .run(JSON.stringify(bindings ?? {}), deviceId).changes > 0;
+}
+
+/** 设置单个子角色软绑定（agentType 为 null 表示解绑该 slug） */
+export function setSubRoleBinding(
+  deviceId: string,
+  slug: string,
+  agentType: AgentType | null,
+): Record<string, AgentType> {
+  const bindings = getSubRoleBindings(deviceId);
+  if (agentType) bindings[slug] = agentType;
+  else delete bindings[slug];
+  setSubRoleBindings(deviceId, bindings);
+  return bindings;
+}
+
 /** 按 ID 查询设备 */
 export function getDevice(deviceId: string): DeviceRow | undefined {
   return getDb()
@@ -186,6 +260,7 @@ export function toDeviceSnapshot(
   load: { cpu: number; mem: number } = { cpu: 0, mem: 0 },
   busyAgents = 0,
   teamName: string | null = null,
+  roleTeamName: string | null = null,
 ): DeviceSnapshot {
   return {
     deviceId: row.device_id,
@@ -200,6 +275,8 @@ export function toDeviceSnapshot(
     primaryAgentType: row.primary_agent_type,
     teamId: row.team_id ?? null,
     teamName,
+    roleTeamId: row.role_team_id ?? null,
+    roleTeamName,
     load,
     busyAgents,
   };

@@ -48,6 +48,12 @@ function runMigrations(database: Database.Database): void {
   if (!taskCols.includes('agent_profile')) {
     database.exec(`ALTER TABLE tasks ADD COLUMN agent_profile TEXT`);
   }
+  if (!taskCols.includes('target_role_team_id')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN target_role_team_id TEXT`);
+  }
+  if (!taskCols.includes('target_sub_role')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN target_sub_role TEXT`);
+  }
 
   const deviceCols = (
     database.prepare(`PRAGMA table_info(devices)`).all() as Array<{ name: string }>
@@ -57,6 +63,12 @@ function runMigrations(database: Database.Database): void {
   }
   if (!deviceCols.includes('team_id')) {
     database.exec(`ALTER TABLE devices ADD COLUMN team_id TEXT`);
+  }
+  if (!deviceCols.includes('role_team_id')) {
+    database.exec(`ALTER TABLE devices ADD COLUMN role_team_id TEXT`);
+  }
+  if (!deviceCols.includes('sub_role_bindings')) {
+    database.exec(`ALTER TABLE devices ADD COLUMN sub_role_bindings TEXT NOT NULL DEFAULT '{}'`);
   }
 
   const teamCols = (
@@ -79,6 +91,8 @@ function runMigrations(database: Database.Database): void {
   // 索引必须在列补齐之后创建：老库 schema.sql 里的 CREATE INDEX 会因缺列而失败
   database.exec(`CREATE INDEX IF NOT EXISTS idx_devices_team ON devices (team_id)`);
   database.exec(`CREATE INDEX IF NOT EXISTS idx_deployment_batches_kind ON deployment_batches (kind)`);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_devices_role_team ON devices (role_team_id)`);
+  database.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_role_team ON tasks (target_role_team_id)`);
 
   // deployment_targets 新增列（SSH 端口 / 设备绑定 / 模型配置）
   const targetCols = (

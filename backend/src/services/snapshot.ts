@@ -13,12 +13,19 @@ import { getDevice, listDevices, toDeviceSnapshot } from '../db/repo/devices.js'
 import { listAgents, toAgentSnapshot } from '../db/repo/agents.js';
 import { listTasks, toTaskSnapshot } from '../db/repo/tasks.js';
 import { getTeam } from '../db/repo/teams.js';
+import { getRoleTeam } from '../db/repo/roleTeams.js';
 import { getBusyCount } from './scheduler.js';
 
 /** 设备绑定团队名（未绑定返回 null） */
 function teamNameOf(teamId: string | null): string | null {
   if (!teamId) return null;
   return getTeam(teamId)?.name ?? null;
+}
+
+/** 设备绑定蜂群角色团队名（未绑定返回 null） */
+export function roleTeamNameOf(roleTeamId: string | null): string | null {
+  if (!roleTeamId) return null;
+  return getRoleTeam(roleTeamId)?.name ?? null;
 }
 
 /**
@@ -32,6 +39,7 @@ export function buildSnapshot(): DashboardSnapshot {
       entry?.load ?? { cpu: 0, mem: 0 },
       entry?.busyAgents ?? getBusyCount(row.device_id),
       teamNameOf(row.team_id),
+      roleTeamNameOf(row.role_team_id),
     );
   });
 
@@ -66,6 +74,7 @@ export function buildDevicePatch(deviceId: string): DashboardPatch {
     entry?.load ?? { cpu: 0, mem: 0 },
     entry?.busyAgents ?? getBusyCount(deviceId),
     teamNameOf(row.team_id),
+    roleTeamNameOf(row.role_team_id),
   );
   return makePatch({ devices: [snapshot] });
 }

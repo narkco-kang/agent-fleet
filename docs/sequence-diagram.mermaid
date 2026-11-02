@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    participant UI as 前端(NewTaskDialog)
+    participant REST as tasks 路由
+    participant SCH as Scheduler
+    participant SR as SwarmRouter
+    participant REPO as RoleTeam/Device Repo
+    participant DEV as 设备端 messageHandler
+    participant ADP as Adapter(grok ACP/cliRunner)
+
+    UI->>REST: POST /api/tasks { prompt, target:{mode:'swarm', roleTeamId, subRole?} }
+    REST->>SCH: enqueueTask({ targetMode:'swarm', targetRoleTeamId, targetSubRole })
+    SCH->>REPO: createTask(含 target_role_team_id/target_sub_role)
+    SCH->>SCH: dispatch() 轮询 queued
+    SCH->>SR: swarmRouter.resolve({ roleTeamId, subRoleSlug })
+    SR->>REPO: getRoleTeam(roleTeamId) → subRoles(按 position 排序)
+    SR->>REPO: listDevicesByRoleTeam(roleTeamId) → 候选蜂群设备
+    loop 每个在线设备（按创建序）
+        SR->>REPO: getDeviceSubRoleBindings(deviceId) → 手动绑定优先
+        SR->>REPO: listAgentsByDevice(deviceId) → preferred / capability 兜底
+    end
+    SR->>SR: buildSystemPrompt(subRole) 拼 persona 上下文
+    SR-->>SCH: SwarmRoutingDecision{ deviceId, agentType, source, systemPrompt }
+    SCH->>SCH: pairs 匹配 + claimAgent + assignTaskTarget + status=running
+    SCH->>DEV: task.submit { prompt, systemPrompt, target:{mode:'swarm', roleTeamId, subRole, agentType} }
+    DEV->>DEV: 合并 systemPrompt + prompt（浅拷贝 TaskSubmit）
+    DEV->>ADP: dispatchToAdapter(agentType, mergedTask)
+    ADP-->>DEV: 流式 task.event（text/thinking/tool_call…）
+    DEV-->>SCH: task.result { status, result }
+    SCH-->>UI: dashboard patch / 任务终态

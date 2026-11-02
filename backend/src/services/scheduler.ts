@@ -7,12 +7,14 @@ import {
   listTasks,
   updateTaskStatus,
 } from '../db/repo/tasks.js';
+import type { TaskRow } from '../db/repo/tasks.js';
 import type { AgentRow } from '../db/repo/agents.js';
 import { claimAgent, releaseAgent, listAgents } from '../db/repo/agents.js';
 import { listDevicesByTeam, listPrimaryAgents } from '../db/repo/devices.js';
 import { getTeam } from '../db/repo/teams.js';
 import { broadcastToDashboards, sendToDevice } from '../transport/wsServer.js';
 import { roleRouter } from './routing/roleRouter.js';
+import { swarmRouter } from './swarm/swarmRouter.js';
 import { modelGatewayClient, type ChatMessage } from './routing/modelGatewayClient.js';
 import { recordUsage } from './routing/usageLedger.js';
 import { isFreeSourceRef } from './routing/freeSourceService.js';
@@ -45,6 +47,8 @@ export interface SchedulerSubmitInput {
   targetAgentType?: AgentType;
   targetRole?: string;
   targetTeamId?: string;
+  targetRoleTeamId?: string;
+  targetSubRole?: string;
   requireCapability?: string;
   /** 平台内的 bot 名（如 grok 的 explore/plan/reviewer） */
   agentProfile?: string;
@@ -94,6 +98,8 @@ export function enqueueTask(input: SchedulerSubmitInput): string {
     targetAgentType: input.targetAgentType ?? null,
     targetRole: input.targetRole ?? null,
     targetTeamId: input.targetTeamId ?? null,
+    targetRoleTeamId: input.targetRoleTeamId ?? null,
+    targetSubRole: input.targetSubRole ?? null,
     requireCapability: input.requireCapability ?? null,
     agentProfile: input.agentProfile ?? null,
   });
@@ -111,6 +117,24 @@ export function dispatch(): void {
   const pairs = onlineDeviceAgents();
   const primaryAgents = listPrimaryAgents();
   for (const task of queued) {
+    // 蜂群角色团队分支：软绑定三级决策 → 本地设备 + persona 注入（无网关降级）
+    if (task.target_mode === 'swarm') {
+      const candidates = swarmRouter.resolveCandidates({
+        roleTeamId: task.target_role_team_id ?? '',
+        subRoleSlug: task.target_sub_role ?? undefined,
+      });
+      for (const decision of candidates) {
+        if (!decision.deviceId || !decision.agentType) continue;
+        const swarmAgent = pairs.find(
+          (p) => p.deviceId === decision.deviceId && p.agent.agent_type === decision.agentType,
+        )?.agent;
+        if (!swarmAgent) continue;
+        // 认领成功即停；失败则尝试下一个候选（可能是另一台设备，或同设备另一平台）
+        if (dispatchLocalTask(task, decision.deviceId, swarmAgent, decision.systemPrompt)) break;
+      }
+      continue; // 全部候选认领失败 → 保持 queued，等下一轮 dispatch
+    }
+
     // 1) 先尝试本地设备/团队（本地优先，避免有设备却走网关）
     const target = pickTargetCached(task, pairs, primaryAgents);
     if (!target) {
@@ -131,62 +155,75 @@ export function dispatch(): void {
       continue;
     }
 
-    if (!claimAgent(deviceId, agent.agent_type)) continue; // 认领失败，保持 queued
-    // 同步内存快照：让本批 dispatch 后续的 pickBest 不再选中已满员的 agent
-    agent.busy_count += 1;
-
-    const deviceName = deviceRegistry.get(deviceId)?.name ?? deviceId;
-    assignTaskTarget(task.task_id, deviceId, agent.agent_type);
-    updateTaskStatus(task.task_id, 'running', { started_at: Date.now() });
-    incBusy(deviceId);
-    syncRegistryBusy();
-
-    // 下发 task.submit 给设备
-    const envelope = {
-      v: 1 as const,
-      type: MESSAGE_TYPES.TASK_SUBMIT,
-      id: `submit-${task.task_id}`,
-      ts: Date.now(),
-      from: 'coordinator',
-      to: deviceId,
-      payload: {
-        taskId: task.task_id,
-        sessionId: task.session_id,
-        origin: task.origin,
-        originRef: task.origin_ref,
-        prompt: task.prompt,
-        target: {
-          mode: task.target_mode,
-          deviceId,
-          agentType: agent.agent_type,
-          requireCapability: task.require_capability ?? undefined,
-          agentProfile: task.agent_profile ?? undefined,
-        },
-        options: {},
-        createdAt: task.created_at,
-      },
-    };
-    sendToDevice(deviceId, envelope);
-
-    hooks?.onDispatched(task.task_id, deviceId, agent.agent_type);
-    hooks?.onEvent(task.task_id, 'status', 'running', {
-      message: `已分配到 ${deviceName} · ${agent.display_name}`,
-    });
-
-    broadcastToDashboards({
-      v: 1,
-      type: MESSAGE_TYPES.DASHBOARD_PATCH,
-      id: `patch-${Date.now()}`,
-      ts: Date.now(),
-      from: 'coordinator',
-      to: 'dashboard',
-      payload: {
-        kind: 'patch',
-        tasks: [{ taskId: task.task_id, status: 'running' }],
-        ts: Date.now(),
-      },
-    });
+    dispatchLocalTask(task, deviceId, agent);
   }
+}
+
+/** 认领 agent + 写回目标 + 下发 task.submit 给设备（systemPrompt 供蜂群 persona 注入）；返回是否认领成功 */
+function dispatchLocalTask(
+  task: TaskRow,
+  deviceId: string,
+  agent: AgentRow,
+  systemPrompt?: string,
+): boolean {
+  if (!claimAgent(deviceId, agent.agent_type)) return false; // 认领失败，保持 queued
+  // 同步内存快照：让本批 dispatch 后续的 pickBest 不再选中已满员的 agent
+  agent.busy_count += 1;
+
+  const deviceName = deviceRegistry.get(deviceId)?.name ?? deviceId;
+  assignTaskTarget(task.task_id, deviceId, agent.agent_type);
+  updateTaskStatus(task.task_id, 'running', { started_at: Date.now() });
+  incBusy(deviceId);
+  syncRegistryBusy();
+
+  // 下发 task.submit 给设备
+  const envelope = {
+    v: 1 as const,
+    type: MESSAGE_TYPES.TASK_SUBMIT,
+    id: `submit-${task.task_id}`,
+    ts: Date.now(),
+    from: 'coordinator',
+    to: deviceId,
+    payload: {
+      taskId: task.task_id,
+      sessionId: task.session_id,
+      origin: task.origin,
+      originRef: task.origin_ref,
+      prompt: task.prompt,
+      target: {
+        mode: task.target_mode,
+        deviceId,
+        agentType: agent.agent_type,
+        requireCapability: task.require_capability ?? undefined,
+        agentProfile: task.agent_profile ?? undefined,
+      },
+      options: {},
+      systemPrompt,
+      createdAt: task.created_at,
+    },
+  };
+  sendToDevice(deviceId, envelope);
+
+  hooks?.onDispatched(task.task_id, deviceId, agent.agent_type);
+  hooks?.onEvent(task.task_id, 'status', 'running', {
+    message: `已分配到 ${deviceName} · ${agent.display_name}`,
+  });
+
+  broadcastToDashboards({
+    v: 1,
+    type: MESSAGE_TYPES.DASHBOARD_PATCH,
+    id: `patch-${Date.now()}`,
+    ts: Date.now(),
+    from: 'coordinator',
+    to: 'dashboard',
+    payload: {
+      kind: 'patch',
+      tasks: [{ taskId: task.task_id, status: 'running' }],
+      ts: Date.now(),
+    },
+  });
+
+  return true;
 }
 
 /**

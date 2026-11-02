@@ -24,6 +24,8 @@ export function registerTaskRoutes(app: FastifyInstance): void {
         agentType?: string;
         role?: string;
         teamId?: string;
+        roleTeamId?: string;
+        subRole?: string;
         requireCapability?: string;
         agentProfile?: string;
       };
@@ -52,6 +54,8 @@ export function registerTaskRoutes(app: FastifyInstance): void {
       targetAgentType: (body.target?.agentType as never) ?? undefined,
       targetRole: body.target?.role,
       targetTeamId: body.target?.teamId,
+      targetRoleTeamId: body.target?.roleTeamId,
+      targetSubRole: body.target?.subRole,
       requireCapability: body.target?.requireCapability,
       agentProfile: body.target?.agentProfile,
     });

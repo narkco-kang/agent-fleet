@@ -14,6 +14,7 @@ export * from './routing.js';
 export * from './asset.js';
 export * from './deploy.js';
 export * from './team.js';
+export * from './swarm.js';
 export * from './loop.js';
 export * from './action.js';
 export * from './freeSourceRating.js';

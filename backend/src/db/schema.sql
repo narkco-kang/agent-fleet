@@ -212,6 +212,38 @@ CREATE TABLE IF NOT EXISTS free_checkins (
   checked_at INTEGER NOT NULL
 );
 
+-- ===== 蜂群角色团队（swarm） =====
+
+-- 角色团队：一个团队包含若干子角色（子角色事实源为 sub_roles 表）。
+CREATE TABLE IF NOT EXISTS role_teams (
+  role_team_id TEXT PRIMARY KEY,
+  name         TEXT NOT NULL,
+  slug         TEXT NOT NULL UNIQUE,            -- 全局唯一 [a-z0-9-]
+  description  TEXT NOT NULL DEFAULT '',
+  purpose      TEXT NOT NULL DEFAULT 'general', -- software|content|security|research|general
+  sub_roles    TEXT NOT NULL DEFAULT '[]',      -- 有序子角色 slug JSON 数组（冗余）
+  version      INTEGER NOT NULL DEFAULT 1,
+  is_preset    INTEGER NOT NULL DEFAULT 0,      -- 1=预设；0=用户创建
+  created_at   INTEGER NOT NULL,
+  updated_at   INTEGER NOT NULL
+);
+
+-- 子角色：persona + operation 存 JSON，软绑定三级决策依据。
+CREATE TABLE IF NOT EXISTS sub_roles (
+  sub_role_id          TEXT PRIMARY KEY,
+  role_team_id         TEXT NOT NULL,
+  slug                 TEXT NOT NULL,           -- [a-z0-9-]，团队内唯一
+  name                 TEXT NOT NULL,
+  description          TEXT NOT NULL DEFAULT '',
+  capabilities         TEXT NOT NULL DEFAULT '[]',      -- JSON string[]
+  persona              TEXT NOT NULL DEFAULT '{}',      -- JSON SubRolePersona
+  operation            TEXT NOT NULL DEFAULT '{}',      -- JSON SubRoleOperation
+  preferred_agent_type TEXT,                           -- AgentType | null
+  required_capabilities TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
+  position             INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (role_team_id, slug)
+);
+
 CREATE INDEX IF NOT EXISTS idx_agents_device ON agents (device_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_session ON tasks (session_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks (status);
@@ -224,3 +256,5 @@ CREATE INDEX IF NOT EXISTS idx_free_checkins_source ON free_checkins (source_id)
 CREATE INDEX IF NOT EXISTS idx_free_checkins_at ON free_checkins (checked_at);
 CREATE INDEX IF NOT EXISTS idx_action_confirmations_ref ON action_confirmations (kind, ref_id);
 CREATE INDEX IF NOT EXISTS idx_usage_records_task ON usage_records (task_id);
+CREATE INDEX IF NOT EXISTS idx_role_teams_slug ON role_teams (slug);
+CREATE INDEX IF NOT EXISTS idx_sub_roles_team ON sub_roles (role_team_id);

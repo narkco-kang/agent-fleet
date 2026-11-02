@@ -19,6 +19,8 @@ export interface TaskRow {
   target_agent_type: AgentType | null;
   target_role: string | null;
   target_team_id: string | null;
+  target_role_team_id: string | null;
+  target_sub_role: string | null;
   require_capability: string | null;
   agent_profile: string | null;
   status: TaskStatus;
@@ -45,6 +47,8 @@ export interface TaskCreateInput {
   targetAgentType?: AgentType | null;
   targetRole?: string | null;
   targetTeamId?: string | null;
+  targetRoleTeamId?: string | null;
+  targetSubRole?: string | null;
   requireCapability?: string | null;
   agentProfile?: string | null;
 }
@@ -56,10 +60,10 @@ export function createTask(input: TaskCreateInput): void {
       `INSERT INTO tasks
         (task_id, session_id, origin, origin_ref, prompt, target_mode,
          target_device_id, target_agent_type, target_role, target_team_id,
-         require_capability, agent_profile, status, created_at)
+         target_role_team_id, target_sub_role, require_capability, agent_profile, status, created_at)
        VALUES (@taskId, @sessionId, @origin, @originRef, @prompt, @targetMode,
          @targetDeviceId, @targetAgentType, @targetRole, @targetTeamId,
-         @requireCapability, @agentProfile, 'queued', @now)`,
+         @targetRoleTeamId, @targetSubRole, @requireCapability, @agentProfile, 'queued', @now)`,
     )
     .run({
       taskId: input.taskId,
@@ -72,6 +76,8 @@ export function createTask(input: TaskCreateInput): void {
       targetAgentType: input.targetAgentType ?? null,
       targetRole: input.targetRole ?? null,
       targetTeamId: input.targetTeamId ?? null,
+      targetRoleTeamId: input.targetRoleTeamId ?? null,
+      targetSubRole: input.targetSubRole ?? null,
       requireCapability: input.requireCapability ?? null,
       agentProfile: input.agentProfile ?? null,
       now: Date.now(),
@@ -217,6 +223,8 @@ export function toTaskSnapshot(row: TaskRow): TaskSnapshot {
     targetAgentType: row.target_agent_type,
     targetRole: row.target_role,
     targetTeamId: row.target_team_id,
+    targetRoleTeamId: row.target_role_team_id,
+    targetSubRole: row.target_sub_role,
     agentProfile: row.agent_profile,
     resultText: row.result_text,
     durationMs: row.duration_ms,

@@ -1,0 +1,106 @@
+classDiagram
+    direction TB
+
+    class SubRolePersona {
+        +string identity
+        +string communication
+        +string[] rules
+        +string style
+    }
+    class SubRoleOperation {
+        +string mission
+        +string[] workflow
+        +string[] deliverables
+    }
+    class SubRole {
+        +string subRoleId
+        +string roleTeamId
+        +string slug
+        +string name
+        +string description
+        +string[] capabilities
+        +SubRolePersona persona
+        +SubRoleOperation operation
+        +AgentType preferredAgentType
+        +string[] requiredCapabilities
+        +number position
+    }
+    class RoleTeam {
+        +string roleTeamId
+        +string name
+        +string slug
+        +string description
+        +string purpose
+        +SubRole[] subRoles
+        +number version
+        +boolean isPreset
+    }
+    class SwarmRoutingDecision {
+        +string roleTeamId
+        +string subRoleSlug
+        +string deviceId
+        +AgentType agentType
+        +SwarmBindSource source
+        +string systemPrompt
+    }
+    class TaskTarget {
+        +TargetMode mode
+        +string roleTeamId
+        +string subRole
+        +string deviceId
+        +AgentType agentType
+    }
+    class TaskSubmit {
+        +string prompt
+        +string systemPrompt
+        +TaskTarget target
+    }
+
+    class RoleTeamRepo {
+        +createRoleTeam(input) RoleTeam
+        +upsertSubRoles(roleTeamId, subRoles) void
+        +getRoleTeam(id) RoleTeam
+        +getRoleTeamBySlug(slug) RoleTeam
+        +listRoleTeams() RoleTeam[]
+        +updateRoleTeam(id, patch) RoleTeam
+        +deleteRoleTeam(id) void
+    }
+    class DeviceRepo {
+        +setDeviceRoleTeam(deviceId, roleTeamId) boolean
+        +listDevicesByRoleTeam(roleTeamId) string[]
+        +getDeviceSubRoleBindings(deviceId) Record~string,AgentType~
+        +setDeviceSubRoleBindings(deviceId, bindings) void
+    }
+    class RoleTeamService {
+        +createRoleTeam(input) RoleTeam
+        +seedPresets() number
+        +bindDevices(roleTeamId, deviceIds) changed
+        +setSubRoleBindings(deviceId, bindings) void
+        +remove(roleTeamId) void
+    }
+    class PersonaBuilder {
+        +buildSystemPrompt(subRole) string
+    }
+    class SwarmRouter {
+        +resolve(input) SwarmRoutingDecision
+        -bindSubRole(deviceId, subRole, agents) Binding
+    }
+    class Scheduler {
+        +enqueueTask(input) string
+        +dispatch() void
+        -pickTargetCached(task, pairs, primary) DeviceAgent
+    }
+
+    RoleTeam "1" *-- "0..*" SubRole : 包含
+    SubRole "1" *-- "1" SubRolePersona : 组合
+    SubRole "1" *-- "1" SubRoleOperation : 组合
+    RoleTeamRepo ..> RoleTeam : 读写
+    RoleTeamService ..> RoleTeamRepo : 调用
+    RoleTeamService ..> DeviceRepo : 调用
+    SwarmRouter ..> RoleTeamRepo : 读
+    SwarmRouter ..> DeviceRepo : 读
+    SwarmRouter ..> PersonaBuilder : 调用
+    SwarmRouter ..> SwarmRoutingDecision : 产出
+    Scheduler ..> SwarmRouter : 调用
+    TaskSubmit ..> TaskTarget : 组合
+    SwarmRoutingDecision ..> TaskSubmit : 注入 systemPrompt

@@ -101,12 +101,12 @@ afterEach(() => {
 // A. 数据库结构 + 安全红线
 // ============================================================
 describe('A. 数据库结构 & 安全红线', () => {
-  it('共 16 张表（基础5 + 新增11）', () => {
+  it('共 18 张表（基础5 + 新增11 + 蜂群2）', () => {
     const rows = getDb()
       .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`)
       .all() as Array<{ name: string }>;
     const names = rows.map((r) => r.name);
-    expect(names).toHaveLength(16);
+    expect(names).toHaveLength(18);
     expect(names).toEqual(
       expect.arrayContaining([
         'devices',
@@ -125,6 +125,8 @@ describe('A. 数据库结构 & 安全红线', () => {
         'usage_records',
         'platform_models',
         'free_checkins',
+        'role_teams',
+        'sub_roles',
       ]),
     );
   });

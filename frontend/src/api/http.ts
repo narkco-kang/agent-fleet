@@ -4,6 +4,11 @@ import type {
   DeviceSnapshot,
   AgentSnapshot,
   Team,
+  RoleTeam,
+  SubRole,
+  SwarmRoutingDecision,
+  AgentType,
+  SwarmPurpose,
 } from '@agentfleet/shared';
 
 /**
@@ -114,6 +119,8 @@ export const http = {
       agentType?: string;
       role?: string;
       teamId?: string;
+      roleTeamId?: string;
+      subRole?: string;
       requireCapability?: string;
       /** 平台内的 bot 名（如 grok 自定义 agent） */
       agentProfile?: string;
@@ -137,6 +144,44 @@ export const http = {
       error: string | null;
       updatedAt: string;
     }>('/api/memory/summary'),
+
+  // ===== 蜂群角色团队 =====
+  getSwarmTeams: () => request<ApiOk<RoleTeam[]>>('/api/swarm/teams'),
+  getSwarmTeam: (id: string) =>
+    request<ApiOk<RoleTeam & { subRoles: SubRole[] }>>(`/api/swarm/teams/${id}`),
+  createSwarmTeam: (body: {
+    name: string;
+    slug?: string;
+    description?: string;
+    purpose?: SwarmPurpose;
+    subRoles?: Array<Partial<SubRole> & { slug: string; name: string }>;
+  }) => post<ApiOk<RoleTeam>>('/api/swarm/teams', body),
+  updateSwarmTeam: (
+    id: string,
+    body: { name?: string; slug?: string; description?: string; purpose?: SwarmPurpose },
+  ) => put<ApiOk<RoleTeam>>(`/api/swarm/teams/${id}`, body),
+  deleteSwarmTeam: (id: string) => del<ApiOk<never>>(`/api/swarm/teams/${id}`),
+  upsertSwarmSubRole: (teamId: string, body: Partial<SubRole> & { slug: string; name: string }) =>
+    post<ApiOk<SubRole>>(`/api/swarm/teams/${teamId}/sub-roles`, body),
+  deleteSwarmSubRole: (teamId: string, slug: string) =>
+    del<ApiOk<never>>(`/api/swarm/teams/${teamId}/sub-roles/${encodeURIComponent(slug)}`),
+  bindSwarmDevices: (teamId: string, deviceIds: string[]) =>
+    post<ApiOk<{ changed: number; missing: string[] }>>(`/api/swarm/teams/${teamId}/devices`, { deviceIds }),
+  unbindSwarmDevice: (teamId: string, deviceId: string) =>
+    del<ApiOk<{ unbound: boolean }>>(`/api/swarm/teams/${teamId}/devices/${deviceId}`),
+  getSwarmDeviceBindings: () =>
+    request<
+      ApiOk<Array<{ deviceId: string; roleTeamId: string; roleTeamName: string; purpose?: SwarmPurpose }>>
+    >('/api/swarm/device-bindings'),
+  getSubRoleBindings: (deviceId: string) =>
+    request<ApiOk<Record<string, AgentType>>>(`/api/swarm/devices/${deviceId}/sub-role-bindings`),
+  setSubRoleBinding: (deviceId: string, slug: string, agentType: AgentType | null) =>
+    put<ApiOk<Record<string, AgentType>>>(`/api/swarm/devices/${deviceId}/sub-role-binding`, {
+      slug,
+      agentType,
+    }),
+  resolveSwarm: (roleTeamId: string, subRoleSlug?: string) =>
+    post<ApiOk<SwarmRoutingDecision | null>>('/api/swarm/resolve', { roleTeamId, subRoleSlug }),
 };
 
 export type { DashboardSnapshot, TaskSnapshot, DeviceSnapshot, AgentSnapshot };

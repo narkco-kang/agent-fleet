@@ -17,6 +17,8 @@ export interface TaskSubmit {
   prompt: string;
   target: TaskTarget;
   options: TaskOptions;
+  /** 蜂群角色 persona 注入上下文（可选；设备侧合并到 prompt 前缀） */
+  systemPrompt?: string;
   createdAt: number;
 }
 
@@ -29,6 +31,10 @@ export interface TaskTarget {
   role?: string;
   /** mode='team' 时的团队 id（不同团队负责不同需求） */
   teamId?: string;
+  /** mode='swarm' 时的蜂群角色团队 id */
+  roleTeamId?: string;
+  /** mode='swarm' 时的子角色 slug */
+  subRole?: string;
   requireCapability?: string;
   /**
    * 平台内的 bot 名（如 grok 的自定义 agent：explore/plan/reviewer）。
@@ -116,6 +122,10 @@ export interface TaskSnapshot {
   targetAgentType?: AgentType | null;
   targetRole?: string | null;
   targetTeamId?: string | null;
+  /** mode='swarm' 时的蜂群角色团队 id */
+  targetRoleTeamId?: string | null;
+  /** mode='swarm' 时的子角色 slug */
+  targetSubRole?: string | null;
   /** 平台内的 bot 名（如 grok 自定义 agent） */
   agentProfile?: string | null;
   resultText?: string | null;
