@@ -192,7 +192,7 @@ export function onDeviceTaskResult(result: TaskResult): void {
     durationMs: result.result?.durationMs ?? Date.now() - (running.get(result.taskId)?.startedAt ?? Date.now()),
     tokensIn: result.result?.tokensIn,
     tokensOut: result.result?.tokensOut,
-    error: status === 'failed' ? '任务执行失败' : null,
+    error: status === 'failed' ? (result.result?.error ?? '任务执行失败') : null,
   });
 
   // 结果作为一条 system 事件落库（时间线可见）
@@ -324,6 +324,8 @@ export function retryTask(taskId: string): string | null {
     targetMode: task.target_mode,
     targetDeviceId: task.target_device_id ?? undefined,
     targetAgentType: task.target_agent_type ?? undefined,
+    targetRole: task.target_role ?? undefined,
+    targetTeamId: task.target_team_id ?? undefined,
     requireCapability: task.require_capability ?? undefined,
   };
   enqueueTask(input);

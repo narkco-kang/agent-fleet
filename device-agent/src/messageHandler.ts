@@ -211,31 +211,29 @@ async function handleTaskSubmit(task: TaskSubmit, sender: MessageSender): Promis
       payload: event,
     });
 
-    // 终态 → 回传 task.result
+    // 终态 → 回传 task.result（不依赖 runningTasks，避免同步 emit 终态时 rt 尚未 set）
     if (event.status === 'completed' || event.status === 'failed') {
-      const rt = runningTasks.get(task.taskId);
-      if (rt) {
-        sender({
-          v: 1,
-          type: MESSAGE_TYPES.TASK_RESULT,
-          id: cryptoRandomId('res'),
-          ts: Date.now(),
-          from: loadRegistry().deviceId,
-          to: 'coordinator',
-          payload: {
-            taskId: task.taskId,
-            status: event.status,
-            result: {
-              text: text || rt.text || '',
-              exitCode: event.status === 'completed' ? 0 : 1,
-              durationMs: Date.now() - rt.startedAt,
-            },
-            logs: [],
-            finishedAt: Date.now(),
+      sender({
+        v: 1,
+        type: MESSAGE_TYPES.TASK_RESULT,
+        id: cryptoRandomId('res'),
+        ts: Date.now(),
+        from: loadRegistry().deviceId,
+        to: 'coordinator',
+        payload: {
+          taskId: task.taskId,
+          status: event.status,
+          result: {
+            text: text || '',
+            exitCode: event.status === 'completed' ? 0 : 1,
+            durationMs: Date.now() - startedAt,
+            error: event.status === 'failed' ? (event.data?.message ?? '') : undefined,
           },
-        });
-        runningTasks.delete(task.taskId);
-      }
+          logs: [],
+          finishedAt: Date.now(),
+        },
+      });
+      runningTasks.delete(task.taskId);
     }
   };
 

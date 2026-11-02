@@ -85,6 +85,8 @@ export interface TaskResultBody {
   tokensIn?: number;
   tokensOut?: number;
   durationMs: number;
+  /** 失败原因透传（failed 时的错误信息） */
+  error?: string;
 }
 
 /** 任务下发确认（task.submit_ack） */

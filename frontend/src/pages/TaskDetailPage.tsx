@@ -14,7 +14,7 @@ export default function TaskDetailPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const task = useTaskStore((s) => s.tasks.find((t) => t.taskId === id));
-  const events = useTaskStore((s) => (id ? s.events[id] ?? [] : []));
+  const events = useTaskStore((s) => (id ? s.events[id] : undefined)) ?? [];
   const setEvents = useTaskStore((s) => s.setEvents);
 
   useEffect(() => {
