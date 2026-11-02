@@ -17,9 +17,9 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
 
 | Capability | Description |
 |---|---|
-| **Cross-device orchestration** | Auto-detect 13+ AI agent platforms per device via a data-driven adapter catalog; unified task protocol (submit / stream / cancel) |
+| **Cross-device orchestration** | Auto-detect 14 AI agent platforms per device via a data-driven adapter catalog; unified task protocol (submit / stream / cancel) |
 | **Dynamic neural graph** | d3-force topology: 4 node types (device / agent / task / message flow) + 4 link types (call / return / stream / belongs), with pulse / flow / focus animations |
-| **Blockchain-style memory ledger** | Append-only hash chain (`prev_hash` ring) + Merkle tree + distributed ledger + consensus (longest chain + deterministic tie-break) — tamper-evident team memory |
+| **Cross-device memory ledger** | Append-only hash chain + Merkle tree + Ed25519 signature — blocks broadcast to every device with offline catch-up + gap recovery + tamper rejection; BM25 semantic search |
 | **Smart routing gateway** | Built-in modelgateway workspace with an OpenAI-compatible endpoint; role-based routing (role → device + agent + model), failover and token ledger |
 | **Excel batch deployment** | Upload an Excel sheet (device IP / account / password / SSH port); the target OS picks npm / pipx / brew / winget / PowerShell automatically, then verifies each install |
 | **One-click uninstall** | Generate OS-aware uninstall scripts (npm / pipx / brew / winget) and verify the commands are really gone — still behind human confirmation |
@@ -35,6 +35,8 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
 | **Onboarding guide** | First-run guide explains the device fleet → modelgateway → Provider → deploy-then-use → failover workflow |
 | **WeChat assistant** | Enterprise WeChat (official API) + personal WeChat (interface reserved) as a chat-based task entry |
 | **A2A endpoint** | Agent Card (`/.well-known/agent.json`) + JSON-RPC `tasks/send` / `tasks/get` / `tasks/cancel` — external agents discover and delegate to the fleet |
+| **Sub-second failover** | Device death detected in ~1s (ws ping/pong + fast heartbeat, was ~35s); running tasks auto-migrate to surviving devices — zero loss |
+| **Memory insights** | Semantic consolidation layer turns the change stream into success rate / per-agent distribution / failure lessons — memory you can search *and* learn from |
 
 ## ⚡ Performance
 
@@ -46,6 +48,7 @@ Cross-device scheduling is benchmarked and reproducible — the numbers below ar
 | Scheduler throughput (1000 tasks) | **377 tasks/s** |
 | Real multi-device throughput | **96 tasks/s** (2 devices × 2 agents, real ws link) |
 | Claim throttling | peak concurrency = theoretical peak (no over-dispatch) |
+| Disconnect detection | **~1s** (kill a device → offline in ~1s, was ~35s) |
 | Failover | **lost = 0** |
 | Disconnect migration | running → queued, auto re-dispatch (no lost task) |
 
@@ -96,7 +99,7 @@ See the full matrix in [`docs/17-Agent平台安装卸载与调用矩阵.md`](doc
 ├─────────────────────────────────────────────────────────────┤
 │  Transport:  LAN first (mDNS + direct) + cloud relay fallback│
 ├─────────────────────────────────────────────────────────────┤
-│  Device agents:  daemon + adapter catalog (13+ platforms)    │
+│  Device agents:  daemon + adapter catalog (14 platforms)    │
 │                  memory ledger replica (catch-up sync)       │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -112,7 +115,7 @@ agent-fleet/
 ├── wechat/         # WeChat gateway (enterprise + personal)
 ├── memory/         # blockchain-style memory ledger core (hash chain + Merkle)
 ├── modelgateway/   # built-in model router (OpenAI-compatible + Provider pool)
-└── docs/           # 18 design / architecture documents
+└── docs/           # 29 design / architecture / research documents
 ```
 
 ## 🚀 Quick Start
@@ -147,7 +150,7 @@ npm run test --workspace memory
 
 ## 📚 Documentation
 
-See [`docs/`](docs/) for 18 documents: reverse-engineering of Grok's orchestration, PRD, architecture, UI design, the blockchain memory ledger design, routing-gateway fusion, free-source integration, platform model binding, management UI, EchoBird-inspired Model Nexus notes, and the agent platform capability matrix.
+See [`docs/`](docs/) for 29 documents: reverse-engineering of Grok's orchestration, PRD, architecture, UI design, the blockchain memory ledger design, routing-gateway fusion, free-source integration, platform model binding, management UI, EchoBird-inspired Model Nexus notes, the agent platform capability matrix, and the cross-device memory sync design.
 
 ## 🔒 Safety
 
