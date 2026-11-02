@@ -12,6 +12,12 @@ import { LedgerStore, TrustStore, verifyBlock, MemorySearchIndex } from '@agentf
 import type { Block, ChainSummary } from '@agentfleet/memory';
 import { config } from '../config.js';
 
+/** 追加区块结果（失败原因供 block_reject）。 */
+export interface ApplyResult {
+  ok: boolean;
+  reason?: string;
+}
+
 class MemoryClient {
   private readonly ledger = new LedgerStore(path.join(config.dataDir, 'memory'), 'team');
   private readonly trustStore = new TrustStore();
@@ -40,24 +46,38 @@ class MemoryClient {
     return { index: tip.index, hash: tip.hash };
   }
 
-  /** 追加单个区块：验签验链 → 追加 → 更新检索索引。返回是否成功。 */
-  async applyBlock(block: Block): Promise<boolean> {
+  /** 追加单个区块：验签验链 → 追加 → 更新检索索引。失败返回原因（供 block_reject）。 */
+  async applyBlock(block: Block): Promise<ApplyResult> {
     const tip = await this.ledger.tip();
     const result = verifyBlock(block, tip, this.trustStore);
-    if (!result.ok) return false;
+    if (!result.ok) {
+      return { ok: false, reason: result.code ?? result.message };
+    }
     const status = await this.ledger.appendBlock(block);
-    if (status !== 'ok') return false;
+    if (status !== 'ok') {
+      return { ok: false, reason: 'stale' };
+    }
     for (const change of block.changes) this.searchIndex.add(change);
-    return true;
+    return { ok: true };
   }
 
   /** 批量追加（block_response 补同步）。返回成功追加数。 */
   async applyBlocks(blocks: Block[]): Promise<number> {
     let added = 0;
     for (const block of blocks) {
-      if (await this.applyBlock(block)) added += 1;
+      const r = await this.applyBlock(block);
+      if (r.ok) added += 1;
     }
     return added;
+  }
+
+  /** 本地语义检索同步来的记忆（BM25 关键词召回）。 */
+  search(query: string, limit = 10): Array<{ note: string; status?: string; score: number }> {
+    return this.searchIndex.search(query, limit).map((h) => ({
+      note: h.change.note,
+      status: h.change.status,
+      score: h.score,
+    }));
   }
 }
 

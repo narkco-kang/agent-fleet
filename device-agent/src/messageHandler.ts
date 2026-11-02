@@ -9,7 +9,7 @@ import type { TaskEvent } from '@agentfleet/shared';
 import { cryptoRandomId } from '@agentfleet/shared';
 import { handleAssetDeliver } from './assetReceiver.js';
 import { memoryClient } from './memory/memoryClient.js';
-import { encodeChainSummary } from '@agentfleet/memory';
+import { encodeChainSummary, encodeBlockReject } from '@agentfleet/memory';
 import type { Block, ChainSummary } from '@agentfleet/memory';
 
 /**
@@ -207,11 +207,21 @@ export async function sendCapabilities(sender: MessageSender): Promise<void> {
 async function handleMemoryMessage(
   type: string,
   payload: unknown,
-  _sender: MessageSender,
+  sender: MessageSender,
 ): Promise<void> {
   if (type === MESSAGE_TYPES.MEMORY_BLOCK_BROADCAST) {
     const { block } = payload as { block: Block };
-    await memoryClient.applyBlock(block);
+    const r = await memoryClient.applyBlock(block);
+    if (!r.ok && r.reason) {
+      // 非法/篡改块 → 拒收告警给 coordinator
+      sender(
+        encodeBlockReject(
+          { index: block.index, hash: block.hash, reason: r.reason },
+          loadRegistry().deviceId,
+          'coordinator',
+        ) as unknown as Envelope,
+      );
+    }
     return;
   }
   if (type === MESSAGE_TYPES.MEMORY_BLOCK_RESPONSE) {

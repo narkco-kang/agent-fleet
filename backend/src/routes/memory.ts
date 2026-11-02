@@ -7,6 +7,19 @@ import { memoryLedger } from '../services/memoryLedger.js';
 export function registerMemoryRoutes(app: FastifyInstance): void {
   app.get('/api/memory/summary', async () => memoryLedger.summary());
 
+  /** 诊断/测试：直接写入一条 change 并出块（用于验证同步链路，不依赖任务执行）。 */
+  app.post<{ Body: { note?: string; status?: string } }>(
+    '/api/memory/record',
+    async (req, reply) => {
+      const { note = 'diag', status } = req.body ?? {};
+      const block = await memoryLedger.recordChange('set_status', note, status);
+      if (!block) {
+        return reply.code(409).send({ ok: false, error: 'no_change' });
+      }
+      return { ok: true, data: { index: block.index, hash: block.hash } };
+    },
+  );
+
   /** 语义召回：关键词搜索记忆账本（借鉴 AgentMemory 的 keyless BM25）。 */
   app.get<{ Querystring: { q?: string; limit?: string; mode?: string } }>(
     '/api/memory/search',

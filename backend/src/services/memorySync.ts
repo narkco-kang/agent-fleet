@@ -50,5 +50,14 @@ export async function handleMemorySyncMessage(
     if (blocks.length > 0) {
       sendToDevice(fromDeviceId, asShared(encodeBlockResponse(blocks, 'coordinator', fromDeviceId)));
     }
+    return;
+  }
+
+  if (type === MESSAGE_TYPES.MEMORY_BLOCK_REJECT) {
+    // 设备上报非法/篡改块，记录告警（账本完整性风险信号）
+    const { index, hash, reason } = payload as { index: number; hash: string; reason: string };
+    console.warn(
+      `[memory] 设备 ${fromDeviceId} 拒收区块 index=${index} hash=${hash} reason=${reason}`,
+    );
   }
 }
