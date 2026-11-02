@@ -115,6 +115,8 @@ export const http = {
       role?: string;
       teamId?: string;
       requireCapability?: string;
+      /** 平台内的 bot 名（如 grok 自定义 agent） */
+      agentProfile?: string;
     };
   }) =>
     request<ApiOk<{ taskId: string; sessionId: string; status: string }>>('/api/tasks', {

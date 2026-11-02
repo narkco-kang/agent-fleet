@@ -35,6 +35,8 @@ interface AcpOptions {
   env?: Record<string, string>;
   /** XAI_API_KEY（有则走 api_key 认证，否则走本机缓存登录态） */
   apiKey?: string;
+  /** grok 的自定义 agent（bot）名，如 explore/plan/reviewer */
+  agentProfile?: string;
   onEvent: (ev: AcpEvent) => void;
 }
 
@@ -236,6 +238,7 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
       const snew = await request('session/new', {
         cwd: opts.cwd ?? process.cwd(),
         mcpServers: [],
+        ...(opts.agentProfile ? { agentProfile: opts.agentProfile } : {}),
       });
       if (snew.error) {
         end('error', `grok 创建会话失败: ${snew.error.message}`);

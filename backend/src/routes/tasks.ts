@@ -25,6 +25,7 @@ export function registerTaskRoutes(app: FastifyInstance): void {
         role?: string;
         teamId?: string;
         requireCapability?: string;
+        agentProfile?: string;
       };
     };
   }>('/api/tasks', async (req, reply) => {
@@ -52,6 +53,7 @@ export function registerTaskRoutes(app: FastifyInstance): void {
       targetRole: body.target?.role,
       targetTeamId: body.target?.teamId,
       requireCapability: body.target?.requireCapability,
+      agentProfile: body.target?.agentProfile,
     });
 
     return { ok: true, data: { taskId, sessionId, status: 'queued' } };

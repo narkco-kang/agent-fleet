@@ -45,6 +45,9 @@ function runMigrations(database: Database.Database): void {
   if (!taskCols.includes('target_team_id')) {
     database.exec(`ALTER TABLE tasks ADD COLUMN target_team_id TEXT`);
   }
+  if (!taskCols.includes('agent_profile')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN agent_profile TEXT`);
+  }
 
   const deviceCols = (
     database.prepare(`PRAGMA table_info(devices)`).all() as Array<{ name: string }>
@@ -97,6 +100,9 @@ function runMigrations(database: Database.Database): void {
   ).map((c) => c.name);
   if (!agentCols.includes('activated')) {
     database.exec(`ALTER TABLE agents ADD COLUMN activated INTEGER NOT NULL DEFAULT 1`);
+  }
+  if (!agentCols.includes('bots')) {
+    database.exec(`ALTER TABLE agents ADD COLUMN bots TEXT NOT NULL DEFAULT '[]'`);
   }
 }
 

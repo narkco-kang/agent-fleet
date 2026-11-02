@@ -90,6 +90,7 @@ function TaskDetail({ taskId }: { taskId: string }): ReactNode {
       <StatusBadge status={task.status} />
       <InfoRow label="提示词" value={task.prompt} />
       <InfoRow label="目标" value={`${task.targetDeviceId ?? 'auto'} / ${task.targetAgentType ?? 'auto'}`} />
+      {task.agentProfile && <InfoRow label="bot" value={task.agentProfile} />}
       <InfoRow label="发起" value={task.origin} />
     </div>
   );
@@ -132,6 +133,12 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
       <InfoRow label="版本" value={agent.version} />
       <InfoRow label="可执行" value={agent.executable} />
       <InfoRow label="能力" value={agent.capabilities.join(', ')} />
+      {agent.bots && agent.bots.length > 0 && (
+        <InfoRow
+          label="可用 bot"
+          value={agent.bots.map((b) => (b.description ? `${b.name}（${b.description}）` : b.name)).join('、')}
+        />
+      )}
       <InfoRow label="并发" value={`${agent.busyCount}/${agent.maxConcurrency}`} />
 
       <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3">

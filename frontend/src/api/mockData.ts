@@ -62,6 +62,11 @@ export const mockAgents: AgentSnapshot[] = [
     maxConcurrency: 1,
     busyCount: 1,
     activated: true,
+    bots: [
+      { name: 'explore', description: '只读代码研究' },
+      { name: 'plan', description: '只出实现方案' },
+      { name: 'reviewer', description: '代码评审' },
+    ],
   },
   {
     deviceId: 'dev-macbook',
@@ -74,6 +79,7 @@ export const mockAgents: AgentSnapshot[] = [
     maxConcurrency: 1,
     busyCount: 0,
     activated: true,
+    bots: [],
   },
   {
     deviceId: 'dev-pcwin',
@@ -86,6 +92,7 @@ export const mockAgents: AgentSnapshot[] = [
     maxConcurrency: 1,
     busyCount: 0,
     activated: true,
+    bots: [],
   },
   {
     deviceId: 'dev-pcwin',
@@ -98,5 +105,6 @@ export const mockAgents: AgentSnapshot[] = [
     maxConcurrency: 1,
     busyCount: 0,
     activated: false,
+    bots: [],
   },
 ];

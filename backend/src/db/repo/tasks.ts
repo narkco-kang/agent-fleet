@@ -20,6 +20,7 @@ export interface TaskRow {
   target_role: string | null;
   target_team_id: string | null;
   require_capability: string | null;
+  agent_profile: string | null;
   status: TaskStatus;
   result_text: string | null;
   exit_code: number | null;
@@ -45,6 +46,7 @@ export interface TaskCreateInput {
   targetRole?: string | null;
   targetTeamId?: string | null;
   requireCapability?: string | null;
+  agentProfile?: string | null;
 }
 
 /** 创建任务（status=queued） */
@@ -54,10 +56,10 @@ export function createTask(input: TaskCreateInput): void {
       `INSERT INTO tasks
         (task_id, session_id, origin, origin_ref, prompt, target_mode,
          target_device_id, target_agent_type, target_role, target_team_id,
-         require_capability, status, created_at)
+         require_capability, agent_profile, status, created_at)
        VALUES (@taskId, @sessionId, @origin, @originRef, @prompt, @targetMode,
          @targetDeviceId, @targetAgentType, @targetRole, @targetTeamId,
-         @requireCapability, 'queued', @now)`,
+         @requireCapability, @agentProfile, 'queued', @now)`,
     )
     .run({
       taskId: input.taskId,
@@ -71,6 +73,7 @@ export function createTask(input: TaskCreateInput): void {
       targetRole: input.targetRole ?? null,
       targetTeamId: input.targetTeamId ?? null,
       requireCapability: input.requireCapability ?? null,
+      agentProfile: input.agentProfile ?? null,
       now: Date.now(),
     });
 }
@@ -214,6 +217,7 @@ export function toTaskSnapshot(row: TaskRow): TaskSnapshot {
     targetAgentType: row.target_agent_type,
     targetRole: row.target_role,
     targetTeamId: row.target_team_id,
+    agentProfile: row.agent_profile,
     resultText: row.result_text,
     durationMs: row.duration_ms,
     createdAt: row.created_at,

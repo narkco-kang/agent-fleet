@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -6,7 +6,9 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
+import type { AgentBot } from '@agentfleet/shared';
 import { http } from '../../api/http';
+import { useDeviceStore } from '../../store/deviceStore';
 
 /**
  * 新建任务弹窗（04 §3.6 / §7）。
@@ -23,8 +25,25 @@ export function NewTaskDialog({
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<'auto' | 'device' | 'agent'>('auto');
   const [agentType, setAgentType] = useState('grok');
+  const [bot, setBot] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const devices = useDeviceStore((s) => s.devices);
+
+  // 收集所选 agent 平台在所有在线设备上的 bot 列表（去重）
+  const bots: AgentBot[] = useMemo(() => {
+    const seen = new Map<string, AgentBot>();
+    for (const d of devices) {
+      for (const a of d.agents) {
+        if (a.agentType !== agentType) continue;
+        for (const b of a.bots ?? []) {
+          if (b.name && !seen.has(b.name)) seen.set(b.name, b);
+        }
+      }
+    }
+    return Array.from(seen.values());
+  }, [devices, agentType]);
 
   const submit = async (): Promise<void> => {
     if (!prompt.trim()) {
@@ -40,6 +59,7 @@ export function NewTaskDialog({
         target: {
           mode,
           agentType: mode === 'agent' ? agentType : undefined,
+          agentProfile: mode === 'agent' && bot ? bot : undefined,
         },
       });
       onCreated?.(res.data.taskId);
@@ -82,12 +102,32 @@ export function NewTaskDialog({
               select
               label="agent 平台"
               value={agentType}
-              onChange={(e) => setAgentType(e.target.value)}
+              onChange={(e) => {
+                setAgentType(e.target.value);
+                setBot('');
+              }}
             >
               <MenuItem value="grok">Grok</MenuItem>
               <MenuItem value="codex">Codex</MenuItem>
               <MenuItem value="claude">Claude Code</MenuItem>
               <MenuItem value="dsh">DSH</MenuItem>
+            </TextField>
+          )}
+          {mode === 'agent' && bots.length > 0 && (
+            <TextField
+              fullWidth
+              select
+              label="bot（平台内自定义 agent）"
+              value={bot}
+              onChange={(e) => setBot(e.target.value)}
+            >
+              <MenuItem value="">默认</MenuItem>
+              {bots.map((b) => (
+                <MenuItem key={b.name} value={b.name}>
+                  {b.name}
+                  {b.description ? ` — ${b.description}` : ''}
+                </MenuItem>
+              ))}
             </TextField>
           )}
           {error && <div className="text-sm text-[#EF4444]">{error}</div>}

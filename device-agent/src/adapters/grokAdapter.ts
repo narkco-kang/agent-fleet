@@ -2,15 +2,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import type { TaskSubmit } from '@agentfleet/shared';
+import type { AgentBot, TaskSubmit } from '@agentfleet/shared';
 import type { Adapter, AdapterDetection, AdapterEventSink, AdapterRunHandle } from './adapter.js';
 import { runAcpPrompt } from '../runner/acpClient.js';
 
 /**
  * Grok Adapter（真接，走 ACP 协议调用「grok bot」）：
- *  - detect：约定目录（~/.grok/bin/grok、~/.local/bin/grok）+ which + 版本。
+ *  - detect：约定目录（~/.grok/bin/grok、~/.local/bin/grok）+ which + 版本 + 自定义 agent（bot）列表。
  *  - run：`grok agent stdio`（ACP），完整 agent 循环（思考/工具/文本/计划），
- *    而非 `grok --single`（单轮模型问答）。
+ *    支持通过 target.agentProfile 指定 grok 的自定义 agent（bot）。
  */
 export class GrokAdapter implements Adapter {
   readonly agentType = 'grok' as const;
@@ -39,6 +39,7 @@ export class GrokAdapter implements Adapter {
       detectMethod: exe.includes('.grok') ? 'default_dir' : 'path',
       capabilities: ['coding', 'shell', 'reasoning', 'subagents'],
       maxConcurrency: 1,
+      bots: detectGrokBots(),
     };
   }
 
@@ -64,6 +65,7 @@ export class GrokAdapter implements Adapter {
       cmd: detection.executable,
       cwd: process.cwd(),
       prompt: task.prompt,
+      agentProfile: task.target.agentProfile,
       onEvent: (ev) => {
         const ts = Date.now();
         switch (ev.type) {
@@ -162,4 +164,48 @@ export function findGrok(): string | null {
   } catch {
     return null;
   }
+}
+
+/** 解析 agent 定义文件（.md）frontmatter 的 name / description */
+function parseAgentFrontmatter(content: string): { name?: string; description?: string } {
+  const m = content.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (!m) return {};
+  const fm = m[1];
+  const name = fm.match(/^name:\s*["']?([^"'\n]+)/m)?.[1]?.trim();
+  let description = fm.match(/^description:\s*["']?([^"'\n]+)/m)?.[1]?.trim();
+  // YAML 多行标记（> 或 |）后内容在下一行
+  if (description === '>' || description === '|') {
+    description = fm.match(/^description:\s*[>|]\s*\n\s*(.+)/m)?.[1]?.trim();
+  }
+  return { name, description };
+}
+
+/**
+ * 探测 grok 的自定义 agent（bot）列表：读 .grok/agents/*.md 与 bundled/agents/*.md，
+ * 提取 frontmatter 的 name + description。优先级：项目级 > 用户级 > bundled。
+ */
+export function detectGrokBots(): AgentBot[] {
+  const dirs = [
+    path.join(os.homedir(), '.grok', 'bundled', 'agents'), // 低优先级
+    path.join(os.homedir(), '.grok', 'agents'), // 用户级
+    path.join(process.cwd(), '.grok', 'agents'), // 项目级（最高）
+  ];
+  const bots = new Map<string, AgentBot>();
+  for (const dir of dirs) {
+    let files: string[] = [];
+    try {
+      files = fs.readdirSync(dir).filter((f) => f.endsWith('.md'));
+    } catch {
+      continue;
+    }
+    for (const f of files) {
+      try {
+        const { name, description } = parseAgentFrontmatter(fs.readFileSync(path.join(dir, f), 'utf-8'));
+        if (name) bots.set(name, { name, description: description ?? '' });
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return Array.from(bots.values());
 }

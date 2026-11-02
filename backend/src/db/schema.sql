@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS agents (
   max_concurrency INTEGER NOT NULL DEFAULT 1,
   busy_count      INTEGER NOT NULL DEFAULT 0,
   activated       INTEGER NOT NULL DEFAULT 0,  -- 1=已登录激活；0=需登录激活
+  bots            TEXT NOT NULL DEFAULT '[]',  -- 平台内可选 bot 列表 JSON（如 grok 自定义 agent）
   updated_at      INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000),
   UNIQUE (device_id, agent_type)
 );
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   target_role        TEXT,
   target_team_id     TEXT,
   require_capability TEXT,
+  agent_profile      TEXT,
   status             TEXT NOT NULL DEFAULT 'queued',
   result_text        TEXT,
   exit_code          INTEGER,

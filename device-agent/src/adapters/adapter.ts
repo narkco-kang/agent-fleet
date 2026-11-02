@@ -1,4 +1,4 @@
-import type { AgentInfo, AgentType, TaskEvent, TaskSubmit } from '@agentfleet/shared';
+import type { AgentBot, AgentInfo, AgentType, TaskEvent, TaskSubmit } from '@agentfleet/shared';
 
 /**
  * 统一 Adapter 接口：把异构平台（codex/claude/dsh/grok）统一为
@@ -14,6 +14,8 @@ export interface AdapterDetection {
   detectMethod: AgentInfo['detectMethod'];
   capabilities: string[];
   maxConcurrency: number;
+  /** 平台内的可选 bot（如 grok 自定义 agent） */
+  bots?: AgentBot[];
 }
 
 /** 运行回调：把规范化事件回传上层（lanServer / relayClient） */

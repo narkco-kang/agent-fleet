@@ -30,6 +30,8 @@ export interface TaskTarget {
   /** mode='team' 时的团队 id（不同团队负责不同需求） */
   teamId?: string;
   requireCapability?: string;
+  /** 平台内的 bot 名（如 grok 的自定义 agent：explore/plan/reviewer） */
+  agentProfile?: string;
 }
 
 /** 任务选项 */
@@ -111,6 +113,8 @@ export interface TaskSnapshot {
   targetAgentType?: AgentType | null;
   targetRole?: string | null;
   targetTeamId?: string | null;
+  /** 平台内的 bot 名（如 grok 自定义 agent） */
+  agentProfile?: string | null;
   resultText?: string | null;
   durationMs?: number | null;
   createdAt: number;

@@ -47,6 +47,12 @@ export interface DeviceCapabilities {
   ts: number;
 }
 
+/** 平台内的 bot（自定义 agent，如 grok 的 explore/plan/reviewer） */
+export interface AgentBot {
+  name: string;
+  description: string;
+}
+
 /** 单个 agent 能力 */
 export interface AgentInfo {
   agentType: AgentType;
@@ -59,6 +65,8 @@ export interface AgentInfo {
   maxConcurrency: number;
   /** 是否已登录激活（可选；设备侧不报时由协调器管理，默认未激活） */
   activated?: boolean;
+  /** 平台内的可选 bot 列表（如 grok 自定义 agent） */
+  bots?: AgentBot[];
 }
 
 /** 探测方式 */
@@ -129,6 +137,8 @@ export interface AgentSnapshot {
   busyCount: number;
   /** 是否已登录激活（false = 需登录激活后才能接任务） */
   activated: boolean;
+  /** 平台内的可选 bot 列表（如 grok 自定义 agent） */
+  bots: AgentBot[];
 }
 
 /** 看板全量快照 */

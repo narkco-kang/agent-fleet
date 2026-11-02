@@ -1,5 +1,5 @@
 import { getDb } from '../database.js';
-import type { AgentInfo, AgentSnapshot, AgentStatus, AgentType } from '@agentfleet/shared';
+import type { AgentBot, AgentInfo, AgentSnapshot, AgentStatus, AgentType } from '@agentfleet/shared';
 
 /** agents 表行结构 */
 export interface AgentRow {
@@ -14,6 +14,7 @@ export interface AgentRow {
   max_concurrency: number;
   busy_count: number;
   activated: number;
+  bots: string;
   updated_at: number;
 }
 
@@ -22,8 +23,8 @@ export function upsertAgents(deviceId: string, agents: AgentInfo[]): void {
   const db = getDb();
   const stmt = db.prepare(
     `INSERT INTO agents
-      (device_id, agent_type, display_name, version, executable, status, capabilities, max_concurrency, activated, updated_at)
-     VALUES (@deviceId, @agentType, @displayName, @version, @executable, @status, @capabilities, @maxConcurrency, 0, @now)
+      (device_id, agent_type, display_name, version, executable, status, capabilities, max_concurrency, activated, bots, updated_at)
+     VALUES (@deviceId, @agentType, @displayName, @version, @executable, @status, @capabilities, @maxConcurrency, 0, @bots, @now)
      ON CONFLICT(device_id, agent_type) DO UPDATE SET
        display_name = excluded.display_name,
        version = excluded.version,
@@ -31,6 +32,7 @@ export function upsertAgents(deviceId: string, agents: AgentInfo[]): void {
        status = excluded.status,
        capabilities = excluded.capabilities,
        max_concurrency = excluded.max_concurrency,
+       bots = excluded.bots,
        updated_at = excluded.updated_at`,
   );
   const now = Date.now();
@@ -44,6 +46,7 @@ export function upsertAgents(deviceId: string, agents: AgentInfo[]): void {
       status: a.status,
       capabilities: JSON.stringify(a.capabilities),
       maxConcurrency: a.maxConcurrency,
+      bots: JSON.stringify(a.bots ?? []),
       now,
     });
   }
@@ -123,5 +126,6 @@ export function toAgentSnapshot(row: AgentRow): AgentSnapshot {
     maxConcurrency: row.max_concurrency,
     busyCount: row.busy_count,
     activated: row.activated === 1,
+    bots: (JSON.parse(row.bots || '[]') as AgentBot[]) ?? [],
   };
 }

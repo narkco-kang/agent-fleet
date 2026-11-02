@@ -46,6 +46,8 @@ export interface SchedulerSubmitInput {
   targetRole?: string;
   targetTeamId?: string;
   requireCapability?: string;
+  /** 平台内的 bot 名（如 grok 的 explore/plan/reviewer） */
+  agentProfile?: string;
 }
 
 /** 设备占用计数 */
@@ -93,6 +95,7 @@ export function enqueueTask(input: SchedulerSubmitInput): string {
     targetRole: input.targetRole ?? null,
     targetTeamId: input.targetTeamId ?? null,
     requireCapability: input.requireCapability ?? null,
+    agentProfile: input.agentProfile ?? null,
   });
   dispatch();
   return input.taskId;
@@ -157,6 +160,7 @@ export function dispatch(): void {
           deviceId,
           agentType: agent.agent_type,
           requireCapability: task.require_capability ?? undefined,
+          agentProfile: task.agent_profile ?? undefined,
         },
         options: {},
         createdAt: task.created_at,
