@@ -61,6 +61,7 @@ export const mockAgents: AgentSnapshot[] = [
     capabilities: ['coding', 'shell', 'reasoning'],
     maxConcurrency: 1,
     busyCount: 1,
+    activated: true,
   },
   {
     deviceId: 'dev-macbook',
@@ -72,6 +73,7 @@ export const mockAgents: AgentSnapshot[] = [
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
     busyCount: 0,
+    activated: true,
   },
   {
     deviceId: 'dev-pcwin',
@@ -83,6 +85,7 @@ export const mockAgents: AgentSnapshot[] = [
     capabilities: ['coding'],
     maxConcurrency: 1,
     busyCount: 0,
+    activated: true,
   },
   {
     deviceId: 'dev-pcwin',
@@ -94,5 +97,6 @@ export const mockAgents: AgentSnapshot[] = [
     capabilities: ['shell', 'coding'],
     maxConcurrency: 1,
     busyCount: 0,
+    activated: false,
   },
 ];

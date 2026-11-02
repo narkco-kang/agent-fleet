@@ -30,6 +30,12 @@ export function assetFileName(name: string, version: number): string {
 export function saveAsset(asset: AssetDeliver): string {
   const dir = assetDir(asset.kind);
   fs.mkdirSync(dir, { recursive: true });
+  if (asset.contentType === 'file') {
+    // 二进制资产：content 为 base64，保留原文件名（含扩展名）
+    const filePath = path.join(dir, asset.name);
+    fs.writeFileSync(filePath, Buffer.from(asset.content, 'base64'));
+    return filePath;
+  }
   const filePath = path.join(dir, assetFileName(asset.name, asset.version));
   fs.writeFileSync(filePath, asset.content, 'utf-8');
   return filePath;

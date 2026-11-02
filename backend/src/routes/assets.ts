@@ -8,14 +8,49 @@ import {
 } from '../services/assets/deliveryService.js';
 import { actionGuard } from '../services/actionGuard.js';
 
+/** multipart 部件（版本无关的最小接口） */
+type MultipartPart =
+  | { type: 'file'; fieldname: string; filename: string; toBuffer: () => Promise<Buffer> }
+  | { type: 'field'; fieldname: string; value: string };
+
 /**
  * 资产 REST 出口：Asset CRUD + 分发（人工确认）。
+ * 支持文本（JSON）与二进制文件（multipart，存 base64 + contentType=file）两种创建方式。
  */
 export function registerAssetRoutes(app: FastifyInstance): void {
-  /** 创建资产 */
+  /** 创建资产（JSON 文本 / multipart 二进制文件） */
   app.post<{
     Body: { kind: AssetKind; name: string; content: string; contentType?: AssetContentType; tags?: string[] };
   }>('/api/assets', async (req, reply) => {
+    const isMultipart = (req.headers['content-type'] ?? '').includes('multipart/form-data');
+    if (isMultipart) {
+      let kind = 'skill';
+      let name = '';
+      let buffer: Buffer | null = null;
+      for await (const part of (req as unknown as { parts(): AsyncIterable<MultipartPart> }).parts()) {
+        if (part.type === 'file') {
+          buffer = await part.toBuffer();
+          if (!name) name = part.filename || 'asset';
+        } else if (part.type === 'field' && part.fieldname === 'kind') {
+          kind = part.value;
+        } else if (part.type === 'field' && part.fieldname === 'name') {
+          name = part.value;
+        }
+      }
+      if (!buffer) return reply.code(400).send({ ok: false, error: 'file required' });
+      try {
+        const asset = assetService.create({
+          kind: kind as AssetKind,
+          name: name || 'asset',
+          content: buffer.toString('base64'),
+          contentType: 'file',
+        });
+        return { ok: true, data: asset };
+      } catch (err) {
+        return reply.code(400).send({ ok: false, error: (err as Error).message });
+      }
+    }
+
     try {
       const asset = assetService.create(req.body ?? {});
       return { ok: true, data: asset };

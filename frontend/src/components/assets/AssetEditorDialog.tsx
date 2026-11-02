@@ -85,6 +85,24 @@ export function AssetEditorDialog({
     e.target.value = '';
   };
 
+  /** 二进制包上传：multipart 直传，后端存 base64 + contentType=file，不进入编辑框 */
+  const onPickBinaryFile = async (e: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await assetsApi.createFile(kindValue, file);
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+      e.target.value = '';
+    }
+  };
+
   const submit = async (): Promise<void> => {
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -173,6 +191,20 @@ export function AssetEditorDialog({
               className="text-sm"
             />
           </div>
+          {!asset && (
+            <div>
+              <div className="mb-1 text-xs text-[#64748B]">
+                上传二进制包（skills 包 / 压缩文件，直接上传不编辑；支持 .zip/.tar/.gz/.tgz/.whl/.py/.sh）
+              </div>
+              <input
+                type="file"
+                accept=".zip,.tar,.gz,.tgz,.whl,.py,.sh"
+                onChange={onPickBinaryFile}
+                disabled={busy}
+                className="text-sm"
+              />
+            </div>
+          )}
           {error && (
             <div className="rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>
           )}

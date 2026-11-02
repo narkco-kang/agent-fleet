@@ -34,7 +34,7 @@ export function startLanDiscovery(): void {
     browser.on('up', (service: Service) => {
       const txt = asRecord(service.txt);
       const deviceId = txt.deviceId;
-      const host = String(service.addresses?.[0] ?? service.host ?? '');
+      const host = pickHost(service);
       const port = Number(service.port ?? 0);
       if (!deviceId || !host || !port) return;
 
@@ -125,4 +125,18 @@ function asRecord(txt: unknown): Record<string, string> {
     out[k] = String(v);
   }
   return out;
+}
+
+/**
+ * 从 mDNS 地址中选一个可直连的 host：优先 IPv4，其次非 link-local IPv6，
+ * 过滤掉 fe80::（link-local，无法作为 ws:// 目标，会产生 Invalid URL 噪音）。
+ */
+function pickHost(service: Service): string {
+  const addrs = (service.addresses ?? []).map((a) => String(a));
+  const ipv4 = addrs.find((a) => a && !a.includes(':'));
+  if (ipv4) return ipv4;
+  const ipv6 = addrs.find((a) => a && a.includes(':') && !a.startsWith('fe80:'));
+  if (ipv6) return ipv6;
+  const host = String(service.host ?? '');
+  return host && !host.startsWith('fe80:') ? host : '';
 }

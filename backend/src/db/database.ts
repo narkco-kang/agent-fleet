@@ -90,6 +90,14 @@ function runMigrations(database: Database.Database): void {
   if (!targetCols.includes('model_configs')) {
     database.exec(`ALTER TABLE deployment_targets ADD COLUMN model_configs TEXT NOT NULL DEFAULT '[]'`);
   }
+
+  // agents 新增列 activated（存量默认 1=已激活，避免升级后既有 agent 突然不可用）
+  const agentCols = (
+    database.prepare(`PRAGMA table_info(agents)`).all() as Array<{ name: string }>
+  ).map((c) => c.name);
+  if (!agentCols.includes('activated')) {
+    database.exec(`ALTER TABLE agents ADD COLUMN activated INTEGER NOT NULL DEFAULT 1`);
+  }
 }
 
 /** 获取数据库实例（未初始化则先初始化） */

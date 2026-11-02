@@ -17,8 +17,8 @@ export type TaskStatus =
 /** 设备三态 */
 export type DeviceStatus = 'online' | 'busy' | 'offline';
 
-/** Agent 三态 */
-export type AgentStatus = 'available' | 'busy' | 'error';
+/** Agent 三态（+ needs_login：已安装但尚未登录激活） */
+export type AgentStatus = 'available' | 'busy' | 'error' | 'needs_login';
 
 /** 任务流式事件类型 */
 export type TaskEventType =
@@ -136,7 +136,7 @@ export const FREE_SOURCE_RATINGS: readonly FreeSourceRating[] = [
 
 export const DEVICE_STATUSES: readonly DeviceStatus[] = ['online', 'busy', 'offline'] as const;
 
-export const AGENT_STATUSES: readonly AgentStatus[] = ['available', 'busy', 'error'] as const;
+export const AGENT_STATUSES: readonly AgentStatus[] = ['available', 'busy', 'error', 'needs_login'] as const;
 
 export const TASK_EVENT_TYPES: readonly TaskEventType[] = [
   'text',

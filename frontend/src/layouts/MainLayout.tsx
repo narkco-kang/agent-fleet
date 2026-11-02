@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import HubIcon from '@mui/icons-material/Hub';
 import DevicesIcon from '@mui/icons-material/Devices';
@@ -12,6 +12,7 @@ import FolderIcon from '@mui/icons-material/Folder';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useLiveData } from '../hooks/useLiveData';
+import { http } from '../api/http';
 import { useDeviceStore } from '../store/deviceStore';
 import { useTaskStore } from '../store/taskStore';
 import { useWsStore } from '../store/wsStore';
@@ -46,6 +47,17 @@ export default function MainLayout(): JSX.Element {
   const connState = useWsStore((s) => s.connState);
   const backendOnline = useWsStore((s) => s.backendOnline);
   const relayOnline = useWsStore((s) => s.relayOnline);
+
+  const [attention, setAttention] = useState<{ needsLogin: number; pendingActions: number; alerts: number } | null>(null);
+
+  useEffect(() => {
+    const load = (): void => {
+      http.getAttention().then((r) => setAttention(r.data)).catch(() => setAttention(null));
+    };
+    load();
+    const timer = setInterval(load, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   const online = devices.filter((d) => d.status === 'online').length;
   const running = tasks.filter((t) => t.status === 'running').length;
@@ -125,6 +137,35 @@ export default function MainLayout(): JSX.Element {
             </button>
           </div>
         </header>
+
+        {/* 待处理摘要条（有非零项才显示，健康态折叠） */}
+        {attention &&
+          (attention.needsLogin > 0 || attention.pendingActions > 0 || attention.alerts > 0) && (
+            <div className="flex shrink-0 items-center gap-3 border-b border-[#E2E8F0] bg-[#FFFBEB] px-4 py-1.5 text-xs text-[#334155]">
+              <span className="font-medium text-[#0F172A]">待处理</span>
+              {attention.needsLogin > 0 && (
+                <button
+                  onClick={() => navigate('/devices')}
+                  className="rounded bg-[#FEF3C7] px-2 py-0.5 text-[#B45309] hover:bg-[#FDE68A]"
+                >
+                  待激活平台 {attention.needsLogin}
+                </button>
+              )}
+              {attention.pendingActions > 0 && (
+                <span className="rounded bg-[#FEF3C7] px-2 py-0.5 text-[#B45309]">
+                  待确认动作 {attention.pendingActions}
+                </span>
+              )}
+              {attention.alerts > 0 && (
+                <button
+                  onClick={() => navigate('/tasks')}
+                  className="rounded bg-[#FEE2E2] px-2 py-0.5 text-[#B91C1C] hover:bg-[#FECACA]"
+                >
+                  告警 {attention.alerts}
+                </button>
+              )}
+            </div>
+          )}
 
         {/* 页面主体 */}
         <main className="min-h-0 flex-1 overflow-auto">

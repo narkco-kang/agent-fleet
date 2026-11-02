@@ -96,7 +96,9 @@ function DeviceGlyph({ node, pulse, stroke, strokeWidth }: { node: SimNode; puls
 function AgentGlyph({ node, stroke, strokeWidth }: { node: SimNode; stroke: string; strokeWidth: number }): JSX.Element {
   const busy = node.type === 'agent' && node.data.status === 'busy';
   const error = node.type === 'agent' && node.data.status === 'error';
-  const fill = busy ? '#F59E0B' : error ? '#EF4444' : '#7C3AED';
+  const needsLogin =
+    node.type === 'agent' && (node.data.status === 'needs_login' || !(node.data.activated as boolean | undefined));
+  const fill = busy ? '#F59E0B' : error ? '#EF4444' : needsLogin ? '#94A3B8' : '#7C3AED';
   const size = 28;
   return (
     <g>

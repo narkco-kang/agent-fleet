@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS agents (
   capabilities    TEXT NOT NULL DEFAULT '[]',
   max_concurrency INTEGER NOT NULL DEFAULT 1,
   busy_count      INTEGER NOT NULL DEFAULT 0,
+  activated       INTEGER NOT NULL DEFAULT 0,  -- 1=已登录激活；0=需登录激活
   updated_at      INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000),
   UNIQUE (device_id, agent_type)
 );

@@ -3,7 +3,7 @@ import type { DashboardPatch, DashboardSnapshot, Envelope, TaskEvent, TaskResult
 import { MESSAGE_TYPES } from '@agentmesh/shared';
 import { deviceRegistry, type ConnectionKind } from '../services/deviceRegistry.js';
 import { upsertDevice, touchHeartbeat } from '../db/repo/devices.js';
-import { upsertAgents } from '../db/repo/agents.js';
+import { upsertAgents, setAgentActivated } from '../db/repo/agents.js';
 import { verifyToken } from '../security/auth.js';
 import { getPendingPair } from '../security/pairing.js';
 
@@ -185,8 +185,10 @@ function handleEnvelope(socket: WebSocket, raw: string, fallbackPeer?: Peer): vo
       const ack = envelope.payload as { deviceId?: string; agentType?: string; ok?: boolean; message?: string };
       if (ack?.ok === false) {
         console.warn(`[platform-open] ${ack.deviceId}/${ack.agentType} 打开失败: ${ack.message ?? 'unknown'}`);
-      } else {
-        console.log(`[platform-open] ${ack.deviceId}/${ack.agentType} 已打开: ${ack.message ?? ''}`);
+      } else if (ack?.deviceId && ack?.agentType) {
+        // 打开平台应用成功 → 标记该 agent 为已激活（用户在该应用内完成登录）
+        setAgentActivated(ack.deviceId, ack.agentType as never, true);
+        console.log(`[platform-open] ${ack.deviceId}/${ack.agentType} 已打开并标记激活: ${ack.message ?? ''}`);
       }
       break;
     }

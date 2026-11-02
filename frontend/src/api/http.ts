@@ -76,6 +76,10 @@ export const http = {
     request<ApiOk<{ devicesOnline: number; tasksRunning: number; relayConnected: boolean }>>(
       '/api/system/status',
     ),
+  getAttention: () =>
+    request<ApiOk<{ needsLogin: number; pendingActions: number; alerts: number }>>(
+      '/api/system/attention',
+    ),
   getDevices: () => request<ApiOk<Array<DeviceSnapshot & { agents: AgentSnapshot[] }>>>('/api/devices'),
   getDevice: (id: string) =>
     request<ApiOk<DeviceSnapshot & { agents: AgentSnapshot[] }>>(`/api/devices/${id}`),

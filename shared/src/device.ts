@@ -57,6 +57,8 @@ export interface AgentInfo {
   detectMethod: DetectMethod;
   capabilities: string[];
   maxConcurrency: number;
+  /** 是否已登录激活（可选；设备侧不报时由协调器管理，默认未激活） */
+  activated?: boolean;
 }
 
 /** 探测方式 */
@@ -125,6 +127,8 @@ export interface AgentSnapshot {
   capabilities: string[];
   maxConcurrency: number;
   busyCount: number;
+  /** 是否已登录激活（false = 需登录激活后才能接任务） */
+  activated: boolean;
 }
 
 /** 看板全量快照 */

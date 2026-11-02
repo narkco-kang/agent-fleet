@@ -4,7 +4,7 @@ import type {
   AssetDelivery,
   AssetKind,
 } from '@agentmesh/shared';
-import { del, get, post, put, type ApiOk } from './http';
+import { del, get, post, put, uploadForm, type ApiOk } from './http';
 
 /**
  * 资产管理 API：规则 / 资料库 / skills 统一 CRUD + 分发（人工确认）。
@@ -46,6 +46,15 @@ export const assetsApi = {
     contentType?: AssetContentType;
     tags?: string[];
   }) => post<ApiOk<Asset>>('/api/assets', body),
+
+  /** 创建二进制资产（skills 包等文件，multipart 上传，后端存 base64 + contentType=file） */
+  createFile: (kind: AssetKind, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('kind', kind);
+    form.append('name', file.name);
+    return uploadForm<ApiOk<Asset>>('/api/assets', form);
+  },
 
   /** 更新资产（version 递增） */
   update: (

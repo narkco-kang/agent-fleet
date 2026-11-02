@@ -13,16 +13,17 @@ export interface AgentRow {
   capabilities: string;
   max_concurrency: number;
   busy_count: number;
+  activated: number;
   updated_at: number;
 }
 
-/** 能力上报 upsert（同一设备同一 agent 类型唯一） */
+/** 能力上报 upsert（同一设备同一 agent 类型唯一；activated 由协调器管理，上报不覆盖） */
 export function upsertAgents(deviceId: string, agents: AgentInfo[]): void {
   const db = getDb();
   const stmt = db.prepare(
     `INSERT INTO agents
-      (device_id, agent_type, display_name, version, executable, status, capabilities, max_concurrency, updated_at)
-     VALUES (@deviceId, @agentType, @displayName, @version, @executable, @status, @capabilities, @maxConcurrency, @now)
+      (device_id, agent_type, display_name, version, executable, status, capabilities, max_concurrency, activated, updated_at)
+     VALUES (@deviceId, @agentType, @displayName, @version, @executable, @status, @capabilities, @maxConcurrency, 0, @now)
      ON CONFLICT(device_id, agent_type) DO UPDATE SET
        display_name = excluded.display_name,
        version = excluded.version,
@@ -64,6 +65,15 @@ export function setAgentStatus(
       `UPDATE agents SET status = ?, updated_at = ? WHERE device_id = ? AND agent_type = ?`,
     )
     .run(status, Date.now(), deviceId, agentType);
+}
+
+/** 设置 agent 是否已登录激活（打开平台应用登录后调用） */
+export function setAgentActivated(deviceId: string, agentType: AgentType, activated: boolean): boolean {
+  return getDb()
+    .prepare(
+      `UPDATE agents SET activated = ?, updated_at = ? WHERE device_id = ? AND agent_type = ?`,
+    )
+    .run(activated ? 1 : 0, Date.now(), deviceId, agentType).changes > 0;
 }
 
 /** 认领：busy_count + 1（不超过 max_concurrency），返回是否认领成功 */
@@ -112,5 +122,6 @@ export function toAgentSnapshot(row: AgentRow): AgentSnapshot {
     capabilities: JSON.parse(row.capabilities || '[]') as string[],
     maxConcurrency: row.max_concurrency,
     busyCount: row.busy_count,
+    activated: row.activated === 1,
   };
 }
