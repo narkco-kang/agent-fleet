@@ -60,9 +60,19 @@ export async function handleEnvelope(
     }
     case MESSAGE_TYPES.DEVICE_REGISTER_ACK: {
       // 注册确认：登记 coordinator 公钥（供记忆账本验签）
-      const ack = envelope.payload as { coordinatorPublicKey?: string };
+      const ack = envelope.payload as {
+        coordinatorPublicKey?: string;
+        accepted?: boolean;
+        reason?: string;
+      };
       if (ack?.coordinatorPublicKey) {
         memoryClient.registerCoordinatorKey(ack.coordinatorPublicKey);
+      }
+      // 注册被拒（典型：协调服务重启后签名密钥变化、或设备被删除）
+      // → 清掉本地 token 走重新配对自愈。否则设备会「看板在线但身份无效」：
+      //   心跳不校验 token 仍会刷新 online，但设备名/能力不再更新，任务鉴权也会失败。
+      if (ack?.accepted === false) {
+        handleRegisterRejected(ack.reason, sender);
       }
       break;
     }
@@ -118,6 +128,26 @@ export async function handleEnvelope(
       );
     }
   }
+}
+
+/**
+ * 注册被拒后的自愈：清空本地 token → 重新走 REST 配对拿新 token → 再次注册。
+ *
+ * 加单飞保护：协调服务若持续拒绝（例如网络/NAT 异常），避免注册-拒绝
+ * 消息往返形成自旋；同一时刻只允许一次修复尝试。
+ */
+let repairInFlight = false;
+
+function handleRegisterRejected(reason: string | undefined, sender: MessageSender): void {
+  if (repairInFlight) return;
+  repairInFlight = true;
+  console.warn(
+    `[device-agent] 注册被拒（${reason ?? 'unknown'}），清空旧 token 并重新配对`,
+  );
+  setToken('');
+  void autoPairAndRegister(sender).finally(() => {
+    repairInFlight = false;
+  });
 }
 
 /**

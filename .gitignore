@@ -10,6 +10,9 @@ build/
 .env
 .env.local
 .env.*.local
+# 协调服务 token 签名密钥（自动生成，绝不入库）
+.server-secret
+**/.server-secret
 
 # data (sqlite + device registry)
 data/

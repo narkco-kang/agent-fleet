@@ -146,7 +146,7 @@ async function main() {
       process.stdout.write(`\n\x1b[1m[dev] 看板设备（${list.length} 台）\x1b[0m\n`);
       for (const d of list) {
         process.stdout.write(
-          `[dev]   · ${d.name} status=${d.status} agents=${(d.agents ?? []).length} roleTeam=${d.roleTeam ?? '-'}\n`,
+          `[dev]   · ${d.name} status=${d.status} agents=${(d.agents ?? []).length} roleTeam=${d.roleTeamName ?? '-'}\n`,
         );
       }
       process.stdout.write('\n');
