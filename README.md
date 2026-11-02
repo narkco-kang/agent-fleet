@@ -1,8 +1,8 @@
-# AgentFleet · Cross-Device AI Orchestration — Every device is a hive. AgentFleet is the swarm.
+# AgentFleet · Cross-Device AI Orchestration — Every device a ship. AgentFleet is the fleet.
 
-[![AgentFleet — Every device is a hive. AgentFleet is the swarm.](docs/images/banner.png)](docs/images/banner.png)
+[![AgentFleet — Every device a ship. AgentFleet is the fleet.](docs/images/banner.png)](docs/images/banner.png)
 
-AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't build new agents — it coordinates the AI agents **you've already installed** (Claude Code, Codex, Cursor, Aider, Gemini, Qwen, Grok and 10+ more) into one swarm, so you can run multiple coding agents across machines, watch them work on a live neural graph, and keep tamper-evident shared memory. Unlike multi-agent frameworks that rebuild agents from scratch, AgentFleet sits **above** what you already run.
+AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't build new agents — it coordinates the AI agents **you've already installed** (Claude Code, Codex, Cursor, Aider, Gemini, Qwen, Grok and 10+ more) into one fleet, so you can run multiple coding agents across machines, watch them work on a live neural graph, and keep tamper-evident shared memory. Unlike multi-agent frameworks that rebuild agents from scratch, AgentFleet sits **above** what you already run.
 
 > ⚡ **30-second start**
 > ```bash

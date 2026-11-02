@@ -11,7 +11,7 @@ import { enqueueTask, setSchedulerHooks, release } from '../src/services/schedul
 import type { AgentType } from '@agentfleet/shared';
 
 /**
- * AgentMesh 调度内核 benchmark（可复现）
+ * AgentFleet 调度内核 benchmark（可复现）
  *
  * 度量跨设备蜂群调度的核心指标：
  *   1. 吞吐：N 设备 × K agent 下，M 任务的完成吞吐（tasks/s）
@@ -60,11 +60,11 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const totalAgents = args.devices * args.agentsPerDevice;
 
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmesh-bench-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'agentfleet-bench-'));
   config.dbPath = path.join(tmp, 'bench.db');
   initDatabase();
 
-  console.log('# AgentMesh 调度内核 benchmark');
+  console.log('# AgentFleet 调度内核 benchmark');
   console.log(
     `# 设备=${args.devices} agent/设备=${args.agentsPerDevice} 总agent=${totalAgents} 任务=${args.tasks} 单任务=${args.execMs}ms` +
       (args.failDeviceAtMs > 0 ? ` 故障注入@${args.failDeviceAtMs}ms` : ''),

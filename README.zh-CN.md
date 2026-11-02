@@ -1,8 +1,8 @@
-# AgentFleet · 跨设备智能体协同 —— 把每台设备，变成一支 AI 蜂群
+# AgentFleet · 跨设备智能体协同 —— 把每台设备，编入一支 AI 舰队
 
-[![AgentFleet —— 把每台设备，变成一支 AI 蜂群](docs/images/banner.png)](docs/images/banner.png)
+[![AgentFleet —— 把每台设备，编入一支 AI 舰队](docs/images/banner.png)](docs/images/banner.png)
 
-AgentFleet 是一个**可自托管的跨设备智能体协同层**。它不造新 agent，而是把你每台设备上**已安装**的 AI agent（Codex / Claude Code / Cursor / Aider / Gemini / Qwen / Grok 等 13+ 平台）统一调度，让你能在一台电脑上同时运行多个 AI 编程助手、跨设备像指挥一支蜂群一样协同，用动态神经图实时看见它们工作，并拥有防篡改的共享记忆。不同于那些从零再造 agent 的多智能体框架，AgentFleet 架设在你已有的 agent 之上。
+AgentFleet 是一个**可自托管的跨设备智能体协同层**。它不造新 agent，而是把你每台设备上**已安装**的 AI agent（Codex / Claude Code / Cursor / Aider / Gemini / Qwen / Grok 等 13+ 平台）统一调度，让你能在一台电脑上同时运行多个 AI 编程助手、跨设备像指挥一支舰队一样协同，用动态神经图实时看见它们工作，并拥有防篡改的共享记忆。不同于那些从零再造 agent 的多智能体框架，AgentFleet 架设在你已有的 agent 之上。
 
 > ⚡ **30 秒上手**
 > ```bash
