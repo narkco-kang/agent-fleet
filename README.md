@@ -64,13 +64,13 @@ AgentFleet can **deploy / uninstall / discover / route multiple agent platforms*
 
 | Platform | Install / uninstall | Discover | Gateway model execution | Local CLI direct execution |
 |---|---|---|---|---|
-| Codex | npm | ✅ | ✅ | scaffold |
-| Claude Code | npm | ✅ | ✅ | scaffold |
+| Codex | npm | ✅ | ✅ | ✅ cli-text（待实机验证） |
+| Claude Code | npm | ✅ | ✅ | ✅ cli-stream（待实机验证） |
 | DSH Desktop | manual verify | ✅ | ✅ | scaffold |
 | Grok | manual verify | ✅ | ✅ | ✅ stable |
 | Cursor | macOS brew / Windows winget | ✅ | ✅ | scaffold |
-| Aider | pipx | ✅ | ✅ | scaffold |
-| Gemini CLI | npm | ✅ | ✅ | scaffold |
+| Aider | pipx | ✅ | ✅ | ✅ cli-text（单轮） |
+| Gemini CLI | npm | ✅ | ✅ | ✅ cli-text（待实机验证） |
 | Cody | npm | ✅ | ✅ | scaffold |
 | Qwen Code | npm | ✅ | ✅ | scaffold |
 | Doubao MarsCode | npm | ✅ | ✅ | scaffold |
