@@ -30,7 +30,10 @@ export interface TaskTarget {
   /** mode='team' 时的团队 id（不同团队负责不同需求） */
   teamId?: string;
   requireCapability?: string;
-  /** 平台内的 bot 名（如 grok 的自定义 agent：explore/plan/reviewer） */
+  /**
+   * 平台内的 bot 名（如 grok 的自定义 agent：explore/plan/reviewer）。
+   * 不传 = 平台自动委派：grok 走 general-purpose 主 agent，自行 spawn 子代理并行处理。
+   */
   agentProfile?: string;
 }
 

@@ -54,10 +54,16 @@ function Bubble({ event }: { event: TaskEvent }): JSX.Element {
   );
 }
 
+/** 工具名友好化：grok 自行委派子代理时用可读名称 */
+function toolLabel(name?: string): string {
+  if (name === 'spawn_subagent') return '委派子代理';
+  return name ?? '';
+}
+
 function bubbleTitle(event: TaskEvent): string {
   switch (event.eventType) {
     case 'tool_call':
-      return `工具调用 · ${event.data?.toolName ?? ''}`;
+      return `工具调用 · ${toolLabel(event.data?.toolName)}`;
     case 'tool_result':
       return '工具返回';
     case 'thinking':
@@ -73,7 +79,7 @@ function bubbleTitle(event: TaskEvent): string {
 
 function bubbleText(event: TaskEvent): string {
   const d = event.data ?? {};
-  if (event.eventType === 'tool_call') return `${d.toolName ?? ''} ${JSON.stringify(d.toolInput ?? {})}`;
+  if (event.eventType === 'tool_call') return `${toolLabel(d.toolName)} ${JSON.stringify(d.toolInput ?? {})}`;
   if (event.eventType === 'tool_result') return String(d.toolOutput ?? '');
   return String(d.text ?? d.delta ?? d.message ?? '');
 }

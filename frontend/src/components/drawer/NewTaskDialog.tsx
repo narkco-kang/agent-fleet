@@ -117,11 +117,12 @@ export function NewTaskDialog({
             <TextField
               fullWidth
               select
-              label="bot（平台内自定义 agent）"
+              label="bot（grok 内自定义 agent）"
               value={bot}
               onChange={(e) => setBot(e.target.value)}
+              helperText="自动委派：由 grok 自行拆分任务给子 agent（explore/plan）并行处理；手动选 = 整个任务强制用该角色"
             >
-              <MenuItem value="">默认</MenuItem>
+              <MenuItem value="">自动委派（grok 自行决定，推荐）</MenuItem>
               {bots.map((b) => (
                 <MenuItem key={b.name} value={b.name}>
                   {b.name}

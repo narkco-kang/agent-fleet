@@ -35,7 +35,10 @@ interface AcpOptions {
   env?: Record<string, string>;
   /** XAI_API_KEY（有则走 api_key 认证，否则走本机缓存登录态） */
   apiKey?: string;
-  /** grok 的自定义 agent（bot）名，如 explore/plan/reviewer */
+  /**
+   * grok 的自定义 agent（bot）名，如 explore/plan/reviewer。
+   * 不传 = 走 general-purpose 主 agent，由 grok 自行委派子代理（subagents 默认开启）。
+   */
   agentProfile?: string;
   onEvent: (ev: AcpEvent) => void;
 }
@@ -57,6 +60,7 @@ const AUTH_TIMEOUT_MS = 15_000;
 const IDLE_ANSWER_MS = 8_000; // 最终回答后：很快静默
 const IDLE_THINKING_MS = 15_000; // 思考中：留缓冲
 const IDLE_TOOL_MS = 60_000; // 工具执行中：命令可能较慢
+const IDLE_SUBAGENT_MS = 300_000; // 等待后台子代理（grok 自行委派）时：子代理可能跑很久
 
 export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   // --always-approve：跳过工具权限确认（grok 默认对 write/edit 等工具发 session/request_permission
@@ -71,6 +75,9 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   let finished = false;
   const pending = new Map<number, (msg: RpcMessage) => void>();
   let idleTimer: NodeJS.Timeout | null = null;
+  // grok 自行委派：主 agent spawn 后台子代理后，会静默等待子代理返回（子代理可能跑数分钟）。
+  // 一旦检测到委派，后续静默超时放宽到 IDLE_SUBAGENT_MS，直到主 agent 开始输出最终回答。
+  let subagentActive = false;
 
   /** 终态收尾：发 done/error 事件并关闭进程（幂等） */
   function end(type: 'done' | 'error', message?: string): void {
@@ -93,7 +100,9 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
   /** 收到实质事件 → 重置静默定时器（静默超时即判定回合结束） */
   function touchIdle(timeoutMs: number): void {
     if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => end('done'), timeoutMs);
+    // 委派等待期间，无论当前阶段都放宽到长超时，避免子代理未返回就被误判结束
+    const eff = subagentActive ? IDLE_SUBAGENT_MS : timeoutMs;
+    idleTimer = setTimeout(() => end('done'), eff);
     idleTimer.unref();
   }
 
@@ -148,6 +157,7 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
       case 'agent_message_chunk': {
         const text = update.content?.text;
         if (text) {
+          subagentActive = false; // 主 agent 开始输出最终回答 = 子代理已返回
           opts.onEvent({ type: 'text', text });
           touchIdle(IDLE_ANSWER_MS);
         }
@@ -161,15 +171,20 @@ export function runAcpPrompt(opts: AcpOptions): AcpRunHandle {
         }
         return;
       }
-      case 'tool_call':
+      case 'tool_call': {
+        // grok 的工具名在 title（如 "search_replace"），输入在 rawInput
+        const toolName = update.title ?? 'tool';
+        // 委派子代理：grok 主 agent 自行 spawn 子 agent（explore/plan 等）并行处理
+        const isSubagentSpawn = /spawn_subagent|tasktool|subagent/i.test(toolName);
+        if (isSubagentSpawn) subagentActive = true;
         opts.onEvent({
           type: 'tool',
-          // grok 的工具名在 title（如 "search_replace"），输入在 rawInput
-          toolName: update.title ?? 'tool',
+          toolName: isSubagentSpawn ? 'spawn_subagent' : toolName,
           toolInput: update.rawInput ?? update.toolInput ?? update.input ?? update.content,
         });
-        touchIdle(IDLE_TOOL_MS);
+        touchIdle(isSubagentSpawn ? IDLE_SUBAGENT_MS : IDLE_TOOL_MS);
         return;
+      }
       case 'tool_call_update': {
         // grok 的工具进度描述在 title（如 "Edit `/path/hello.py`"）
         const msg = update.title ?? update.message ?? '';
