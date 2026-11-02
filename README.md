@@ -58,7 +58,7 @@ npm run benchmark:multi --workspace backend     # real multi-device (1 backend +
 
 AgentFleet can **deploy / uninstall / discover / route multiple agent platforms**, but local CLI execution and modelgateway execution are two different paths:
 
-- **Install / uninstall**: 13 platforms are mapped to OS-aware npm / pipx / brew / winget / manual-verify scripts, with post-install or post-uninstall verification.
+- **Install / uninstall**: 14 platforms are mapped to OS-aware npm / pipx / brew / winget / manual-verify scripts, with post-install or post-uninstall verification.
 - **Discover / report**: the per-device daemon detects installed platforms and reports them as workers inside that device fleet.
 - **Deploy-then-use**: a deployment target can carry `deviceId + platform models`; after a successful deployment AgentFleet binds the device+agent platform to built-in modelgateway models and runs tasks through the gateway first.
 - **Local CLI direct execution**: `grok` is the currently stable direct adapter; the other platforms have discovery and dispatch scaffolding, but their headless flags, login state and output formats must be verified per platform before they are marked stable.
@@ -78,6 +78,7 @@ AgentFleet can **deploy / uninstall / discover / route multiple agent platforms*
 | Kimi CLI | npm | ✅ | ✅ | scaffold |
 | OpenCode | npm | ✅ | ✅ | scaffold |
 | Windsurf | macOS brew / Windows winget | ✅ | ✅ | scaffold |
+| WorkBuddy (CodeBuddy) | manual verify | ✅ | ✅ | ✅ cli-text（待实机验证） |
 
 See the full matrix in [`docs/17-Agent平台安装卸载与调用矩阵.md`](docs/17-Agent平台安装卸载与调用矩阵.md).
 

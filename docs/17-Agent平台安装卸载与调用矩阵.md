@@ -39,6 +39,7 @@
 | `kimi` | Kimi CLI | ✅ npm `kimi-cli` | ✅ npm uninstall | ✅ | ✅ | ACP 待验证 | 支持 ACP（`kimi acp`，类似 grok），待泛化 acpClient 接入 |
 | `opencode` | OpenCode | ✅ npm `opencode-ai` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；免费源探测里也包含 OpenCode 上游线路 |
 | `windsurf` | Windsurf | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | 待确认（GUI） | GUI/Cascade 为主，headless CLI 参数未证实；Linux 无统一安装 |
+| `workbuddy` | WorkBuddy (CodeBuddy) | 手动/验证 | 手动/验证 | ✅ | ✅ | cli-text 待验证 | 腾讯 CodeBuddy（`@genie/agent-cli`）；`codebuddy -p "{prompt}"` 单轮（`--output-format stream-json`），CLI 藏在 Electron app 内 |
 
 ## 3. 默认一键部署集
 
@@ -97,7 +98,7 @@ sequenceDiagram
 
 对外 README 应保持以下表述：
 
-- AgentFleet **负责 13 个平台的安装/卸载脚本生成、验证、发现上报、平台模型绑定与网关执行**。
+- AgentFleet **负责 14 个平台的安装/卸载脚本生成、验证、发现上报、平台模型绑定与网关执行**。
 - AgentFleet **当前稳定本地 CLI 真接调用 Grok**。
 - 其他平台的本地 CLI 真接调用不是不可做，而是需要逐平台实测，不应在 README 中提前宣传为已稳定。
 
