@@ -12,10 +12,13 @@ import { LedgerStore, TrustStore, verifyBlock, MemorySearchIndex } from '@agentf
 import type { Block, ChainSummary } from '@agentfleet/memory';
 import { config } from '../config.js';
 
-/** 追加区块结果（失败原因供 block_reject）。 */
+/** 追加区块结果（失败原因供 block_reject / block_request）。 */
 export interface ApplyResult {
   ok: boolean;
+  /** 失败原因：gap=漏块需拉取；stale=重复/乱序忽略；其余=验证失败（篡改） */
   reason?: string;
+  /** gap 时：需要从该 index 开始拉取缺失区块。 */
+  fromIndex?: number;
 }
 
 class MemoryClient {
@@ -49,6 +52,13 @@ class MemoryClient {
   /** 追加单个区块：验签验链 → 追加 → 更新检索索引。失败返回原因（供 block_reject）。 */
   async applyBlock(block: Block): Promise<ApplyResult> {
     const tip = await this.ledger.tip();
+    // 序号关系先判：漏块（index > tip+1）→ 需主动拉取；重复/乱序（index < tip+1）→ 忽略
+    if (block.index > tip.index + 1) {
+      return { ok: false, reason: 'gap', fromIndex: tip.index + 1 };
+    }
+    if (block.index < tip.index + 1) {
+      return { ok: false, reason: 'stale' };
+    }
     const result = verifyBlock(block, tip, this.trustStore);
     if (!result.ok) {
       return { ok: false, reason: result.code ?? result.message };
