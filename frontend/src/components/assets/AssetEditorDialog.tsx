@@ -8,12 +8,13 @@ import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import type { Asset, AssetKind } from '@agentfleet/shared';
 import { assetsApi } from '../../api/assets';
+import { useT } from '../../i18n';
 
-const KIND_OPTIONS: Array<{ value: AssetKind; label: string }> = [
-  { value: 'rule', label: '规则' },
-  { value: 'knowledge', label: '资料库' },
-  { value: 'skill', label: 'skills' },
-];
+const KIND_KEY: Record<AssetKind, string> = {
+  rule: 'assets.kind.rule',
+  knowledge: 'assets.kind.knowledge',
+  skill: 'assets.kind.skill',
+};
 
 /** 标签解析：支持中英文逗号与换行分隔，去空白去重（保持顺序） */
 function parseTags(raw: string): string[] {
@@ -29,7 +30,7 @@ function parseTags(raw: string): string[] {
 }
 
 /**
- * 新建 / 编辑资产对话框：名称 + 内容（多行文本）+ 标签 + 文件上传（读取为文本）。
+ * 新建 / 编辑资产对话框：名称 + 概述 + 内容（多行文本）+ 标签 + 文件上传（读取为文本）。
  */
 export function AssetEditorDialog({
   open,
@@ -46,6 +47,7 @@ export function AssetEditorDialog({
   onClose: () => void;
   onSaved: () => void;
 }): JSX.Element {
+  const t = useT();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
@@ -83,7 +85,7 @@ export function AssetEditorDialog({
       // 名称留空时用文件名（去扩展名）兜底
       setName((prev) => (prev.trim() ? prev : file.name.replace(/\.[^.]+$/, '')));
     };
-    reader.onerror = () => setError(`读取文件失败：${file.name}`);
+    reader.onerror = () => setError(`${t('editor.uploadText')}：${file.name}`);
     reader.readAsText(file);
     e.target.value = '';
   };
@@ -109,7 +111,7 @@ export function AssetEditorDialog({
   const submit = async (): Promise<void> => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError('请填写资产名称');
+      setError(t('editor.nameRequired'));
       return;
     }
     setBusy(true);
@@ -140,11 +142,11 @@ export function AssetEditorDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle className="text-[#0F172A]">{asset ? '编辑资产' : '新建资产'}</DialogTitle>
+      <DialogTitle className="text-[#0F172A]">{asset ? t('editor.editAsset') : t('editor.newAsset')}</DialogTitle>
       <DialogContent>
         <div className="mt-1 flex flex-col gap-3">
           <TextField
-            label="类型"
+            label={t('editor.kind')}
             size="small"
             select
             value={kindValue}
@@ -152,29 +154,29 @@ export function AssetEditorDialog({
             disabled={!!asset}
             fullWidth
           >
-            {KIND_OPTIONS.map((k) => (
-              <MenuItem key={k.value} value={k.value}>
-                {k.label}
+            {(Object.keys(KIND_KEY) as AssetKind[]).map((k) => (
+              <MenuItem key={k} value={k}>
+                {t(KIND_KEY[k])}
               </MenuItem>
             ))}
           </TextField>
           <TextField
-            label="名称"
+            label={t('editor.name')}
             size="small"
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
           />
           <TextField
-            label="概述 / 注释（说明该 skill / 规则的作用，显示在列表）"
+            label={t('editor.overview')}
             size="small"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             fullWidth
-            placeholder="例如：自动生成单元测试并运行覆盖率检查"
+            placeholder={t('editor.overviewPlaceholder')}
           />
           <TextField
-            label="内容"
+            label={t('editor.content')}
             size="small"
             multiline
             minRows={10}
@@ -182,20 +184,18 @@ export function AssetEditorDialog({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             fullWidth
-            placeholder="规则 / 资料 / skill 的文本内容"
+            placeholder={t('editor.contentPlaceholder')}
           />
           <TextField
-            label="标签（逗号分隔）"
+            label={t('editor.tags')}
             size="small"
             value={tags}
             onChange={(e) => setTags(e.target.value)}
             fullWidth
-            placeholder="例如：安全, 默认, v1"
+            placeholder={t('editor.tagsPlaceholder')}
           />
           <div>
-            <div className="mb-1 text-xs text-[#64748B]">
-              上传文件（读取为文本填入内容框，可继续编辑；支持 .md/.txt/.json/.yaml/.yml/.js/.ts/.toml）
-            </div>
+            <div className="mb-1 text-xs text-[#64748B]">{t('editor.uploadText')}</div>
             <input
               ref={fileRef}
               type="file"
@@ -206,9 +206,7 @@ export function AssetEditorDialog({
           </div>
           {!asset && (
             <div>
-              <div className="mb-1 text-xs text-[#64748B]">
-                上传二进制包（skills 包 / 压缩文件，直接上传不编辑；支持 .zip/.tar/.gz/.tgz/.whl/.py/.sh）
-              </div>
+              <div className="mb-1 text-xs text-[#64748B]">{t('editor.uploadBinary')}</div>
               <input
                 type="file"
                 accept=".zip,.tar,.gz,.tgz,.whl,.py,.sh"
@@ -225,10 +223,10 @@ export function AssetEditorDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="inherit">
-          取消
+          {t('editor.cancel')}
         </Button>
         <Button onClick={submit} disabled={busy} variant="contained">
-          {busy ? '保存中…' : '保存'}
+          {busy ? t('editor.saving') : t('editor.save')}
         </Button>
       </DialogActions>
     </Dialog>

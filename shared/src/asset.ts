@@ -14,6 +14,8 @@ export interface Asset {
   name: string;
   /** 概述/注释（显示在资产列表，说明该 skill/规则的作用） */
   description: string;
+  /** 概述的中文翻译（空则前端按需回退显示 description 英文原文） */
+  descriptionZh: string;
   /** 来源：manual / github / imported */
   source: AssetSource;
   /** text 内容；contentType=file 时为路径/引用 */

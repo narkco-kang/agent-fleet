@@ -10,29 +10,37 @@ import { AssetEditorDialog } from '../components/assets/AssetEditorDialog';
 import { DeliverDialog } from '../components/assets/DeliverDialog';
 import { DeliveryRecords } from '../components/assets/DeliveryRecords';
 import { GithubSkillsDialog } from '../components/assets/GithubSkillsDialog';
+import { useT, useLanguageStore } from '../i18n';
 
-const KIND_LABEL: Record<AssetKind, string> = {
-  rule: '规则',
-  knowledge: '资料库',
-  skill: 'skills',
+const KIND_KEY: Record<AssetKind, string> = {
+  rule: 'assets.kind.rule',
+  knowledge: 'assets.kind.knowledge',
+  skill: 'assets.kind.skill',
 };
 
-const SOURCE_LABEL: Record<AssetSource, string> = {
-  manual: '手动',
-  github: 'GitHub',
-  imported: '导入',
+const SOURCE_KEY: Record<AssetSource, string> = {
+  manual: 'assets.source.manual',
+  github: 'assets.source.github',
+  imported: 'assets.source.imported',
 };
 
 type KindFilter = AssetKind | 'all';
 
-function fmtTime(ts: number): string {
-  return new Date(ts).toLocaleString('zh-CN', { hour12: false });
+function fmtTime(ts: number, language: 'zh' | 'en'): string {
+  return new Date(ts).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', { hour12: false });
+}
+
+/** 概述按语言取：中文优先 descriptionZh（缺省回退英文原文），英文直接 description */
+function descOf(a: Asset, language: 'zh' | 'en'): string {
+  return language === 'zh' ? a.descriptionZh || a.description : a.description;
 }
 
 /**
  * 资产管理页：规则 / 资料库 / skills 的 CRUD + 分发（人工确认）+ 分发记录。
  */
 export default function AssetsPage(): JSX.Element {
+  const t = useT();
+  const language = useLanguageStore((s) => s.language);
   const [kind, setKind] = useState<KindFilter>('all');
   const [assets, setAssets] = useState<Asset[]>([]);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -79,7 +87,7 @@ export default function AssetsPage(): JSX.Element {
     setUploading(true);
     try {
       const r = await assetsApi.batchUpload(targetKind, files);
-      window.alert(`成功导入 ${r.data.count} 个「${KIND_LABEL[targetKind]}」`);
+      window.alert(`${t('assets.batchImported')} ${r.data.count} ${t('assets.batchImportedSuffix')}「${t(KIND_KEY[targetKind])}」`);
       refresh();
     } catch (err) {
       window.alert((err as Error).message);
@@ -89,7 +97,7 @@ export default function AssetsPage(): JSX.Element {
   };
 
   const onDelete = async (a: Asset): Promise<void> => {
-    if (!window.confirm(`确认删除资产「${a.name}」？`)) return;
+    if (!window.confirm(`${t('assets.confirmDelete')}「${a.name}」？`)) return;
     try {
       await assetsApi.remove(a.id);
       refresh();
@@ -99,29 +107,29 @@ export default function AssetsPage(): JSX.Element {
   };
 
   const tabs: Array<[KindFilter, string]> = [
-    ['all', '全部'],
-    ['rule', '规则'],
-    ['knowledge', '资料库'],
-    ['skill', 'skills'],
+    ['all', t('assets.all')],
+    ['rule', t('assets.kind.rule')],
+    ['knowledge', t('assets.kind.knowledge')],
+    ['skill', t('assets.kind.skill')],
   ];
 
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-[#0F172A]">资产管理</h1>
+        <h1 className="text-xl font-semibold text-[#0F172A]">{t('assets.title')}</h1>
         <div className="flex gap-2">
           <button
             onClick={() => setGithubOpen(true)}
             className="inline-flex items-center gap-1 rounded-lg border border-[#0891B2] bg-white px-3 py-1.5 text-sm font-medium text-[#0891B2] hover:bg-[#ECFEFF]"
           >
-            <CloudDownloadIcon fontSize="small" /> GitHub 抓取
+            <CloudDownloadIcon fontSize="small" /> {t('assets.fetchGithub')}
           </button>
           <button
             onClick={() => batchFileRef.current?.click()}
             disabled={uploading}
             className="inline-flex items-center gap-1 rounded-lg border border-[#4F46E5] bg-white px-3 py-1.5 text-sm font-medium text-[#4F46E5] hover:bg-[#EEF2FF]"
           >
-            <UploadIcon fontSize="small" /> {uploading ? '导入中…' : '批量上传'}
+            <UploadIcon fontSize="small" /> {uploading ? t('assets.uploading') : t('assets.batchUpload')}
           </button>
           <input
             ref={batchFileRef}
@@ -134,13 +142,13 @@ export default function AssetsPage(): JSX.Element {
             onClick={() => openDeliver(null)}
             className="inline-flex items-center gap-1 rounded-lg border border-[#4F46E5] bg-white px-3 py-1.5 text-sm font-medium text-[#4F46E5] hover:bg-[#EEF2FF]"
           >
-            <SendIcon fontSize="small" /> 分发
+            <SendIcon fontSize="small" /> {t('assets.deliver')}
           </button>
           <button
             onClick={openCreate}
             className="inline-flex items-center gap-1 rounded-lg bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#4338CA]"
           >
-            <AddIcon fontSize="small" /> 新建资产
+            <AddIcon fontSize="small" /> {t('assets.newAsset')}
           </button>
         </div>
       </div>
@@ -161,27 +169,27 @@ export default function AssetsPage(): JSX.Element {
 
       <Card className="p-0">
         <div className="border-b border-[#E2E8F0] px-4 py-3 text-sm font-semibold text-[#0F172A]">
-          资产列表（{assets.length}）
+          {t('assets.list')}（{assets.length}）
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
-                <th className="px-4 py-2 font-medium">名称</th>
-                <th className="px-4 py-2 font-medium">概述 / 作用</th>
-                <th className="px-4 py-2 font-medium">类型</th>
-                <th className="px-4 py-2 font-medium">来源</th>
-                <th className="px-4 py-2 font-medium">版本</th>
-                <th className="px-4 py-2 font-medium">标签</th>
-                <th className="px-4 py-2 font-medium">更新时间</th>
-                <th className="px-4 py-2 font-medium">操作</th>
+                <th className="px-4 py-2 font-medium">{t('assets.col.name')}</th>
+                <th className="px-4 py-2 font-medium">{t('assets.col.overview')}</th>
+                <th className="px-4 py-2 font-medium">{t('assets.col.kind')}</th>
+                <th className="px-4 py-2 font-medium">{t('assets.col.source')}</th>
+                <th className="px-4 py-2 font-medium">{t('assets.col.version')}</th>
+                <th className="px-4 py-2 font-medium">{t('assets.col.tags')}</th>
+                <th className="px-4 py-2 font-medium">{t('assets.col.updated')}</th>
+                <th className="px-4 py-2 font-medium">{t('assets.col.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {assets.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-[#94A3B8]">
-                    暂无资产，点击右上角「新建资产」开始创建
+                    {t('assets.empty')}
                   </td>
                 </tr>
               ) : (
@@ -192,10 +200,10 @@ export default function AssetsPage(): JSX.Element {
                     style={{ height: 48 }}
                   >
                     <td className="px-4 py-2 text-[#334155]">{a.name}</td>
-                    <td className="max-w-[280px] truncate px-4 py-2 text-[#64748B]" title={a.description}>
-                      {a.description || '—'}
+                    <td className="max-w-[280px] truncate px-4 py-2 text-[#64748B]" title={descOf(a, language)}>
+                      {descOf(a, language) || '—'}
                     </td>
-                    <td className="px-4 py-2 text-[#334155]">{KIND_LABEL[a.kind]}</td>
+                    <td className="px-4 py-2 text-[#334155]">{t(KIND_KEY[a.kind])}</td>
                     <td className="px-4 py-2 text-[#334155]">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] ${
@@ -206,33 +214,33 @@ export default function AssetsPage(): JSX.Element {
                               : 'bg-[#F1F5F9] text-[#64748B]'
                         }`}
                       >
-                        {SOURCE_LABEL[a.source] ?? '手动'}
+                        {t(SOURCE_KEY[a.source] ?? 'assets.source.manual')}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-[#334155]">v{a.version}</td>
                     <td className="px-4 py-2 text-[#64748B]">
                       {a.tags.length ? a.tags.map((t) => `#${t}`).join(' ') : '—'}
                     </td>
-                    <td className="px-4 py-2 text-[#64748B]">{fmtTime(a.updatedAt)}</td>
+                    <td className="px-4 py-2 text-[#64748B]">{fmtTime(a.updatedAt, language)}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => openEdit(a)}
                           className="rounded px-2 py-1 text-xs text-[#4F46E5] hover:bg-[#EEF2FF]"
                         >
-                          编辑
+                          {t('assets.edit')}
                         </button>
                         <button
                           onClick={() => openDeliver(a)}
                           className="rounded px-2 py-1 text-xs text-[#0891B2] hover:bg-[#ECFEFF]"
                         >
-                          分发
+                          {t('assets.deliver')}
                         </button>
                         <button
                           onClick={() => onDelete(a)}
                           className="rounded px-2 py-1 text-xs text-[#B91C1C] hover:bg-[#FEE2E2]"
                         >
-                          删除
+                          {t('assets.delete')}
                         </button>
                       </div>
                     </td>

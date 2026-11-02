@@ -21,18 +21,19 @@ import { useWsStore } from '../store/wsStore';
 import { MobileTabBar } from './MobileTabBar';
 import { NewTaskDialog } from '../components/drawer/NewTaskDialog';
 import { OnboardingGuide, useOnboardingState } from '../components/common/OnboardingGuide';
+import { useT, useLanguageStore } from '../i18n';
 
 const NAV = [
-  { to: '/', label: '神经图', icon: <HubIcon /> },
-  { to: '/devices', label: '设备', icon: <DevicesIcon /> },
-  { to: '/tasks', label: '任务', icon: <AssignmentIcon /> },
-  { to: '/deploy', label: '部署', icon: <CloudUploadIcon /> },
-  { to: '/platform-models', label: '平台模型', icon: <ExtensionIcon /> },
-  { to: '/assets', label: '资产', icon: <FolderIcon /> },
-  { to: '/memory', label: '记忆', icon: <PsychologyIcon /> },
-  { to: '/routing', label: '路由网关', icon: <RouteIcon /> },
-  { to: '/swarm', label: '蜂群团队', icon: <GroupsIcon /> },
-  { to: '/settings', label: '设置', icon: <SettingsIcon /> },
+  { to: '/', labelKey: 'nav.graph', icon: <HubIcon /> },
+  { to: '/devices', labelKey: 'nav.devices', icon: <DevicesIcon /> },
+  { to: '/tasks', labelKey: 'nav.tasks', icon: <AssignmentIcon /> },
+  { to: '/deploy', labelKey: 'nav.deploy', icon: <CloudUploadIcon /> },
+  { to: '/platform-models', labelKey: 'nav.platformModels', icon: <ExtensionIcon /> },
+  { to: '/assets', labelKey: 'nav.assets', icon: <FolderIcon /> },
+  { to: '/memory', labelKey: 'nav.memory', icon: <PsychologyIcon /> },
+  { to: '/routing', labelKey: 'nav.routing', icon: <RouteIcon /> },
+  { to: '/swarm', labelKey: 'nav.swarm', icon: <GroupsIcon /> },
+  { to: '/settings', labelKey: 'nav.settings', icon: <SettingsIcon /> },
 ];
 
 /**
@@ -43,6 +44,9 @@ export default function MainLayout(): JSX.Element {
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const onboarding = useOnboardingState();
   const navigate = useNavigate();
+  const t = useT();
+  const language = useLanguageStore((s) => s.language);
+  const toggleLanguage = useLanguageStore((s) => s.toggle);
 
   useLiveData();
 
@@ -94,10 +98,10 @@ export default function MainLayout(): JSX.Element {
                       : 'text-[#334155] hover:bg-[#EEF2FF]'
                   }`
                 }
-                title={item.label}
+                title={t(item.labelKey)}
               >
                 {item.icon}
-                {!isTablet && <span>{item.label}</span>}
+                {!isTablet && <span>{t(item.labelKey)}</span>}
               </NavLink>
             ))}
           </nav>
@@ -114,30 +118,37 @@ export default function MainLayout(): JSX.Element {
           <div className="flex items-center gap-2">
             {isMobile && <HubIcon className="text-[#4F46E5]" />}
             <span className="text-sm font-medium text-[#0F172A]">
-              连接：
+              {t('layout.connection')}：
               {backendOnline
                 ? relayOnline
-                  ? '🟢 中继'
-                  : '🟢 局域网'
+                  ? `🟢 ${t('layout.relay')}`
+                  : `🟢 ${t('layout.lan')}`
                 : connState === 'open'
-                  ? '🟡 演示模式'
-                  : '🔴 未连接'}
+                  ? `🟡 ${t('layout.demo')}`
+                  : `🔴 ${t('layout.disconnected')}`}
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={toggleLanguage}
+              title="中文 / English"
+              className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#334155] hover:bg-[#F8FAFC]"
+            >
+              <span>{language === 'zh' ? 'EN' : '中文'}</span>
+            </button>
             <button
               onClick={onboarding.show}
               className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#334155] hover:bg-[#F8FAFC]"
             >
               <HelpOutlineIcon fontSize="small" />
-              {!isTablet && <span>新手引导</span>}
+              {!isTablet && <span>{t('layout.onboarding')}</span>}
             </button>
             <button
               onClick={() => setNewTaskOpen(true)}
               className="inline-flex items-center gap-1 rounded-lg bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#4338CA]"
             >
               <AddIcon fontSize="small" />
-              {!isTablet && <span>新建任务</span>}
+              {!isTablet && <span>{t('layout.newTask')}</span>}
             </button>
           </div>
         </header>
@@ -146,18 +157,18 @@ export default function MainLayout(): JSX.Element {
         {attention &&
           (attention.needsLogin > 0 || attention.pendingActions > 0 || attention.alerts > 0) && (
             <div className="flex shrink-0 items-center gap-3 border-b border-[#E2E8F0] bg-[#FFFBEB] px-4 py-1.5 text-xs text-[#334155]">
-              <span className="font-medium text-[#0F172A]">待处理</span>
+              <span className="font-medium text-[#0F172A]">{t('layout.pending')}</span>
               {attention.needsLogin > 0 && (
                 <button
                   onClick={() => navigate('/devices')}
                   className="rounded bg-[#FEF3C7] px-2 py-0.5 text-[#B45309] hover:bg-[#FDE68A]"
                 >
-                  待激活平台 {attention.needsLogin}
+                  {t('layout.activatePlatforms')} {attention.needsLogin}
                 </button>
               )}
               {attention.pendingActions > 0 && (
                 <span className="rounded bg-[#FEF3C7] px-2 py-0.5 text-[#B45309]">
-                  待确认动作 {attention.pendingActions}
+                  {t('layout.confirmActions')} {attention.pendingActions}
                 </span>
               )}
               {attention.alerts > 0 && (
@@ -165,7 +176,7 @@ export default function MainLayout(): JSX.Element {
                   onClick={() => navigate('/tasks')}
                   className="rounded bg-[#FEE2E2] px-2 py-0.5 text-[#B91C1C] hover:bg-[#FECACA]"
                 >
-                  告警 {attention.alerts}
+                  {t('layout.alerts')} {attention.alerts}
                 </button>
               )}
             </div>
@@ -183,7 +194,7 @@ export default function MainLayout(): JSX.Element {
             style={{ height: 32 }}
           >
             <span>
-              在线设备 {online} · 运行中任务 {running} · 告警 {alerts}
+              {t('layout.onlineDevices')} {online} · {t('layout.runningTasks')} {running} · {t('layout.alerts')} {alerts}
             </span>
             <span>AgentFleet v0.1.0</span>
           </footer>

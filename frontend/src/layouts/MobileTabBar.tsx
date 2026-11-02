@@ -10,17 +10,18 @@ import RouteIcon from '@mui/icons-material/Route';
 import FolderIcon from '@mui/icons-material/Folder';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import { useT } from '../i18n';
 
 const TABS = [
-  { to: '/', label: '神经图', icon: <HubIcon /> },
-  { to: '/devices', label: '设备', icon: <DevicesIcon /> },
-  { to: '/tasks', label: '任务', icon: <AssignmentIcon /> },
-  { to: '/settings', label: '设置', icon: <SettingsIcon /> },
-  { to: '/deploy', label: '部署', icon: <CloudUploadIcon /> },
-  { to: '/platform-models', label: '平台模型', icon: <ExtensionIcon /> },
-  { to: '/assets', label: '资产', icon: <FolderIcon /> },
-  { to: '/memory', label: '记忆', icon: <PsychologyIcon /> },
-  { to: '/routing', label: '路由网关', icon: <RouteIcon /> },
+  { to: '/', labelKey: 'nav.graph', icon: <HubIcon /> },
+  { to: '/devices', labelKey: 'nav.devices', icon: <DevicesIcon /> },
+  { to: '/tasks', labelKey: 'nav.tasks', icon: <AssignmentIcon /> },
+  { to: '/settings', labelKey: 'nav.settings', icon: <SettingsIcon /> },
+  { to: '/deploy', labelKey: 'nav.deploy', icon: <CloudUploadIcon /> },
+  { to: '/platform-models', labelKey: 'nav.platformModels', icon: <ExtensionIcon /> },
+  { to: '/assets', labelKey: 'nav.assets', icon: <FolderIcon /> },
+  { to: '/memory', labelKey: 'nav.memory', icon: <PsychologyIcon /> },
+  { to: '/routing', labelKey: 'nav.routing', icon: <RouteIcon /> },
 ];
 
 /** 手机屏固定显示前 4 项，其余折叠进「更多」 */
@@ -31,6 +32,7 @@ const PRIMARY_COUNT = 4;
  */
 export function MobileTabBar(): JSX.Element {
   const [moreOpen, setMoreOpen] = useState(false);
+  const t = useT();
 
   const primary = TABS.slice(0, PRIMARY_COUNT);
   const overflow = TABS.slice(PRIMARY_COUNT);
@@ -49,7 +51,7 @@ export function MobileTabBar(): JSX.Element {
           }
         >
           {tab.icon}
-          <span>{tab.label}</span>
+          <span>{t(tab.labelKey)}</span>
         </NavLink>
       ))}
 
@@ -60,7 +62,7 @@ export function MobileTabBar(): JSX.Element {
           className="flex flex-col items-center justify-center gap-0.5 text-[10px] text-[#64748B]"
         >
           <MoreHorizIcon />
-          <span>更多</span>
+          <span>{t('nav.more')}</span>
         </button>
         {moreOpen && (
           <div className="absolute bottom-14 right-0 z-30 flex w-36 flex-col rounded-lg border border-[#E2E8F0] bg-white p-1 shadow-card">
@@ -76,7 +78,7 @@ export function MobileTabBar(): JSX.Element {
                 }
               >
                 {tab.icon}
-                <span>{tab.label}</span>
+                <span>{t(tab.labelKey)}</span>
               </NavLink>
             ))}
           </div>

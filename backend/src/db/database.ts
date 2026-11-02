@@ -126,6 +126,9 @@ function runMigrations(database: Database.Database): void {
   if (!assetCols.includes('description')) {
     database.exec(`ALTER TABLE assets ADD COLUMN description TEXT NOT NULL DEFAULT ''`);
   }
+  if (!assetCols.includes('description_zh')) {
+    database.exec(`ALTER TABLE assets ADD COLUMN description_zh TEXT NOT NULL DEFAULT ''`);
+  }
   if (!assetCols.includes('source')) {
     database.exec(`ALTER TABLE assets ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`);
   }

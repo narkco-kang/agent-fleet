@@ -10,6 +10,7 @@ export interface AssetRow {
   kind: AssetKind;
   name: string;
   description: string;
+  description_zh: string;
   source: AssetSource;
   content: string;
   content_type: AssetContentType;
@@ -26,6 +27,7 @@ export function rowToAsset(row: AssetRow): Asset {
     kind: row.kind,
     name: row.name,
     description: row.description ?? '',
+    descriptionZh: row.description_zh ?? '',
     source: (row.source as AssetSource) ?? 'manual',
     content: row.content,
     contentType: row.content_type,
@@ -42,6 +44,7 @@ export interface AssetCreateInput {
   kind: AssetKind;
   name: string;
   description?: string;
+  descriptionZh?: string;
   source?: AssetSource;
   content: string;
   contentType?: AssetContentType;
@@ -53,14 +56,15 @@ export function createAsset(input: AssetCreateInput): Asset {
   const now = Date.now();
   getDb()
     .prepare(
-      `INSERT INTO assets (asset_id, kind, name, description, source, content, content_type, version, tags, created_at, updated_at)
-       VALUES (@assetId, @kind, @name, @description, @source, @content, @contentType, 1, @tags, @now, @now)`,
+      `INSERT INTO assets (asset_id, kind, name, description, description_zh, source, content, content_type, version, tags, created_at, updated_at)
+       VALUES (@assetId, @kind, @name, @description, @descriptionZh, @source, @content, @contentType, 1, @tags, @now, @now)`,
     )
     .run({
       assetId: input.assetId,
       kind: input.kind,
       name: input.name,
       description: input.description ?? '',
+      descriptionZh: input.descriptionZh ?? '',
       source: input.source ?? 'manual',
       content: input.content,
       contentType: input.contentType ?? 'text',
@@ -84,6 +88,7 @@ export function updateAsset(
   patch: {
     name?: string;
     description?: string;
+    descriptionZh?: string;
     source?: AssetSource;
     content?: string;
     contentType?: AssetContentType;
@@ -99,6 +104,7 @@ export function updateAsset(
       `UPDATE assets SET
         name = @name,
         description = @description,
+        description_zh = @descriptionZh,
         source = @source,
         content = @content,
         content_type = @contentType,
@@ -111,6 +117,7 @@ export function updateAsset(
       assetId,
       name: patch.name ?? prev.name,
       description: patch.description ?? prev.description,
+      descriptionZh: patch.descriptionZh ?? prev.descriptionZh,
       source: patch.source ?? prev.source,
       content: patch.content ?? prev.content,
       contentType: patch.contentType ?? prev.contentType,

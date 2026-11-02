@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS assets (
   kind         TEXT NOT NULL,                 -- rule|knowledge|skill
   name         TEXT NOT NULL,
   description  TEXT NOT NULL DEFAULT '',      -- 概述/注释（显示在列表）
+  description_zh TEXT NOT NULL DEFAULT '',    -- 概述中文翻译
   source       TEXT NOT NULL DEFAULT 'manual',-- manual|github|imported
   content      TEXT NOT NULL DEFAULT '',
   content_type TEXT NOT NULL DEFAULT 'text',  -- text|file

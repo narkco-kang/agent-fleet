@@ -32,6 +32,13 @@ export interface GithubSkillRepo {
   topics: string[];
 }
 
+/** 仓库内子 skill（从 SKILL.md 解析） */
+export interface RepoSkill {
+  name: string;
+  description: string;
+  path: string;
+}
+
 /** 构造查询串（忽略空值） */
 function buildQuery(params: Record<string, string | undefined>): string {
   const qs = new URLSearchParams();
@@ -120,6 +127,17 @@ export const assetsApi = {
   /** 批量导入 GitHub 仓库为 skill 资产 */
   importGithubSkills: (repos: Array<{ fullName: string; description?: string; url?: string; topics?: string[] }>) =>
     post<ApiOk<{ created: Asset[]; skipped: string[] }>>('/api/skills/import', { repos }),
+
+  /** 列出仓库内具体子 skill（解析 SKILL.md） */
+  listRepoSkills: (owner: string, repo: string) =>
+    get<ApiOk<RepoSkill[]>>(`/api/skills/repo/${owner}/${repo}`),
+
+  /** 批量导入仓库内子 skill */
+  importRepoSkills: (
+    owner: string,
+    repo: string,
+    skills: Array<{ name: string; description?: string; path: string }>,
+  ) => post<ApiOk<{ created: Asset[]; skipped: string[] }>>('/api/skills/repo/import', { owner, repo, skills }),
 };
 
 export type { Asset, AssetContentType, AssetDelivery, AssetKind };

@@ -8,23 +8,24 @@ import Checkbox from '@mui/material/Checkbox';
 import type { AgentSnapshot, Asset, AssetKind, DeviceSnapshot } from '@agentfleet/shared';
 import { assetsApi, type DeliveryRequestResult } from '../../api/assets';
 import { http } from '../../api/http';
+import { useT } from '../../i18n';
 
-const KIND_LABEL: Record<AssetKind, string> = {
-  rule: '规则',
-  knowledge: '资料库',
-  skill: 'skills',
+const KIND_KEY: Record<AssetKind, string> = {
+  rule: 'assets.kind.rule',
+  knowledge: 'assets.kind.knowledge',
+  skill: 'assets.kind.skill',
 };
 
 type DeviceWithAgents = DeviceSnapshot & { agents: AgentSnapshot[] };
-
-function deviceStatusLabel(status: DeviceSnapshot['status']): string {
-  return status === 'online' ? '在线' : status === 'busy' ? '忙碌' : '离线';
-}
 
 function deviceStatusClass(status: DeviceSnapshot['status']): string {
   if (status === 'online') return 'bg-[#D1FAE5] text-[#047857]';
   if (status === 'busy') return 'bg-[#FEF3C7] text-[#B45309]';
   return 'bg-[#F1F5F9] text-[#475569]';
+}
+
+function deviceStatusKey(status: DeviceSnapshot['status']): string {
+  return status === 'online' ? 'deliver.online' : status === 'busy' ? 'deliver.busy' : 'deliver.offline';
 }
 
 /**
@@ -43,6 +44,7 @@ export function DeliverDialog({
   onClose: () => void;
   onDelivered: () => void;
 }): JSX.Element {
+  const t = useT();
   const [step, setStep] = useState<1 | 2>(1);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [devices, setDevices] = useState<DeviceWithAgents[]>([]);
@@ -95,11 +97,11 @@ export function DeliverDialog({
 
   const submit = async (): Promise<void> => {
     if (selectedAssets.size === 0) {
-      setError('请至少选择 1 个资产');
+      setError(t('deliver.needAsset'));
       return;
     }
     if (selectedDevices.size === 0) {
-      setError('请至少选择 1 台设备');
+      setError(t('deliver.needDevice'));
       return;
     }
     setBusy(true);
@@ -131,10 +133,10 @@ export function DeliverDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle className="text-[#0F172A]">资产分发</DialogTitle>
+      <DialogTitle className="text-[#0F172A]">{t('deliver.title')}</DialogTitle>
       <DialogContent>
         <div className="mt-1 flex flex-col gap-3">
-          {loading && <div className="text-sm text-[#64748B]">加载中…</div>}
+          {loading && <div className="text-sm text-[#64748B]">{t('common.loading')}</div>}
 
           {!loading && !result && (
             <>
@@ -150,7 +152,7 @@ export function DeliverDialog({
                         : 'text-[#64748B] hover:text-[#334155]'
                     }`}
                   >
-                    {s === 1 ? '1. 选择资产' : '2. 选择设备'}
+                    {s === 1 ? t('deliver.stepAssets') : t('deliver.stepDevices')}
                   </button>
                 ))}
               </div>
@@ -158,19 +160,21 @@ export function DeliverDialog({
               {step === 1 && (
                 <div>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-xs text-[#64748B]">选择资产（{selectedAssets.size}）</span>
+                    <span className="text-xs text-[#64748B]">
+                      {t('deliver.selectAssets')}（{selectedAssets.size}）
+                    </span>
                     <div className="flex gap-2">
                       <button type="button" onClick={selectAllAssets} className="text-xs text-[#4F46E5] hover:underline">
-                        全选
+                        {t('deliver.selectAll')}
                       </button>
                       <button type="button" onClick={clearAssets} className="text-xs text-[#4F46E5] hover:underline">
-                        清空
+                        {t('deliver.clear')}
                       </button>
                     </div>
                   </div>
                   <div className="max-h-64 overflow-auto rounded-md border border-[#E2E8F0]">
                     {assets.length === 0 ? (
-                      <div className="px-3 py-6 text-center text-sm text-[#94A3B8]">暂无资产</div>
+                      <div className="px-3 py-6 text-center text-sm text-[#94A3B8]">{t('deliver.noAssets')}</div>
                     ) : (
                       assets.map((a) => {
                         const checked = selectedAssets.has(a.id);
@@ -189,7 +193,7 @@ export function DeliverDialog({
                             />
                             <span className="truncate text-sm text-[#0F172A]">{a.name}</span>
                             <span className="ml-auto shrink-0 rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[10px] leading-4 text-[#64748B]">
-                              {KIND_LABEL[a.kind]} · v{a.version}
+                              {t(KIND_KEY[a.kind])} · v{a.version}
                             </span>
                           </label>
                         );
@@ -202,20 +206,22 @@ export function DeliverDialog({
               {step === 2 && (
                 <div>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-xs text-[#64748B]">选择目标设备（{selectedDevices.size}）</span>
+                    <span className="text-xs text-[#64748B]">
+                      {t('deliver.selectDevices')}（{selectedDevices.size}）
+                    </span>
                     <div className="flex gap-2">
                       <button type="button" onClick={selectAllDevices} className="text-xs text-[#4F46E5] hover:underline">
-                        全选
+                        {t('deliver.selectAll')}
                       </button>
                       <button type="button" onClick={clearDevices} className="text-xs text-[#4F46E5] hover:underline">
-                        清空
+                        {t('deliver.clear')}
                       </button>
                     </div>
                   </div>
-                  <div className="mb-2 text-xs text-[#94A3B8]">离线设备也允许选择，后端会在其上线后排队补发。</div>
+                  <div className="mb-2 text-xs text-[#94A3B8]">{t('deliver.offlineHint')}</div>
                   <div className="max-h-64 overflow-auto rounded-md border border-[#E2E8F0]">
                     {devices.length === 0 ? (
-                      <div className="px-3 py-6 text-center text-sm text-[#94A3B8]">暂无设备</div>
+                      <div className="px-3 py-6 text-center text-sm text-[#94A3B8]">{t('deliver.noDevices')}</div>
                     ) : (
                       devices.map((d) => {
                         const checked = selectedDevices.has(d.deviceId);
@@ -239,7 +245,7 @@ export function DeliverDialog({
                               </div>
                             </div>
                             <span className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] leading-4 ${deviceStatusClass(d.status)}`}>
-                              {deviceStatusLabel(d.status)}
+                              {t(deviceStatusKey(d.status))}
                             </span>
                           </label>
                         );
@@ -253,10 +259,10 @@ export function DeliverDialog({
 
           {result && (
             <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] p-3">
-              <div className="mb-1 text-sm font-semibold text-[#0F172A]">分发请求已创建，需确认执行</div>
+              <div className="mb-1 text-sm font-semibold text-[#0F172A]">{t('deliver.requestCreated')}</div>
               <div className="text-xs text-[#64748B]">{result.summary}</div>
               <div className="mt-1 text-xs text-[#64748B]">
-                状态：待确认（未确认前不会下发到设备）· 分发批次 ID：{result.deliveryId}
+                {t('deliver.pendingStatus')}：{result.deliveryId}
               </div>
             </div>
           )}
@@ -268,21 +274,21 @@ export function DeliverDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="inherit">
-          关闭
+          {t('deliver.close')}
         </Button>
         {!result && step === 1 && (
           <Button onClick={() => setStep(2)} disabled={selectedAssets.size === 0} variant="contained">
-            下一步
+            {t('deliver.next')}
           </Button>
         )}
         {!result && step === 2 && (
           <Button onClick={submit} disabled={busy || selectedDevices.size === 0} variant="contained">
-            {busy ? '提交中…' : '提交分发请求'}
+            {busy ? t('deliver.submitting') : t('deliver.submit')}
           </Button>
         )}
         {result && (
           <Button onClick={confirm} disabled={busy} variant="contained">
-            {busy ? '确认中…' : '确认执行'}
+            {busy ? t('deliver.confirming') : t('deliver.confirm')}
           </Button>
         )}
       </DialogActions>

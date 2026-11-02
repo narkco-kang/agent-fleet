@@ -17,6 +17,7 @@ export interface AssetCreateInput {
   kind: AssetKind;
   name: string;
   description?: string;
+  descriptionZh?: string;
   source?: AssetSource;
   content: string;
   contentType?: AssetContentType;
@@ -26,6 +27,7 @@ export interface AssetCreateInput {
 export interface AssetUpdateInput {
   name?: string;
   description?: string;
+  descriptionZh?: string;
   source?: AssetSource;
   content?: string;
   contentType?: AssetContentType;
@@ -54,6 +56,7 @@ export function create(input: AssetCreateInput): Asset {
     kind: input.kind,
     name: input.name,
     description: input.description ?? '',
+    descriptionZh: input.descriptionZh ?? '',
     source: normalizeSource(input.source),
     content: input.content ?? '',
     contentType: input.contentType ?? 'text',
@@ -66,6 +69,7 @@ export function update(assetId: string, patch: AssetUpdateInput): Asset | undefi
   return updateAsset(assetId, {
     name: patch.name,
     description: patch.description,
+    descriptionZh: patch.descriptionZh,
     source: patch.source === undefined ? undefined : normalizeSource(patch.source),
     content: patch.content,
     contentType: patch.contentType,

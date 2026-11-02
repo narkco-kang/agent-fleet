@@ -110,12 +110,51 @@ export async function searchGithubSkills(query?: string, limit = 20): Promise<Gi
   return out.sort((a, b) => b.stars - a.stars);
 }
 
+/**
+ * 批量翻译英文描述 → 中文（用 deepseek，DEEPSEEK_API_KEY 环境变量）。
+ * 无 key / 调用失败 / 解析失败时返回空字符串数组，不阻断导入（前端回退显示英文）。
+ */
+async function translateBatchToZh(texts: string[]): Promise<string[]> {
+  const empty = texts.map(() => '');
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) return empty;
+  const nonEmpty = texts.map((t) => t?.trim() || '');
+  if (nonEmpty.every((t) => !t)) return empty;
+  try {
+    const res = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        temperature: 0.3,
+        messages: [
+          {
+            role: 'system',
+            content: '你是翻译助手。把下面英文技术描述逐条翻译成简洁中文，只输出 JSON 字符串数组，保持顺序和条数一致，不要输出任何其它内容。',
+          },
+          { role: 'user', content: JSON.stringify(nonEmpty) },
+        ],
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) return empty;
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = data.choices?.[0]?.message?.content ?? '';
+    const m = content.match(/\[[\s\S]*\]/);
+    if (!m) return empty;
+    const arr = JSON.parse(m[0]) as unknown[];
+    return texts.map((_, i) => (typeof arr[i] === 'string' ? (arr[i] as string) : ''));
+  } catch {
+    return empty;
+  }
+}
+
 /** 批量导入 GitHub 仓库为 skill 资产（source=github，去重：同名已存在则跳过） */
-export function importGithubSkills(
+export async function importGithubSkills(
   repos: Array<{ fullName: string; description?: string; url?: string; topics?: string[] }>,
-): { created: Asset[]; skipped: string[] } {
+): Promise<{ created: Asset[]; skipped: string[] }> {
   const existing = new Set(assetService.list({ kind: 'skill' }).map((a) => a.name));
-  const created: Asset[] = [];
+  const toImport: Array<{ fullName: string; description?: string; url?: string; topics?: string[] }> = [];
   const skipped: string[] = [];
 
   for (const repo of repos) {
@@ -125,19 +164,165 @@ export function importGithubSkills(
       skipped.push(fullName);
       continue;
     }
+    toImport.push(repo);
+  }
+
+  // 批量翻译描述（失败则 descriptionZh 留空，前端回退英文）
+  const zh = await translateBatchToZh(toImport.map((r) => r.description ?? ''));
+
+  const created: Asset[] = [];
+  for (let i = 0; i < toImport.length; i++) {
+    const repo = toImport[i];
     const asset = assetService.create({
       kind: 'skill',
-      name: fullName,
+      name: repo.fullName,
       description: repo.description ?? '',
+      descriptionZh: zh[i] ?? '',
       source: 'github',
       // content 存仓库地址 + 说明，作为 skill 的引用元数据
       content: JSON.stringify(
-        { repo: fullName, url: repo.url ?? `https://github.com/${fullName}` },
+        { repo: repo.fullName, url: repo.url ?? `https://github.com/${repo.fullName}` },
         null,
         2,
       ),
       contentType: 'text',
       tags: ['github', ...(repo.topics ?? []).slice(0, 5)],
+    });
+    existing.add(repo.fullName);
+    created.push(asset);
+  }
+
+  return { created, skipped };
+}
+
+/** 仓库内子 skill（从 SKILL.md frontmatter 解析） */
+export interface RepoSkill {
+  name: string;
+  description: string;
+  path: string;
+}
+
+/** 解析 SKILL.md 的 frontmatter 字段（name / description，兼容 YAML 块语法 > / | / |-） */
+function parseSkillFrontmatter(content: string): { name: string; description: string } {
+  const name = content.match(/^name:\s*["']?([^"'\r\n]+)["']?/m)?.[1]?.trim() ?? '';
+  let description = '';
+  const descLine = content.match(/^description:\s*(.*)$/m)?.[1]?.trim() ?? '';
+  if (descLine && !['>', '|', '|-', '>-' ].includes(descLine)) {
+    description = descLine.replace(/^["']|["']$/g, '');
+  } else if (['>', '|', '|-', '>-' ].includes(descLine)) {
+    // YAML 块语法：取 description 后缩进的整段，折叠为单行
+    const block = content.match(/^description:\s*(?:>|\||\|-|>-)\s*\r?\n([\s\S]*?)(?=\r?\n\S|\r?\n---|$)/m);
+    if (block) {
+      description = block[1]
+        .replace(/^\s+/gm, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+  }
+  return { name, description };
+}
+
+/**
+ * 抓取仓库内具体子 skill（如 anthropics/skills 的每个子目录 = 一个 skill）。
+ * 用 git trees API 递归获取整个文件树，找到所有 SKILL.md，解析其 frontmatter。
+ */
+export async function listRepoSkills(owner: string, repo: string): Promise<RepoSkill[]> {
+  const token = getGithubToken();
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'agentfleet',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  // 先取默认分支
+  let branch = 'main';
+  try {
+    const metaRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (metaRes.ok) {
+      const meta = (await metaRes.json()) as { default_branch?: string };
+      if (meta.default_branch) branch = meta.default_branch;
+    }
+  } catch {
+    /* 用默认 main 兜底 */
+  }
+
+  // git trees 递归拿整个文件树
+  const treeRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+    { headers, signal: AbortSignal.timeout(20_000) },
+  );
+  if (!treeRes.ok) {
+    throw new Error(`GitHub API ${treeRes.status}`);
+  }
+  const treeData = (await treeRes.json()) as {
+    tree?: Array<{ path: string; type: string }>;
+  };
+  const skillMdPaths = (treeData.tree ?? [])
+    .filter((it) => it.type === 'blob' && /SKILL\.md$/i.test(it.path))
+    .slice(0, 60);
+
+  const skills: RepoSkill[] = [];
+  for (const item of skillMdPaths) {
+    // 父目录 = skill 路径
+    const dirPath = item.path.replace(/\/SKILL\.md$/i, '');
+    try {
+      const skillRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(item.path)}`,
+        { headers, signal: AbortSignal.timeout(10_000) },
+      );
+      if (!skillRes.ok) continue;
+      const skillData = (await skillRes.json()) as { content?: string };
+      if (!skillData.content) continue;
+      const content = Buffer.from(skillData.content, 'base64').toString('utf-8');
+      const { name, description } = parseSkillFrontmatter(content);
+      if (name || description) {
+        skills.push({ name: name || dirPath.split('/').pop() || dirPath, description, path: dirPath });
+      }
+    } catch {
+      /* 单个 SKILL.md 抓取失败跳过 */
+    }
+  }
+
+  return skills;
+}
+
+/** 批量导入仓库内子 skill 为资产（name = `${owner}/${repo}/${path}`，去重） */
+export async function importRepoSkills(
+  owner: string,
+  repo: string,
+  skills: Array<{ name: string; description?: string; path: string }>,
+): Promise<{ created: Asset[]; skipped: string[] }> {
+  const prefix = `${owner}/${repo}`;
+  const existing = new Set(assetService.list({ kind: 'skill' }).map((a) => a.name));
+  const toImport = skills.filter((s) => {
+    const fullName = `${prefix}/${s.path}`;
+    return !existing.has(fullName);
+  });
+  const skipped = skills.filter((s) => existing.has(`${prefix}/${s.path}`)).map((s) => `${prefix}/${s.path}`);
+
+  const zh = await translateBatchToZh(toImport.map((s) => s.description ?? ''));
+
+  const created: Asset[] = [];
+  for (let i = 0; i < toImport.length; i++) {
+    const s = toImport[i];
+    const fullName = `${prefix}/${s.path}`;
+    const asset = assetService.create({
+      kind: 'skill',
+      name: fullName,
+      description: s.description ?? '',
+      descriptionZh: zh[i] ?? '',
+      source: 'github',
+      content: JSON.stringify(
+        { repo: prefix, path: s.path, url: `https://github.com/${prefix}/tree/main/${s.path}` },
+        null,
+        2,
+      ),
+      contentType: 'text',
+      tags: ['github', 'sub-skill'],
     });
     existing.add(fullName);
     created.push(asset);
