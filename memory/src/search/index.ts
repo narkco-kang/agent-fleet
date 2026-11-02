@@ -4,4 +4,5 @@
 export * from './tokenize';
 export * from './bm25';
 export * from './scrub';
+export * from './similarity';
 export * from './memory-index';

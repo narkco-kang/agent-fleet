@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { tokenize } from '../src/search/tokenize';
 import { Bm25Index } from '../src/search/bm25';
 import { scrubSecrets, hasSecret } from '../src/search/scrub';
+import { jaccard, findSimilar } from '../src/search/similarity';
 import { MemorySearchIndex, changeText } from '../src/search/memory-index';
 import type { MemoryChange } from '../src/types/block';
 
@@ -102,5 +103,35 @@ describe('MemorySearchIndex', () => {
     idx.add(change('t2', '生成季度营收图表'));
     const hits = idx.search('登录超时', 10);
     expect(hits[0]?.change.id).toBe('t1');
+  });
+
+  it('findSimilar detects near-duplicates', () => {
+    const idx = new MemorySearchIndex();
+    idx.add(change('t1', '修复登录超时的 bug'));
+    idx.add(change('t2', '生成季度营收图表'));
+    const similar = idx.findSimilar('修复登录超时的问题', 0.6, 5);
+    expect(similar[0]?.item.id).toBe('t1');
+  });
+});
+
+describe('similarity', () => {
+  it('jaccard scores identical text high', () => {
+    expect(jaccard('修复登录超时', '修复登录超时')).toBeGreaterThan(0.9);
+  });
+
+  it('jaccard scores unrelated text low', () => {
+    expect(jaccard('修复登录超时', '生成季度营收')).toBeLessThan(0.3);
+  });
+
+  it('findSimilar filters by threshold', () => {
+    const hits = findSimilar(
+      '修复登录超时',
+      [
+        { item: 1, text: '修复登录超时的 bug' },
+        { item: 2, text: '生成季度营收图表' },
+      ],
+      0.5,
+    );
+    expect(hits.map((h) => h.item)).toEqual([1]);
   });
 });

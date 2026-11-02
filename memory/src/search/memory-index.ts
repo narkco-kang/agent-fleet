@@ -7,6 +7,7 @@
 import type { MemoryChange } from '../types';
 import { Bm25Index, type SearchHit } from './bm25';
 import { tokenize } from './tokenize';
+import { findSimilar, type SimilarHit } from './similarity';
 
 /** 提取 change 的可检索文本（target + note + node 的 label/note/source）。 */
 export function changeText(change: MemoryChange): string {
@@ -57,6 +58,18 @@ export class MemorySearchIndex {
   rebuild(changes: MemoryChange[]): void {
     this.changes.clear();
     for (const c of changes) this.add(c);
+  }
+
+  /**
+   * 相似记忆检测：找与 query 文本 Jaccard 相似度 >= threshold 的 change。
+   * 用于写入前近重复提示 + 相似记忆推荐（借鉴 AgentMemory 的 similarTo）。
+   */
+  findSimilar(query: string, threshold = 0.6, limit = 5): SimilarHit<MemoryChange>[] {
+    const candidates = Array.from(this.changes.values()).map((c) => ({
+      item: c,
+      text: changeText(c),
+    }));
+    return findSimilar(query, candidates, threshold, limit);
   }
 
   size(): number {

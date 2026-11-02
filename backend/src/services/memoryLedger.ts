@@ -130,6 +130,14 @@ class MemoryLedgerService {
     }));
   }
 
+  /** 相似记忆：找与给定文本 Jaccard 相似度 >= threshold 的历史记录（近重复/推荐）。 */
+  findSimilar(text: string, threshold = 0.6, limit = 5): Array<{ change: MemoryChange; score: number }> {
+    return this.searchIndex.findSimilar(text, threshold, limit).map((h) => ({
+      change: h.item,
+      score: h.score,
+    }));
+  }
+
   /** 供测试/诊断生成一条任意 change（随机 uuid，不幂等）。 */
   async recordChange(op: MemoryChange['op'], note: string, status?: string): Promise<Block | null> {
     const change: MemoryChange = {

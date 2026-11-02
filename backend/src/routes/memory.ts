@@ -19,4 +19,18 @@ export function registerMemoryRoutes(app: FastifyInstance): void {
       return { ok: true, data: memoryLedger.search(q, limit) };
     },
   );
+
+  /** 相似记忆：近重复检测 / 相似推荐（借鉴 AgentMemory 的 similarTo）。 */
+  app.get<{ Querystring: { text?: string; threshold?: string; limit?: string } }>(
+    '/api/memory/similar',
+    async (req, reply) => {
+      const text = req.query.text?.trim();
+      if (!text) {
+        return reply.code(400).send({ ok: false, error: 'text required' });
+      }
+      const threshold = Math.min(Math.max(Number(req.query.threshold ?? 0.6) || 0.6, 0.1), 0.95);
+      const limit = Math.min(Math.max(Number(req.query.limit ?? 5) || 5, 1), 20);
+      return { ok: true, data: memoryLedger.findSimilar(text, threshold, limit) };
+    },
+  );
 }
