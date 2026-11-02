@@ -4,6 +4,11 @@ import { detectPlatform } from './detector.js';
 import type { PlatformDef } from './platformCatalog.js';
 import { runCli } from './cliRunner.js';
 
+/** 随机高位端口（避开知名端口与桌面应用常用固定端口段） */
+function randomHighPort(): number {
+  return 40000 + Math.floor(Math.random() * 15000);
+}
+
 /**
  * 通用 Adapter（数据驱动）：从 platformCatalog 读取探测 + 执行配置。
  * - detect：自动检测本机是否安装 + 版本 + 可执行路径
@@ -36,6 +41,22 @@ export class CatalogAdapter implements Adapter {
     };
   }
 
+  /**
+   * 展开参数模板。
+   *
+   * 支持的占位符：
+   * - `{prompt}`：任务文本
+   * - `{port}`：随机高位端口。某些 CLI（如 codebuddy）默认绑一个固定端口，
+   *   只要同名桌面应用在运行就会 EADDRINUSE 启动失败，必须每次给一个端口。
+   */
+  private buildArgs(template: string[], prompt: string): string[] {
+    return template.map((arg) => {
+      if (arg === '{prompt}') return prompt;
+      if (arg === '{port}') return String(randomHighPort());
+      return arg;
+    });
+  }
+
   async run(task: TaskSubmit, sink: AdapterEventSink): Promise<AdapterRunHandle> {
     const spec = this.def.runSpec;
 
@@ -66,7 +87,7 @@ export class CatalogAdapter implements Adapter {
     }
 
     // 真接：统一 CLI 生命周期（start→stream→terminal + 故障归因）
-    const args = spec.args.map((a) => (a === '{prompt}' ? task.prompt : a));
+    const args = this.buildArgs(spec.args, task.prompt);
     const handle = runCli({
       taskId: task.taskId,
       cmd: detection.executable,
