@@ -8,6 +8,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import RouteIcon from '@mui/icons-material/Route';
 import FolderIcon from '@mui/icons-material/Folder';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 
 const TABS = [
@@ -18,6 +19,7 @@ const TABS = [
   { to: '/deploy', label: '部署', icon: <CloudUploadIcon /> },
   { to: '/platform-models', label: '平台模型', icon: <ExtensionIcon /> },
   { to: '/assets', label: '资产', icon: <FolderIcon /> },
+  { to: '/memory', label: '记忆', icon: <PsychologyIcon /> },
   { to: '/routing', label: '路由网关', icon: <RouteIcon /> },
 ];
 

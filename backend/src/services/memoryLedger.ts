@@ -179,6 +179,57 @@ class MemoryLedgerService {
     }));
   }
 
+  /**
+   * 记忆整合（借鉴 AgentMemory 四层整合的 Semantic 层）：
+   * 从 append-only 的 change 流水提炼「统计事实」——成功率、按 agent/设备/状态的分布、失败教训。
+   * 让记忆从「流水账」变成「可复用、可洞察」。
+   */
+  async consolidate(): Promise<{
+    total: number;
+    completed: number;
+    failed: number;
+    successRate: number | null;
+    byStatus: Record<string, number>;
+    byAgent: Record<string, number>;
+    byDevice: Record<string, number>;
+    recent: Array<{ note: string; status?: string; at: string }>;
+    lessons: Array<{ note: string; at: string }>;
+  }> {
+    const doc = await this.ledger.load();
+    const changes = doc.blocks.flatMap((b) => b.changes);
+    const byStatus: Record<string, number> = {};
+    const byAgent: Record<string, number> = {};
+    const byDevice: Record<string, number> = {};
+    let completed = 0;
+    let failed = 0;
+    for (const c of changes) {
+      if (c.status) byStatus[c.status] = (byStatus[c.status] ?? 0) + 1;
+      if (c.status === 'completed') completed += 1;
+      else if (c.status === 'failed') failed += 1;
+      // note 前缀约定 "agentType@deviceId ..."，解析出 agent/设备维度
+      const m = /^([^@\s]+)@(\S+)\s/.exec(c.note);
+      if (m) {
+        byAgent[m[1]!] = (byAgent[m[1]!] ?? 0) + 1;
+        byDevice[m[2]!] = (byDevice[m[2]!] ?? 0) + 1;
+      }
+    }
+    const done = completed + failed;
+    return {
+      total: changes.length,
+      completed,
+      failed,
+      successRate: done > 0 ? completed / done : null,
+      byStatus,
+      byAgent,
+      byDevice,
+      recent: changes.slice(-10).map((c) => ({ note: c.note, status: c.status, at: c.at })),
+      lessons: changes
+        .filter((c) => c.status === 'failed')
+        .slice(-5)
+        .map((c) => ({ note: c.note, at: c.at })),
+    };
+  }
+
   /** 混合检索：BM25 + 相似度 RRF 融合（更鲁棒，召回措辞不同但语义相似）。 */
   hybridSearch(query: string, limit = 10): Array<{ change: MemoryChange; score: number }> {
     return this.searchIndex.hybridSearch(query, limit).map((h) => ({

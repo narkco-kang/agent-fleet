@@ -7,6 +7,9 @@ import { memoryLedger } from '../services/memoryLedger.js';
 export function registerMemoryRoutes(app: FastifyInstance): void {
   app.get('/api/memory/summary', async () => memoryLedger.summary());
 
+  /** 记忆整合洞察：从账本 change 提炼统计事实（成功率、按 agent/设备分布、失败教训）。 */
+  app.get('/api/memory/facts', async () => memoryLedger.consolidate());
+
   /** 诊断/测试：直接写入一条 change 并出块（用于验证同步链路，不依赖任务执行）。 */
   app.post<{ Body: { note?: string; status?: string } }>(
     '/api/memory/record',

@@ -12,6 +12,7 @@ const DeployPage = lazy(() => import('./pages/DeployPage'));
 const PlatformModelsPage = lazy(() => import('./pages/PlatformModelsPage'));
 const RoutingGatewayPage = lazy(() => import('./pages/RoutingGatewayPage'));
 const AssetsPage = lazy(() => import('./pages/AssetsPage'));
+const MemoryPage = lazy(() => import('./pages/MemoryPage'));
 
 /**
  * 应用根组件：路由挂载。页面按路由懒加载（code-split），减小首屏主包体积。
@@ -37,6 +38,7 @@ export default function App(): JSX.Element {
           <Route path="/platform-models" element={<PlatformModelsPage />} />
           <Route path="/routing" element={<RoutingGatewayPage />} />
           <Route path="/assets" element={<AssetsPage />} />
+          <Route path="/memory" element={<MemoryPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
