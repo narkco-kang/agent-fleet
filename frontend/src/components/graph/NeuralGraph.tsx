@@ -1,30 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  forceSimulation,
-  forceLink,
-  forceManyBody,
-  forceCenter,
-  forceCollide,
-  type Simulation,
-} from 'd3-force';
 import { useGraphData, type GraphNode, type GraphLink } from '../../hooks/useGraphData';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { GraphLegend } from './GraphLegend';
 import { GraphLinks, ArrowMarkers, layoutLinks } from './GraphLink';
 import { FlowParticles } from './FlowParticle';
 import { NodeShape } from './GraphNode';
+import { computeFlowLayout } from './flowLayout';
 import type { NodeLens } from './GraphToolbar';
 import type { DetailTarget } from '../drawer/DetailDrawer';
 
 /**
- * 动态神经图（d3-force）——核心主视觉。
+ * 智能体流程图（确定性三层泳道布局，替代 d3-force 力导向）。
  *
- * 四类节点：设备圆 / agent 圆角方 / 任务菱形 / 消息流光点。
- * 四类连线：call / return / stream / belongs。
- * 动画：脉冲（在线设备/运行中任务）、流动光点（stream）、入场上浮、聚焦高亮。
- * 交互：缩放 0.3×–4×、拖拽、悬停 Tooltip、点击聚焦+邻接高亮、空白复位、图例。
- * 深化交互（增量叠加）：透镜 Lens（节点 type 维度）、路径漫游（任务节点沿 call/stream 逐跳）。
- * <768px 降级只读（仅缩放/悬停）。
+ * 三层泳道：设备(左) → agent(中) → 任务(右)。
+ * 位置完全确定：数据刷新不抖动、连线不交叉乱窜，一眼看清「任务流向哪个 agent、哪些在处理、哪里有问题」。
+ *
+ * 动画：脉冲（在线设备/运行中任务）、流动粒子（call 橙=下发 / stream 青=回流）、聚焦高亮。
+ * 交互：缩放 0.2×–2×、平移、悬停 Tooltip、点击聚焦+邻接高亮、空白复位、图例、透镜、路径漫游。
+ * 流程图模式下禁用节点拖拽（保持确定性布局）。
  */
 
 export type SimNode = GraphNode & {
@@ -52,7 +45,6 @@ export function NeuralGraph({
   const { isMobile } = useBreakpoint();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const simRef = useRef<Simulation<SimNode, SimLink> | null>(null);
   const [nodes, setNodes] = useState<SimNode[]>([]);
   const [links, setLinks] = useState<SimLink[]>([]);
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
@@ -62,15 +54,14 @@ export function NeuralGraph({
   const [walkPath, setWalkPath] = useState<SimLink[]>([]);
   const [walkHop, setWalkHop] = useState(0);
 
-  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const panRef = useRef<{ x: number; y: number; k: number; startX: number; startY: number } | null>(null);
-  // 节点位置缓存：数据刷新时复用旧坐标，避免节点跳回随机位置（防抖动关键）
-  const posRef = useRef<Map<string, { x: number; y: number }>>(new Map());
-  // 结构签名缓存：节点/连线 id 集合，判断是否真正需要重建仿真
+  // 结构签名缓存：节点/连线 id 集合，判断是否需要重新布局
   const structureKeyRef = useRef<string>('');
+  // 初始视角已适配标记：首次布局后居中+缩放一次，之后交给用户
+  const viewFittedRef = useRef(false);
 
-  // 初始化 / 更新力导向仿真。
-  // 结构（节点/连线 id 集合）未变时只同步节点属性，不重建仿真 → 消除周期性跳动。
+  // 确定性流程图布局。
+  // 结构（节点/连线 id 集合）未变时只同步节点属性，不重新布局 → 彻底消除跳动。
   useEffect(() => {
     const w = containerRef.current?.clientWidth ?? 800;
     const h = containerRef.current?.clientHeight ?? 600;
@@ -79,64 +70,48 @@ export function NeuralGraph({
     const linkIds = data.links.map((l) => l.id).sort().join('\u0001');
     const structureKey = nodeIds + '\u0002' + linkIds;
 
-    // 结构未变：仅同步节点 data 属性（状态/负载等），保留坐标，不重启力模拟
-    const prevSim = simRef.current;
-    if (prevSim && structureKeyRef.current === structureKey) {
-      const simNodes = prevSim.nodes() as SimNode[];
+    // 结构未变：仅同步节点 data 属性（状态/负载等），保留坐标
+    if (structureKeyRef.current === structureKey && structureKeyRef.current !== '') {
       const fresh = new Map<string, GraphNode>(data.nodes.map((n) => [n.id, n]));
-      for (const sn of simNodes) {
-        const f = fresh.get(sn.id);
-        if (f) {
-          const { x, y, vx, vy } = sn;
-          Object.assign(sn, f, { x, y, vx, vy });
-        }
-      }
-      setNodes([...simNodes]);
+      setNodes((prev) =>
+        prev.map((sn) => {
+          const f = fresh.get(sn.id);
+          if (!f) return sn;
+          return { ...f, x: sn.x, y: sn.y, vx: 0, vy: 0 } as SimNode;
+        }),
+      );
+      setLinks(data.links.map((l) => ({ ...l })));
       return;
     }
     structureKeyRef.current = structureKey;
 
-    // 结构变化：重建仿真，复用已有坐标；新节点才随机初始化
+    // 结构变化：重新计算确定性布局
+    const layout = computeFlowLayout(data.nodes);
     const simNodes: SimNode[] = data.nodes.map((n) => {
-      const prev = posRef.current.get(n.id);
-      return prev
-        ? { ...n, x: prev.x, y: prev.y, vx: 0, vy: 0 }
-        : { ...n, x: w / 2 + (Math.random() - 0.5) * 200, y: h / 2 + (Math.random() - 0.5) * 200, vx: 0, vy: 0 };
+      const p = layout.positions.get(n.id) ?? { x: w / 2, y: h / 2 };
+      return { ...n, x: p.x, y: p.y, vx: 0, vy: 0 };
     });
     const simLinks: SimLink[] = data.links.map((l) => ({ ...l }));
 
-    const simulation = forceSimulation<SimNode>(simNodes)
-      .force(
-        'link',
-        forceLink<SimNode, SimLink>(simLinks)
-          .id((d) => d.id)
-          .distance((l) => (l.kind === 'belongs' ? 70 : 110))
-          .strength((l) => (l.kind === 'belongs' ? 0.4 : 0.7)),
-      )
-      .force('charge', forceManyBody().strength(-220))
-      .force('center', forceCenter(w / 2, h / 2))
-      .force('collide', forceCollide<SimNode>().radius((d) => (d.type === 'device' ? 34 : 24)))
-      // 低初始 alpha + 更快衰减：新增节点时只做轻微微调，迅速收敛
-      .alpha(0.35)
-      .alphaDecay(0.08);
-
-    simulation.on('tick', () => {
-      // 回写位置缓存，供下次数据刷新复用
-      for (const n of simNodes) posRef.current.set(n.id, { x: n.x, y: n.y });
-      setNodes([...simNodes]);
-      setLinks([...simLinks]);
-    });
-
-    simRef.current = simulation;
     setNodes(simNodes);
     setLinks(simLinks);
 
-    return () => {
-      simulation.stop();
-    };
+    // 首次布局后：内容居中 + 缩放适配，之后交给用户手动缩放
+    if (!viewFittedRef.current) {
+      viewFittedRef.current = true;
+      const margin = 48;
+      // 延迟一帧：h-full 容器首次渲染可能尚未测量到真实尺寸
+      requestAnimationFrame(() => {
+        const cw = containerRef.current?.clientWidth ?? w;
+        const ch = containerRef.current?.clientHeight ?? h;
+        const raw = Math.min(1, (cw - margin * 2) / layout.width, (ch - margin * 2) / layout.height);
+        const k = Math.max(0.25, Math.min(1, raw));
+        setTransform({ x: (cw - layout.width * k) / 2, y: (ch - layout.height * k) / 2, k });
+      });
+    }
   }, [data]);
 
-  // 节点坐标存取
+  // 节点坐标索引
   const nodeMap = useMemo(() => {
     const m = new Map<string, SimNode>();
     for (const n of nodes) m.set(n.id, n);
@@ -159,7 +134,7 @@ export function NeuralGraph({
   // 路径漫游：当前 hop 的连线 id
   const walkActiveId = walk && walkPath.length > 0 ? walkPath[walkHop % walkPath.length]?.id ?? null : null;
 
-  // 路径漫游节点集（用于弱化无关节点）
+  // 路径漫游节点集（弱化无关节点）
   const walkNodeIds = useMemo(() => {
     if (!walk || walkPath.length === 0) return null;
     const set = new Set<string>(focus ? [focus] : []);
@@ -188,7 +163,7 @@ export function NeuralGraph({
 
   // 缩放
   const onWheel = (e: React.WheelEvent): void => {
-    const next = Math.max(0.3, Math.min(4, transform.k * (e.deltaY < 0 ? 1.1 : 0.9)));
+    const next = Math.max(0.2, Math.min(2, transform.k * (e.deltaY < 0 ? 1.1 : 0.9)));
     setTransform({ ...transform, k: next });
   };
 
@@ -204,27 +179,9 @@ export function NeuralGraph({
       const dy = e.clientY - panRef.current.startY;
       setTransform({ ...panRef.current, x: panRef.current.x + dx, y: panRef.current.y + dy });
     }
-    if (dragRef.current) {
-      const n = nodeMap.get(dragRef.current.id);
-      if (n) {
-        n.x = e.clientX - dragRef.current.dx;
-        n.y = e.clientY - dragRef.current.dy;
-        setNodes([...nodes]);
-      }
-    }
   };
   const onPointerUp = (): void => {
     panRef.current = null;
-    dragRef.current = null;
-  };
-
-  // 节点拖拽
-  const startNodeDrag = (e: React.PointerEvent, node: GraphNode): void => {
-    if (isMobile) return; // 移动端只读，隐藏拖拽
-    const n = nodeMap.get(node.id);
-    if (!n) return;
-    dragRef.current = { id: node.id, dx: e.clientX - n.x, dy: e.clientY - n.y };
-    e.stopPropagation();
   };
 
   // 悬停 tooltip
@@ -290,7 +247,10 @@ export function NeuralGraph({
                 e.stopPropagation();
                 clickNode(n);
               }}
-              onPointerDown={(e) => startNodeDrag(e, n)}
+              onPointerDown={() => {
+                /* 流程图确定性布局：禁用节点拖拽 */
+                if (isMobile) return;
+              }}
             />
           ))}
         </g>
@@ -303,7 +263,7 @@ export function NeuralGraph({
       {tooltip && (
         <div
           className="pointer-events-none fixed z-30 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs shadow-lg"
-          style={{ left: tooltip.x + 14, top: tooltip.y + 14, maxWidth: 220 }}
+          style={{ left: tooltip.x + 14, top: tooltip.y + 14, maxWidth: 240 }}
         >
           <NodeTooltip node={tooltip.node} />
         </div>

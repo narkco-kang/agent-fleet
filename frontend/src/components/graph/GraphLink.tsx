@@ -1,5 +1,6 @@
 import type { SimNode } from './NeuralGraph';
 import type { GraphLinkKind, GraphLink } from '../../hooks/useGraphData';
+import { NODE_SIZE } from './flowLayout';
 
 /**
  * 连线渲染（04 §4.3）：
@@ -31,13 +32,41 @@ export function layoutLinks(
     const t = typeof l.target === 'string' ? nodeMap.get(l.target) : l.target;
     if (!s || !t) continue;
     const trace = walkActiveId != null && l.id === walkActiveId;
+    // 端点偏移到卡片边缘，避免箭头/粒子被卡片遮挡
+    const ss = NODE_SIZE[s.type] ?? { hw: 6, hh: 6 };
+    const ts = NODE_SIZE[t.type] ?? { hw: 6, hh: 6 };
+    let x1 = s.x;
+    let y1 = s.y;
+    let x2 = t.x;
+    let y2 = t.y;
+    const dx = t.x - s.x;
+    const dy = t.y - s.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // 水平连线
+      if (dx >= 0) {
+        x1 = s.x + ss.hw;
+        x2 = t.x - ts.hw;
+      } else {
+        x1 = s.x - ss.hw;
+        x2 = t.x + ts.hw;
+      }
+    } else {
+      // 垂直连线
+      if (dy >= 0) {
+        y1 = s.y + ss.hh;
+        y2 = t.y - ts.hh;
+      } else {
+        y1 = s.y - ss.hh;
+        y2 = t.y + ts.hh;
+      }
+    }
     out.push({
       id: l.id,
       kind: l.kind,
-      x1: s.x,
-      y1: s.y,
-      x2: t.x,
-      y2: t.y,
+      x1,
+      y1,
+      x2,
+      y2,
       dimmed: !!adjacent && focus !== null && !(adjacent.has(s.id) && adjacent.has(t.id)) && !trace,
       active: trace || !focus || !!(adjacent?.has(s.id) && adjacent.has(t.id)),
       trace,
