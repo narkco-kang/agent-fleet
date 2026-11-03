@@ -19,20 +19,31 @@ AgentFleet 是一个**可自托管的跨设备智能体协同层**。它不造�
   <img src="docs/images/overview.zh-CN.png" alt="AgentFleet 一图看懂——跨设备容错、增量部署、共享记忆" width="860">
 </div>
 
+## 🎬 演示视频
+
+<div align="center">
+  <img src="docs/demo/demo.gif" alt="AgentFleet 演示——神经图、任务下发、提示词库、部署" width="860">
+</div>
+
+> 基于真实协调器录制：神经图 → 提交任务 → 任务流转 → 提示词库 → 批量部署目录。WebM 源：[`docs/demo/demo.webm`](docs/demo/demo.webm)。
+
 ## ✨ 功能特性
 
 | 能力 | 说明 |
 |---|---|
 | **跨设备调度** | 数据驱动的适配器目录自动探测 14 种 AI agent 平台；统一任务协议（下发 / 流式 / 取消） |
-| **动态神经图** | d3-force 拓扑：4 类节点（设备 / agent / 任务 / 消息流）+ 4 类连线（调用 / 返回 / 流式 / 归属），脉冲 / 流动 / 聚焦动画 |
+| **动态神经图** | 确定性三层泳道流程图（设备 → agent → 任务）：带文字标签的卡片节点，橙色/青色流动粒子表示任务下发/回流，忙碌/异常脉冲环 |
 | **跨设备记忆账本** | 追加式哈希链 + Merkle 树 + Ed25519 签名——出块广播到所有设备，断线补同步 + 漏块补同步 + 篡改拒收；BM25 语义检索 |
+| **记忆健壮性** | 单蜂群与跨蜂群上下文断裂不丢记忆：设备重启、断连、长时间离线（50+ 块）、篡改均保持记忆完整——由 `memory/tests/resilience.test.ts` 验证 |
 | **智能路由网关** | 内置 modelgateway 工作区，提供 OpenAI 兼容接口；角色路由（角色 → 设备 + agent + 模型）+ 故障转移 + token 台账 |
-| **Excel 批量部署** | 上传 Excel（设备 IP / 账号 / 密码 / SSH 端口），按目标 OS 自动选择 npm / pipx / brew / winget / PowerShell 安装方式并验证 |
+| **Excel 批量部署** | 上传 Excel（设备 IP / 账号 / 密码 / SSH 端口），自动探测目标 OS、引导安装 Node.js/pipx，再按 npm / pipx / brew / winget 装 agent 并验证——已在真实 Ubuntu + Windows 服务器验证 |
 | **一键卸载** | 按 OS × 平台生成卸载脚本（npm / pipx / brew / winget），卸载后验证命令确实不存在，同样需人工确认 |
 | **部署即用** | 部署时可指定 deviceId + 平台模型，成功即把「设备 + agent」绑定到路由网关模型 |
 | **平台模型故障切换** | 为设备 agent 配置主模型 + 兜底；主模型故障自动切换兜底、全失败降级本地，支持手动切换/恢复 |
 | **按设备团队模式** | 每台设备可绑定不同团队（A=软件开发团队、B=内容专家团队），任务 `target.mode='team'` 只在该团队设备上路由 |
-| **资产分发** | 规则 / 资料库 / skills 统一 Asset 模型，批量或单设备下发 |
+| **资产分发** | 规则 / 资料库 / skills / 提示词统一 Asset 模型，批量或单设备下发 |
+| **提示词库** | 实时抓取 GitHub 上订阅/星最多的提示词集合（如 `f/prompts.chat` 17.5 万星），解析具体提示词 + 中英文注释，批量分发到蜂群 |
+| **Skills 库** | 实时抓取 GitHub 最多星 skills，展开仓库导入具体 `SKILL.md`，含中英文注释 |
 | **专家团队 & Loop** | 为单 / 跨设备分配专家团队（角色路由），编排单 / 批量 / 跨设备 loop |
 | **主 AI agent** | 单 / 批量设备设置主 agent，auto 路由优先使用 |
 | **免费源评级探测** | 直连 Kilo / OpenCode 做真实 chat 探测，按优/中/差评级，只保留优与中 |
@@ -68,7 +79,7 @@ AgentFleet 可以**一键部署 / 卸载 / 发现 / 路由多个 agent 平台**�
 | Kimi CLI | npm | ✅ | ✅ | 骨架 |
 | OpenCode | npm | ✅ | ✅ | 骨架 |
 | Windsurf | macOS brew / Windows winget | ✅ | ✅ | 骨架 |
-| WorkBuddy (CodeBuddy) | 手动验证 | ✅ | ✅ | ✅ cli-text（待实机验证） |
+| WorkBuddy | 手动验证 | ✅ | ✅ | ✅ cli-text（待实机验证） |
 
 完整能力矩阵见 [`docs/17-Agent平台安装卸载与调用矩阵.md`](docs/17-Agent平台安装卸载与调用矩阵.md)。
 
