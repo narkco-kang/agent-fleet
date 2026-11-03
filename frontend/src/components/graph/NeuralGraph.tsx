@@ -64,13 +64,45 @@ export function NeuralGraph({
 
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const panRef = useRef<{ x: number; y: number; k: number; startX: number; startY: number } | null>(null);
+  // 节点位置缓存：数据刷新时复用旧坐标，避免节点跳回随机位置（防抖动关键）
+  const posRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // 结构签名缓存：节点/连线 id 集合，判断是否真正需要重建仿真
+  const structureKeyRef = useRef<string>('');
 
-  // 初始化 / 更新力导向仿真
+  // 初始化 / 更新力导向仿真。
+  // 结构（节点/连线 id 集合）未变时只同步节点属性，不重建仿真 → 消除周期性跳动。
   useEffect(() => {
     const w = containerRef.current?.clientWidth ?? 800;
     const h = containerRef.current?.clientHeight ?? 600;
 
-    const simNodes: SimNode[] = data.nodes.map((n) => ({ ...n, x: w / 2 + (Math.random() - 0.5) * 200, y: h / 2 + (Math.random() - 0.5) * 200, vx: 0, vy: 0 }));
+    const nodeIds = data.nodes.map((n) => n.id).sort().join('\u0001');
+    const linkIds = data.links.map((l) => l.id).sort().join('\u0001');
+    const structureKey = nodeIds + '\u0002' + linkIds;
+
+    // 结构未变：仅同步节点 data 属性（状态/负载等），保留坐标，不重启力模拟
+    const prevSim = simRef.current;
+    if (prevSim && structureKeyRef.current === structureKey) {
+      const simNodes = prevSim.nodes() as SimNode[];
+      const fresh = new Map<string, GraphNode>(data.nodes.map((n) => [n.id, n]));
+      for (const sn of simNodes) {
+        const f = fresh.get(sn.id);
+        if (f) {
+          const { x, y, vx, vy } = sn;
+          Object.assign(sn, f, { x, y, vx, vy });
+        }
+      }
+      setNodes([...simNodes]);
+      return;
+    }
+    structureKeyRef.current = structureKey;
+
+    // 结构变化：重建仿真，复用已有坐标；新节点才随机初始化
+    const simNodes: SimNode[] = data.nodes.map((n) => {
+      const prev = posRef.current.get(n.id);
+      return prev
+        ? { ...n, x: prev.x, y: prev.y, vx: 0, vy: 0 }
+        : { ...n, x: w / 2 + (Math.random() - 0.5) * 200, y: h / 2 + (Math.random() - 0.5) * 200, vx: 0, vy: 0 };
+    });
     const simLinks: SimLink[] = data.links.map((l) => ({ ...l }));
 
     const simulation = forceSimulation<SimNode>(simNodes)
@@ -84,10 +116,13 @@ export function NeuralGraph({
       .force('charge', forceManyBody().strength(-220))
       .force('center', forceCenter(w / 2, h / 2))
       .force('collide', forceCollide<SimNode>().radius((d) => (d.type === 'device' ? 34 : 24)))
-      .alpha(1)
-      .alphaDecay(0.03);
+      // 低初始 alpha + 更快衰减：新增节点时只做轻微微调，迅速收敛
+      .alpha(0.35)
+      .alphaDecay(0.08);
 
     simulation.on('tick', () => {
+      // 回写位置缓存，供下次数据刷新复用
+      for (const n of simNodes) posRef.current.set(n.id, { x: n.x, y: n.y });
       setNodes([...simNodes]);
       setLinks([...simLinks]);
     });
