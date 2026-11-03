@@ -721,7 +721,7 @@ export const PLATFORM_DISPLAY_NAMES: Record<AgentType, string> = {
   kimi: 'Kimi CLI',
   opencode: 'OpenCode',
   windsurf: 'Windsurf',
-  workbuddy: 'WorkBuddy (CodeBuddy)',
+  workbuddy: 'WorkBuddy',
 };
 
 /** 平台目录条目（扁平化 install spec，供前端渲染勾选网格） */
