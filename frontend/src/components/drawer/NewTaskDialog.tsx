@@ -6,9 +6,28 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
-import type { AgentBot, RoleTeam, SubRole } from '@agentfleet/shared';
+import type { AgentBot, AgentType, RoleTeam, SubRole } from '@agentfleet/shared';
+import { AGENT_TYPES } from '@agentfleet/shared';
 import { http } from '../../api/http';
 import { useDeviceStore } from '../../store/deviceStore';
+
+/** agent 平台友好名（完整 14 平台，含 workbuddy） */
+const AGENT_LABELS: Record<AgentType, string> = {
+  codex: 'Codex',
+  claude: 'Claude Code',
+  dsh: 'DSH',
+  grok: 'Grok',
+  cursor: 'Cursor',
+  aider: 'Aider',
+  gemini: 'Gemini CLI',
+  cody: 'Cody',
+  qwen: 'Qwen Code',
+  doubao: 'Doubao',
+  kimi: 'Kimi',
+  opencode: 'OpenCode',
+  windsurf: 'Windsurf',
+  workbuddy: 'WorkBuddy',
+};
 
 /**
  * 新建任务弹窗（04 §3.6 / §7）。
@@ -172,10 +191,11 @@ export function NewTaskDialog({
                 setBot('');
               }}
             >
-              <MenuItem value="grok">Grok</MenuItem>
-              <MenuItem value="codex">Codex</MenuItem>
-              <MenuItem value="claude">Claude Code</MenuItem>
-              <MenuItem value="dsh">DSH</MenuItem>
+              {AGENT_TYPES.map((t) => (
+                <MenuItem key={t} value={t}>
+                  {AGENT_LABELS[t]}
+                </MenuItem>
+              ))}
             </TextField>
           )}
           {mode === 'agent' && bots.length > 0 && (

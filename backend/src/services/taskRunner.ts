@@ -107,18 +107,7 @@ export function completeGatewayTask(taskId: string, result: GatewayTaskResult): 
     ts: Date.now(),
     from: 'coordinator',
     to: 'dashboard',
-    payload: {
-      kind: 'patch',
-      tasks: [
-        {
-          taskId,
-          status,
-          resultText: result.resultText,
-          durationMs: result.durationMs,
-        },
-      ],
-      ts: Date.now(),
-    },
+    payload: taskStatusPatch(taskId, status),
   });
 
   broadcastToGateways({
@@ -215,18 +204,7 @@ export function onDeviceTaskResult(result: TaskResult): void {
     ts: Date.now(),
     from: 'coordinator',
     to: 'dashboard',
-    payload: {
-      kind: 'patch',
-      tasks: [
-        {
-          taskId: result.taskId,
-          status,
-          resultText: result.result?.text ?? '',
-          durationMs: result.result?.durationMs,
-        },
-      ],
-      ts: Date.now(),
-    },
+    payload: taskStatusPatch(result.taskId, status),
   });
 
   // 结果回推网关（微信）

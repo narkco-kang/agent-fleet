@@ -45,7 +45,7 @@ export default function TaskDetailPage(): JSX.Element {
       </button>
 
       <div className="mb-1 flex items-center gap-3">
-        <h1 className="text-xl font-semibold text-[#0F172A]">{task.prompt.slice(0, 50)}</h1>
+        <h1 className="text-xl font-semibold text-[#0F172A]">{task.prompt?.slice(0, 50) ?? ''}</h1>
         <StatusBadge status={task.status} />
       </div>
       <div className="mb-4 text-xs text-[#64748B]">

@@ -28,9 +28,18 @@ export const useTaskStore = create<TaskState>((set) => ({
         next[idx] = { ...next[idx], ...task } as TaskSnapshot;
         return { tasks: next };
       }
-      return {
-        tasks: [{ ...(task as TaskSnapshot) }, ...state.tasks],
-      };
+      // 新增：补全关键字段默认值，避免部分 patch（缺 prompt）插入「幽灵任务」
+      // 导致详情页 task.prompt.slice 崩溃（DEFECT-TASK-PATCH）。
+      const full = {
+        sessionId: '',
+        origin: 'dashboard',
+        prompt: '',
+        status: 'queued',
+        targetMode: 'auto',
+        createdAt: Date.now(),
+        ...task,
+      } as TaskSnapshot;
+      return { tasks: [full, ...state.tasks] };
     }),
   appendEvent: (event) =>
     set((state) => ({

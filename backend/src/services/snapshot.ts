@@ -11,7 +11,7 @@ import { SNAPSHOT_TASK_WINDOW } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
 import { getDevice, listDevices, toDeviceSnapshot } from '../db/repo/devices.js';
 import { listAgents, toAgentSnapshot } from '../db/repo/agents.js';
-import { listTasks, toTaskSnapshot } from '../db/repo/tasks.js';
+import { getTask, listTasks, toTaskSnapshot } from '../db/repo/tasks.js';
 import { getTeam } from '../db/repo/teams.js';
 import { getRoleTeam } from '../db/repo/roleTeams.js';
 import { getBusyCount } from './scheduler.js';
@@ -79,8 +79,14 @@ export function buildDevicePatch(deviceId: string): DashboardPatch {
   return makePatch({ devices: [snapshot] });
 }
 
-/** 任务状态 patch（任务列表与神经图实时刷新） */
+/**
+ * 任务状态 patch（任务列表与神经图实时刷新）。
+ * 返回完整 task 快照（含 prompt 等全字段）——前端 upsert 时若拿到部分对象
+ * （缺 prompt）会在任务不存在时插入「幽灵任务」，导致详情页 prompt.slice 崩溃。
+ */
 export function taskStatusPatch(taskId: string, status: TaskStatus): DashboardPatch {
+  const row = getTask(taskId);
+  if (row) return makePatch({ tasks: [toTaskSnapshot(row)] });
   return makePatch({
     tasks: [{ taskId, status } as NonNullable<DashboardPatch['tasks']>[number]],
   });

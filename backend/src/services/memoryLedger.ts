@@ -54,6 +54,9 @@ class MemoryLedgerService {
   private readonly searchIndex = new MemorySearchIndex();
   /** 出块回调（memorySync 注入：广播新区块给所有在线设备）。 */
   private onBlock: ((block: Block) => void | Promise<void>) | null = null;
+  /** flush 串行化队列：并发任务终态会并发 flush，非原子的「读 tip + drain + append」
+   *  会产生 stale 块并加剧锁竞争（LockTimeoutError），串行化消除该竞态。 */
+  private flushQueue: Promise<unknown> = Promise.resolve();
 
   constructor() {
     const kp = loadOrCreateKeyPair();
@@ -118,6 +121,13 @@ class MemoryLedgerService {
 
   /** 立即把 mempool 全部打包出块（签名 + 落盘 + 触发广播）。 */
   async flush(): Promise<Block | null> {
+    // 串行化：前一个 flush 完成后再执行，避免并发竞态（stale 块 / 锁竞争超时）。
+    const run = this.flushQueue.then(() => this.doFlush());
+    this.flushQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async doFlush(): Promise<Block | null> {
     if (this.mempool.size() === 0) return null;
     const tip = await this.ledger.tip();
     const changes = this.mempool.drain(this.mempool.size());
