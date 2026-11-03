@@ -102,6 +102,37 @@ function AgentGlyph({ node, stroke, strokeWidth }: { node: SimNode; stroke: stri
   const size = 28;
   return (
     <g>
+      {/* 处理中：黄色脉冲外框 */}
+      {busy && (
+        <rect
+          x={node.x - size / 2 - 5}
+          y={node.y - size / 2 - 5}
+          width={size + 10}
+          height={size + 10}
+          rx={9}
+          fill="none"
+          stroke="#F59E0B"
+          strokeWidth={1.6}
+        >
+          <animate attributeName="opacity" values="0.85;0.15;0.85" dur="1.3s" repeatCount="indefinite" />
+        </rect>
+      )}
+      {/* 异常：红色闪烁警示框 */}
+      {error && (
+        <rect
+          x={node.x - size / 2 - 4}
+          y={node.y - size / 2 - 4}
+          width={size + 8}
+          height={size + 8}
+          rx={8}
+          fill="none"
+          stroke="#EF4444"
+          strokeWidth={1.6}
+          strokeDasharray="3 3"
+        >
+          <animate attributeName="opacity" values="1;0.35;1" dur="0.8s" repeatCount="indefinite" />
+        </rect>
+      )}
       <rect
         x={node.x - size / 2}
         y={node.y - size / 2}
@@ -120,13 +151,16 @@ function AgentGlyph({ node, stroke, strokeWidth }: { node: SimNode; stroke: stri
 }
 
 function TaskGlyph({ node, pulse, stroke, strokeWidth }: { node: SimNode; pulse: boolean; stroke: string; strokeWidth: number }): JSX.Element {
+  const failed =
+    node.type === 'task' &&
+    (node.data.status === 'failed' || node.data.status === 'interrupted' || node.data.status === 'cancelled');
   const color =
     node.type === 'task'
       ? node.data.status === 'running'
         ? '#F59E0B'
         : node.data.status === 'completed'
           ? '#10B981'
-          : node.data.status === 'failed' || node.data.status === 'interrupted' || node.data.status === 'cancelled'
+          : failed
             ? '#EF4444'
             : '#94A3B8'
       : '#0891B2';
@@ -135,6 +169,12 @@ function TaskGlyph({ node, pulse, stroke, strokeWidth }: { node: SimNode; pulse:
   return (
     <g>
       {pulse && <circle cx={node.x} cy={node.y} r={16} fill="none" stroke={color} className="pulse-ring" />}
+      {/* 失败任务：红色闪烁警示环 */}
+      {failed && (
+        <circle cx={node.x} cy={node.y} r={17} fill="none" stroke="#EF4444" strokeWidth={1.5} strokeDasharray="3 3">
+          <animate attributeName="opacity" values="1;0.3;1" dur="0.9s" repeatCount="indefinite" />
+        </circle>
+      )}
       <polygon points={pts} fill={color} stroke={stroke} strokeWidth={strokeWidth} />
       <text x={node.x} y={node.y + 4} textAnchor="middle" fill="#fff" fontSize="9">
         ◆
