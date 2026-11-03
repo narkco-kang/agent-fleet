@@ -28,6 +28,8 @@ export interface BackendConfig {
   sshConnectTimeoutMs: number;
   /** SSH exec 命令超时（毫秒） */
   sshExecTimeoutMs: number;
+  /** 部署/卸载命令执行超时（毫秒）。npm/pipx 安装耗时数分钟，需远大于 sshExecTimeoutMs */
+  deployExecTimeoutMs: number;
   /** 部署功能开关 */
   deployEnabled: boolean;
   /** 人工确认开关：false 时对外动作自动放行（仍留审计记录） */
@@ -53,6 +55,7 @@ export const config: BackendConfig = {
   modelGatewayTimeoutMs: Number(process.env.MODELGATEWAY_TIMEOUT_MS ?? 5_000),
   sshConnectTimeoutMs: Number(process.env.SSH_CONNECT_TIMEOUT_MS ?? 10_000),
   sshExecTimeoutMs: Number(process.env.SSH_EXEC_TIMEOUT_MS ?? 30_000),
+  deployExecTimeoutMs: Number(process.env.DEPLOY_EXEC_TIMEOUT_MS ?? 600_000),
   deployEnabled: process.env.DEPLOY_ENABLED !== '0',
   actionGuardEnabled: process.env.ACTION_GUARD_ENABLED !== '0',
   roleRoutesJsonPath: process.env.ROLE_ROUTES_JSON ?? '',

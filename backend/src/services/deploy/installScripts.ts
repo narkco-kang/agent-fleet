@@ -269,9 +269,16 @@ export function buildInstallScript(os: DeployOS, platforms: AgentType[]): string
 
 /**
  * 把多条 PowerShell 语句编码成单个 `powershell -EncodedCommand <b64>` 命令。
+ * 每个 chunk 开头强制从注册表刷新 PATH：winget/npm 等安装器更新系统 PATH 后，
+ * SSH 会话继承的是 sshd 服务的旧 PATH 快照，不刷新会导致「刚装完的 node/npm
+ * 在新命令里不可用」（真实 Windows Server 实测踩坑）。
  */
 export function encodeWindowsChunk(statements: string[]): string {
-  return `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${Buffer.from(statements.join('; '), 'utf16le').toString('base64')}`;
+  const refreshed = [
+    '$env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")',
+    ...statements,
+  ];
+  return `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${Buffer.from(refreshed.join('; '), 'utf16le').toString('base64')}`;
 }
 
 /**
@@ -358,23 +365,21 @@ export function buildBootstrapLines(
   const needNode = plan.some((s) => s.method === 'npm');
   const needPipx = plan.some((s) => s.method === 'pipx');
   if (os === 'windows') {
-    const ps: string[] = ['Write-Output "[agentfleet] bootstrap begin"'];
+    const ps: string[] = [
+      '$ProgressPreference = "SilentlyContinue"',
+      'Write-Output "[agentfleet] bootstrap begin"',
+    ];
     if (needNode) {
-      ps.push('if (Get-Command node -ErrorAction SilentlyContinue) { Write-Output "[agentfleet] node ok" }');
-      ps.push('else {');
-      ps.push('  Write-Output "[agentfleet] node missing, installing via winget..."');
-      ps.push('  if (Get-Command winget -ErrorAction SilentlyContinue) {');
-      ps.push('    winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements --silent');
-      ps.push('  } else { Write-Output "[agentfleet] winget not found, node not auto-installed" }');
-      ps.push('}');
+      // if/else 必须写成完整单条语句：join('; ') 会在语句间插分号，
+      // 拆成多条会导致 `} ; else` 语法错误（真实 Windows Server 实测踩坑）。
+      ps.push(
+        'if (Get-Command node -ErrorAction SilentlyContinue) { Write-Output "[agentfleet] node ok" } else { Write-Output "[agentfleet] node missing, installing via winget..."; if (Get-Command winget -ErrorAction SilentlyContinue) { winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements --silent } else { Write-Output "[agentfleet] winget not found, node not auto-installed" } }',
+      );
     }
     if (needPipx) {
-      ps.push('if (Get-Command pipx -ErrorAction SilentlyContinue) { Write-Output "[agentfleet] pipx ok" }');
-      ps.push('else {');
-      ps.push('  Write-Output "[agentfleet] pipx missing, installing..."');
-      ps.push('  if (Get-Command py -ErrorAction SilentlyContinue) { py -m pip install --user pipx }');
-      ps.push('  else { Write-Output "[agentfleet] python(py) not found, pipx not auto-installed" }');
-      ps.push('}');
+      ps.push(
+        'if (Get-Command pipx -ErrorAction SilentlyContinue) { Write-Output "[agentfleet] pipx ok" } else { Write-Output "[agentfleet] pipx missing, installing..."; if (Get-Command py -ErrorAction SilentlyContinue) { py -m pip install --user pipx } else { Write-Output "[agentfleet] python(py) not found, pipx not auto-installed" } }',
+      );
     }
     ps.push('Write-Output "[agentfleet] bootstrap end"');
     return ps;

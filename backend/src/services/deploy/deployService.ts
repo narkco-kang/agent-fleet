@@ -182,10 +182,12 @@ async function runTarget(
       mode === 'uninstall'
         ? buildUninstallCommands(os, adaptedPlatforms)
         : buildDeployCommands(os, adaptedPlatforms);
-    // Windows 分块执行（规避 cmd 8191 命令行限制），POSIX 单条 bash
+    // Windows 分块执行（规避 cmd 8191 命令行限制），POSIX 单条 bash。
+    // 用长超时：npm/pipx 安装（下载 + 编译）在云服务器上可能耗时数分钟，
+    // 默认 30s 的 sshExecTimeoutMs 会误杀安装（真实 Windows Server 实测 codex 装 10min）。
     let combinedOutput = '';
     for (const cmd of commands) {
-      const execRes = await conn.exec(cmd);
+      const execRes = await conn.exec(cmd, config.deployExecTimeoutMs);
       combinedOutput += `${execRes.stdout}\n${execRes.stderr}\n`;
       if (execRes.code !== 0 && execRes.code !== -1 && execRes.stderr) {
         // 命令退出码非 0：不中断，最终以逐平台 verify 标记为准。
