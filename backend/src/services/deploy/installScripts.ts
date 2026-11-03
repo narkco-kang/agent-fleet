@@ -256,8 +256,8 @@ export function verifyCommandFor(os: DeployOS, platform: AgentType): string {
   }
   const checks = names
     .map((name) => `if command -v ${shellQuote(name)} >/dev/null 2>&1; then echo "[agentfleet:verify] platform=${platform} status=ok command=${name}"; exit 0; fi`)
-    .join(' ');
-  return `${checks} echo "[agentfleet:verify] platform=${platform} status=missing"; exit 1`;
+    .join('; ');
+  return `${checks}; echo "[agentfleet:verify] platform=${platform} status=missing"; exit 1`;
 }
 
 /** 生成完整安装脚本。deployService 会解析 [agentfleet:verify] 标记决定成功/失败。 */
