@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import type { TaskSubmit } from '@agentfleet/shared';
 import type { Adapter, AdapterDetection, AdapterEventSink, AdapterRunHandle } from './adapter.js';
 
@@ -151,6 +152,86 @@ function readBridge(): { password: string; port: number } {
   return { password: '', port: 0 };
 }
 
+/** 桥接插件目录（WorkBuddy 插件 cache：<marketplace>/<name>/<version>） */
+function bridgePluginDir(): string {
+  return path.join(
+    os.homedir(),
+    '.codebuddy',
+    'plugins',
+    'cache',
+    'agentfleet',
+    'agentfleet-bridge',
+    '1.0.0',
+  );
+}
+
+/**
+ * 确保 WorkBuddy 桥接插件已安装（幂等）。桥接作为 MCP stdio server 注册为插件，
+ * defer_loading:false = WorkBuddy 启动即 spawn 桥接，桥接继承动态 password 写入 bridge 文件。
+ * device-agent 探测 workbuddy 时自动安装，用户只需登录 WorkBuddy + 重启。
+ */
+function ensureBridgeInstalled(): boolean {
+  try {
+    const pluginDir = bridgePluginDir();
+    const bridgeDest = path.join(pluginDir, 'bridge.mjs');
+    const pluginJson = path.join(pluginDir, '.codebuddy-plugin', 'plugin.json');
+    if (fs.existsSync(bridgeDest) && fs.existsSync(pluginJson)) return true;
+
+    // 从 device-agent 的 scripts 目录复制桥接脚本（随源码分发）
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const bridgeSrc = path.join(here, '..', '..', 'scripts', 'workbuddy-bridge.mjs');
+    if (!fs.existsSync(bridgeSrc)) return false;
+
+    fs.mkdirSync(path.dirname(pluginJson), { recursive: true });
+    fs.copyFileSync(bridgeSrc, bridgeDest);
+
+    fs.writeFileSync(
+      pluginJson,
+      `${JSON.stringify(
+        {
+          name: 'agentfleet-bridge',
+          version: '1.0.0',
+          description: 'AgentFleet WorkBuddy 网关桥接：把动态 gateway password 搬运给 device-agent',
+          mcpServers: {
+            'agentfleet-bridge': {
+              command: 'node',
+              args: ['${CODEBUDDY_PLUGIN_ROOT}/bridge.mjs'],
+              defer_loading: false,
+            },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    // 注册到 installed_plugins.json
+    const installedFile = path.join(os.homedir(), '.codebuddy', 'plugins', 'installed_plugins.json');
+    let installed: { version?: number; plugins?: Record<string, unknown[]> } = { version: 2, plugins: {} };
+    try {
+      installed = JSON.parse(fs.readFileSync(installedFile, 'utf-8')) as typeof installed;
+    } catch {
+      /* 首次注册 */
+    }
+    const key = 'agentfleet-bridge@agentfleet';
+    const entry = {
+      scope: 'user',
+      installPath: pluginDir,
+      version: '1.0.0',
+      installedAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+    };
+    const list = installed.plugins?.[key] ?? [];
+    installed.plugins = installed.plugins ?? {};
+    installed.plugins[key] = [entry, ...(list as unknown[]).filter((e) => (e as { version?: string }).version !== '1.0.0')];
+    fs.writeFileSync(installedFile, `${JSON.stringify(installed, null, 2)}\n`);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** gateway password：环境变量优先，桥接文件兜底（桥接由 WorkBuddy spawn，继承动态 password） */
 function getGatewayPassword(): string {
   return (
@@ -234,6 +315,8 @@ export class WorkbuddyAdapter implements Adapter {
         maxConcurrency: 1,
       };
     }
+    // 自动安装桥接插件（WorkBuddy 启动时 spawn 桥接写 password，供 device-agent 读取）
+    ensureBridgeInstalled();
     const gateway = await discoverGateway();
     const capabilities: string[] = ['coding', 'reasoning', 'tools'];
     if (gateway) capabilities.push('remote-control');
