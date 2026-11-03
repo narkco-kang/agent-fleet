@@ -372,8 +372,11 @@ export function buildBootstrapLines(
     if (needNode) {
       // if/else 必须写成完整单条语句：join('; ') 会在语句间插分号，
       // 拆成多条会导致 `} ; else` 语法错误（真实 Windows Server 实测踩坑）。
+      // 用 curl.exe 直接下载 Node.js zip 解压（比 winget 更可靠：winget 依赖源数据
+      // + 系统 region，新装/重启服务器常报 0x8a15000f 缺源数据）。注意 PowerShell 里
+      // `curl` 是 Invoke-WebRequest 别名，必须用 `curl.exe`。
       ps.push(
-        'if (Get-Command node -ErrorAction SilentlyContinue) { Write-Output "[agentfleet] node ok" } else { Write-Output "[agentfleet] node missing, installing via winget..."; if (Get-Command winget -ErrorAction SilentlyContinue) { winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements --silent } else { Write-Output "[agentfleet] winget not found, node not auto-installed" } }',
+        'if (Get-Command node -ErrorAction SilentlyContinue) { Write-Output "[agentfleet] node ok" } else { Write-Output "[agentfleet] node missing, installing via curl..." ; curl.exe -sS -o $env:TEMP\\af-node.zip https://nodejs.org/dist/v20.19.0/node-v20.19.0-win-x64.zip ; Expand-Archive $env:TEMP\\af-node.zip -DestinationPath $env:LOCALAPPDATA\\af-node -Force ; $env:Path = "$env:LOCALAPPDATA\\af-node\\node-v20.19.0-win-x64;$env:Path" ; [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path","User") + ";$env:LOCALAPPDATA\\af-node\\node-v20.19.0-win-x64", "User") }',
       );
     }
     if (needPipx) {
