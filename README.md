@@ -19,20 +19,31 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
   <img src="docs/images/overview.png" alt="AgentFleet at a glance — cross-device failover, incremental deployment, shared memory" width="860">
 </div>
 
+## 🎬 Live demo
+
+<div align="center">
+  <img src="docs/demo/demo.gif" alt="AgentFleet live demo — neural graph, task dispatch, prompt library, deployment" width="860">
+</div>
+
+> Recorded against a live coordinator: the neural graph, submitting a task to the fleet, the prompt library, and the batch-deployment catalog. WebM source: [`docs/demo/demo.webm`](docs/demo/demo.webm).
+
 ## ✨ Features
 
 | Capability | Description |
 |---|---|
 | **Cross-device orchestration** | Auto-detect 14 AI agent platforms per device via a data-driven adapter catalog; unified task protocol (submit / stream / cancel) |
-| **Dynamic neural graph** | d3-force topology: 4 node types (device / agent / task / message flow) + 4 link types (call / return / stream / belongs), with pulse / flow / focus animations |
+| **Dynamic neural graph** | Deterministic three-lane flow layout (device → agent → task): card nodes with text labels, orange/cyan flow particles for task dispatch/return, pulse rings for busy/error |
 | **Cross-device memory ledger** | Append-only hash chain + Merkle tree + Ed25519 signature — blocks broadcast to every device with offline catch-up + gap recovery + tamper rejection; BM25 semantic search |
+| **Memory resilience** | Survives single-fleet & cross-fleet context loss: device restart, disconnection, long offline (50+ blocks) and tampering all keep memory intact — verified by `memory/tests/resilience.test.ts` |
 | **Smart routing gateway** | Built-in modelgateway workspace with an OpenAI-compatible endpoint; role-based routing (role → device + agent + model), failover and token ledger |
-| **Excel batch deployment** | Upload an Excel sheet (device IP / account / password / SSH port); the target OS picks npm / pipx / brew / winget / PowerShell automatically, then verifies each install |
+| **Excel batch deployment** | Upload an Excel sheet (device IP / account / password / SSH port); auto-probes the target OS, bootstraps Node.js/pipx, then installs agents via npm / pipx / brew / winget and verifies each install — validated on real Ubuntu + Windows servers |
 | **One-click uninstall** | Generate OS-aware uninstall scripts (npm / pipx / brew / winget) and verify the commands are really gone — still behind human confirmation |
 | **Deploy-then-use** | A deployment target can carry a deviceId + platform models; on success the device+agent is bound to the routing gateway model |
 | **Platform model failover** | Configure a primary + fallback model per device agent; auto-switch on failure, degrade to local when all fail, with manual switch/reset |
 | **Per-device team mode** | Bind each device to a different team (A = software team, B = content team); `target.mode='team'` routes only to that team's devices |
-| **Asset distribution** | Unified Asset model for rules / knowledge / skills, delivered to one device or a whole batch |
+| **Asset distribution** | Unified Asset model for rules / knowledge / skills / prompts, delivered to one device or a whole swarm |
+| **Prompt library** | Live-fetch the most-starred prompt collections on GitHub (e.g. `f/prompts.chat`, 175k★), parse individual prompts with bilingual notes, and batch-distribute to the swarm |
+| **Skills library** | Live-fetch the most-starred skills on GitHub, expand repositories to import individual `SKILL.md` entries, with bilingual descriptions |
 | **Expert teams & loops** | Assign expert teams (role routing) to single/cross-device agent teams; orchestrate single/batch/cross-device loops |
 | **Primary AI agent** | Set a primary AI agent per device or in batch — auto-routing prefers it |
 | **Free-source rating** | Live chat probes against Kilo / OpenCode, rated 优/中/差; keep only 优 and 中 |
@@ -87,7 +98,7 @@ AgentFleet can **deploy / uninstall / discover / route multiple agent platforms*
 | Kimi CLI | npm | ✅ | ✅ | scaffold |
 | OpenCode | npm | ✅ | ✅ | scaffold |
 | Windsurf | macOS brew / Windows winget | ✅ | ✅ | scaffold |
-| WorkBuddy (CodeBuddy) | manual verify | ✅ | ✅ | ✅ cli-text（待实机验证） |
+| WorkBuddy | manual verify | ✅ | ✅ | ✅ cli-text（待实机验证） |
 
 See the full matrix in [`docs/17-Agent平台安装卸载与调用矩阵.md`](docs/17-Agent平台安装卸载与调用矩阵.md).
 
@@ -121,7 +132,7 @@ agent-fleet/
 ├── wechat/         # WeChat gateway (enterprise + personal)
 ├── memory/         # blockchain-style memory ledger core (hash chain + Merkle)
 ├── modelgateway/   # built-in model router (OpenAI-compatible + Provider pool)
-└── docs/           # 29 design / architecture / research documents
+└── docs/           # design / architecture / research documents + live demo
 ```
 
 ## 🚀 Quick Start
@@ -156,7 +167,7 @@ npm run test --workspace memory
 
 ## 📚 Documentation
 
-See [`docs/`](docs/) for 29 documents: reverse-engineering of Grok's orchestration, PRD, architecture, UI design, the blockchain memory ledger design, routing-gateway fusion, free-source integration, platform model binding, management UI, EchoBird-inspired Model Nexus notes, the agent platform capability matrix, and the cross-device memory sync design.
+See [`docs/`](docs/) for 27 documents: reverse-engineering of Grok's orchestration, PRD, architecture, UI design, the blockchain memory ledger design, routing-gateway fusion, free-source integration, platform model binding, management UI, EchoBird-inspired Model Nexus notes, the agent platform capability matrix, the cross-device memory sync design, and the WorkBuddy platform integration guide.
 
 ## 🔒 Safety
 
@@ -169,9 +180,14 @@ See [`docs/`](docs/) for 29 documents: reverse-engineering of Grok's orchestrati
 # Backend unit + integration tests (per-device teams, uninstall, free-source fallback)
 npm run test --workspace backend
 
+# Memory ledger tests — including resilience (restart / disconnect / tamper / catch-up)
+npm run test --workspace memory
+
 # Probe real free sources (Kilo / OpenCode + local modelgateway)
 npm run probe:free --workspace backend
 ```
+
+The memory resilience suite (`memory/tests/resilience.test.ts`) simulates the context-loss scenarios that matter — a device restart, a fleet member going offline for 50+ blocks, a tampered block mid-catch-up, and out-of-order/duplicate blocks — and asserts the memory is never lost and stays searchable.
 
 ## 📄 License
 
