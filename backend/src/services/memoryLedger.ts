@@ -6,7 +6,7 @@
  * 账本为 append-only 哈希链（prev_hash 环环相扣），篡改可被整链校验定位。
  */
 import { randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import path from 'node:path';
 import {
   BlockProducer,
@@ -26,6 +26,7 @@ const MEMORY_DIR = process.env.MEMORY_DIR ?? './data/memory';
 /**
  * 加载或生成 coordinator 的 Ed25519 密钥对（持久化）。
  * 密钥必须跨重启复用，否则旧区块签名无法被新公钥验证，账本完整性自毁。
+ * 若密钥文件丢失/损坏导致重建，旧账本无法验签 → 备份并重置账本（防止 summary 永久 E_BAD_SIG）。
  */
 function loadOrCreateKeyPair(): KeyPair {
   const keyPath = path.join(MEMORY_DIR, 'coordinator.key.json');
@@ -39,7 +40,28 @@ function loadOrCreateKeyPair(): KeyPair {
   const kp = generateKeyPair();
   mkdirSync(MEMORY_DIR, { recursive: true });
   writeFileSync(keyPath, JSON.stringify(kp, null, 2), { mode: 0o600 });
+  resetLedgerIfKeyRegenerated();
   return kp;
+}
+
+/**
+ * 密钥重建时重置团队账本：旧账本的 block 用旧密钥签名，新密钥无法验签，
+ * 继续保留会导致整链校验永久报 E_BAD_SIG（账本完整性自毁）。
+ * 备份旧账本（.bak-时间戳）后删除，让账本从 genesis 重新开始。
+ */
+function resetLedgerIfKeyRegenerated(): void {
+  const ledgerPath = path.join(MEMORY_DIR, 'ledger.team.json');
+  try {
+    const raw = readFileSync(ledgerPath, 'utf8');
+    const doc = JSON.parse(raw) as { blocks?: Array<{ index?: number }> };
+    if (doc.blocks && doc.blocks.length > 1) {
+      const backup = path.join(MEMORY_DIR, `ledger.team.bak-${Date.now()}.json`);
+      renameSync(ledgerPath, backup);
+      console.warn(`[memory] 密钥已重建，旧账本无法验签，已备份到 ${backup} 并重置`);
+    }
+  } catch {
+    /* 账本不存在（首次启动）或读取失败，忽略 */
+  }
 }
 
 class MemoryLedgerService {
