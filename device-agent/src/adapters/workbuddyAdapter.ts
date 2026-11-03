@@ -14,8 +14,12 @@ import type { Adapter, AdapterDetection, AdapterEventSink, AdapterRunHandle } fr
  * 2. 登录态 token 用 `$wbEncrypted`（AES-GCM）加密，解密密钥只在桌面主进程
  *    （CredentialBootstrap IPC 注入），headless 起 codebuddy 必然卡 `Authentication required`。
  * 3. 因此唯一正路 = 桌面主进程的「CodeBuddy Remote Control」网关，由其代为执行：
- *      POST /api/v1/runs   body={ id, type, text, source:{platform,sender:{id}} } → { runId, status:"accepted" }
- *      GET  /api/v1/runs/:id/stream  SSE 流（event: next → data JSON）
+ *      启动 daemon（后台执行运行时）→ 向 daemon 会话投递 reply → 轮询 history 取结果：
+ *        POST /api/v1/daemon/start                        启动 daemon（若 stopped）
+ *        GET  /api/v1/workers                             取 kind=daemon 的 sessionId + endpoint
+ *        POST /api/v1/sessions/{id}/reply  body={ text }  投递任务（delivered=true）
+ *        GET  /api/v1/sessions/{id}/history               轮询取 requests[].finalReply
+ *    注：/api/v1/runs 只「登记」run 不真正执行（jobs 始终为空），勿再用。
  *    关键：网关端口是**动态的**（主进程每次启动随机分配，非固定 50068），password 也是
  *    动态的、不落盘，通过环境变量注入：
  *      CODEBUDDY_GATEWAY_PASSWORD  — Bearer 认证密码
@@ -138,13 +142,60 @@ function getGatewayPassword(): string {
   );
 }
 
-/** 网关 SSE 消息结构（buildOutbound） */
-interface GatewayMessage {
-  id?: string;
-  type?: 'accepted' | 'completed' | 'error';
-  content?: { text?: string; markdown?: string };
-  error?: { code?: string; message?: string };
-  agent?: { sessionId?: string; toolCalls?: unknown[] };
+/** 简单 sleep */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** 确保 daemon 运行（daemon 是 WorkBuddy 的后台执行运行时） */
+async function ensureDaemon(base: string, headers: Record<string, string>): Promise<void> {
+  try {
+    const res = await fetch(`${base}/api/v1/daemon/status`, { headers, signal: AbortSignal.timeout(3_000) });
+    const data = (await res.json()) as { data?: { status?: string } };
+    if (data.data?.status === 'running') return;
+  } catch {
+    /* 查状态失败，尝试启动 */
+  }
+  await fetch(`${base}/api/v1/daemon/start`, { method: 'POST', headers, signal: AbortSignal.timeout(10_000) });
+  await sleep(1_500); // 等 daemon 注册 worker
+}
+
+/** 从 workers 列表找 kind=daemon 的 worker（含 sessionId + endpoint） */
+async function findDaemonWorker(
+  base: string,
+  headers: Record<string, string>,
+): Promise<{ sessionId: string; endpoint?: string } | null> {
+  try {
+    const res = await fetch(`${base}/api/v1/workers`, { headers, signal: AbortSignal.timeout(5_000) });
+    const data = (await res.json()) as {
+      data?: Array<{ kind?: string; sessionId?: string; endpoint?: string }>;
+    };
+    const daemon = data.data?.find((w) => w.kind === 'daemon' && w.sessionId);
+    if (daemon?.sessionId) return { sessionId: daemon.sessionId, endpoint: daemon.endpoint };
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/** 查询会话的请求历史（含 userInput + finalReply） */
+async function sessionRequests(
+  base: string,
+  sessionId: string,
+  headers: Record<string, string>,
+): Promise<Array<{ userInput?: string; finalReply?: string }>> {
+  try {
+    const res = await fetch(`${base}/api/v1/sessions/${sessionId}/history`, {
+      headers,
+      signal: AbortSignal.timeout(5_000),
+    });
+    const data = (await res.json()) as {
+      data?: { requests?: Array<{ userInput?: string; finalReply?: string }> };
+    };
+    return data.data?.requests ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export class WorkbuddyAdapter implements Adapter {
@@ -222,11 +273,15 @@ export class WorkbuddyAdapter implements Adapter {
       return { cancel: () => undefined };
     }
 
-    return this.runViaGateway(task, sink, makeSeq, gateway.port);
+    return this.runViaReply(task, sink, makeSeq, gateway.port);
   }
 
-  /** 走桌面主进程的 Remote Control 网关执行：POST /api/v1/runs → 订阅结果流 */
-  private runViaGateway(
+  /**
+   * 通过 daemon 会话执行（实测唯一可行路径）：
+   * 确保 daemon 运行 → 向 daemon 会话投递 reply → 轮询 history 取 finalReply。
+   * 注：/api/v1/runs 只「登记」run 不真正执行（jobs 始终为空），正确入口是 session reply。
+   */
+  private runViaReply(
     task: TaskSubmit,
     sink: AdapterEventSink,
     makeSeq: () => number,
@@ -237,7 +292,6 @@ export class WorkbuddyAdapter implements Adapter {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (password) headers.Authorization = `Bearer ${password}`;
 
-    const abort = new AbortController();
     let cancelled = false;
     let finished = false;
 
@@ -252,105 +306,59 @@ export class WorkbuddyAdapter implements Adapter {
 
     void (async () => {
       try {
-        // 1. 提交任务（Gateway Protocol 消息格式：id + type + text + source）
-        const res = await fetch(`${base}/api/v1/runs`, {
+        // 1. 确保 daemon 运行（daemon 是后台执行运行时）
+        await ensureDaemon(base, headers);
+        // 2. 取 daemon 会话（workers 里 kind=daemon 的 worker）
+        const daemon = await findDaemonWorker(base, headers);
+        if (!daemon?.sessionId) {
+          emit('status', 'failed', { message: '未找到 WorkBuddy daemon 会话（daemon 未就绪）' });
+          return;
+        }
+        const daemonBase = daemon.endpoint ?? base;
+        const sessionId = daemon.sessionId;
+
+        // 3. 记录投递前的请求数（用于检测新结果）
+        const beforeCount = (await sessionRequests(daemonBase, sessionId, headers)).length;
+
+        // 4. 投递任务
+        const replyRes = await fetch(`${daemonBase}/api/v1/sessions/${sessionId}/reply`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({
-            id: `af-${task.taskId}`,
-            type: 'text',
-            text: task.prompt,
-            source: { platform: 'generic', sender: { id: 'agentfleet' } },
-          }),
+          body: JSON.stringify({ text: task.prompt }),
           signal: AbortSignal.timeout(10_000),
         });
-        if (res.status === 401 || res.status === 403) {
-          emit('status', 'failed', { message: 'WorkBuddy 网关认证失败（动态 password 不匹配）' });
+        if (!replyRes.ok) {
+          emit('status', 'failed', { message: `WorkBuddy 投递失败（HTTP ${replyRes.status}）` });
           return;
         }
-        if (!res.ok) {
-          emit('status', 'failed', { message: `WorkBuddy 提交失败（HTTP ${res.status}）` });
+        const replyData = (await replyRes.json().catch(() => ({}))) as { data?: { delivered?: boolean } };
+        if (!replyData.data?.delivered) {
+          emit('status', 'failed', { message: 'WorkBuddy 投递未送达（daemon 会话不可用）' });
           return;
         }
-        const data = (await res.json()) as { runId?: string; error?: { message?: string } };
-        if (data.error) {
-          emit('status', 'failed', { message: data.error.message ?? 'WorkBuddy 拒绝请求' });
-          return;
-        }
-        const runId = data.runId;
-        if (!runId) {
-          emit('status', 'failed', { message: 'WorkBuddy 未返回 runId' });
-          return;
-        }
+        emit('status', undefined, { message: 'workbuddy 已投递任务' });
 
-        // 2. 订阅结果流（SSE：event next/message → data JSON；event done）
-        const streamRes = await fetch(`${base}/api/v1/runs/${runId}/stream`, {
-          headers,
-          signal: abort.signal,
-        });
-        if (!streamRes.ok || !streamRes.body) {
-          emit('status', 'failed', { message: `SSE 流失败（HTTP ${streamRes.status}）` });
-          return;
-        }
-
-        // 3. 解析 SSE（event: message / done / error）
-        const reader = streamRes.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let doneReceived = false;
-
-        const handleSse = (eventName: string, dataStr: string): void => {
-          if (eventName === 'done') {
-            doneReceived = true;
-            return;
-          }
-          if (eventName !== 'next' && eventName !== 'message') return;
-          try {
-            const msg = JSON.parse(dataStr) as GatewayMessage;
-            if (msg.type === 'accepted') {
-              emit('status', undefined, { message: 'workbuddy agent 已接受任务' });
-            } else if (msg.type === 'completed') {
-              const text = msg.content?.text ?? msg.content?.markdown ?? '';
-              if (text) emit('text', undefined, { text });
-              emit('status', 'completed', { message: 'workbuddy agent 执行完成' });
+        // 5. 轮询 history 取结果（出现新的 finalReply）
+        const deadline = Date.now() + 180_000;
+        while (Date.now() < deadline && !cancelled) {
+          await sleep(3_000);
+          const requests = await sessionRequests(daemonBase, sessionId, headers);
+          if (requests.length > beforeCount) {
+            const latest = requests[requests.length - 1];
+            if (latest?.finalReply) {
+              emit('text', undefined, { text: latest.finalReply });
+              emit('status', 'completed', { message: 'workbuddy 执行完成' });
               finished = true;
-            } else if (msg.type === 'error') {
-              emit('status', 'failed', { message: msg.error?.message ?? 'workbuddy 执行错误' });
-              finished = true;
-            }
-          } catch {
-            /* 忽略非 JSON 行 */
-          }
-        };
-
-        try {
-          for (;;) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            let idx: number;
-            while ((idx = buffer.indexOf('\n\n')) >= 0) {
-              const block = buffer.slice(0, idx);
-              buffer = buffer.slice(idx + 2);
-              let eventName = 'message';
-              const dataLines: string[] = [];
-              for (const line of block.split('\n')) {
-                if (line.startsWith('event:')) eventName = line.slice(6).trim();
-                else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
-              }
-              if (dataLines.length > 0) handleSse(eventName, dataLines.join('\n'));
+              return;
             }
           }
-        } catch {
-          /* 流中断（取消等） */
         }
-
-        if (!doneReceived && !finished && !cancelled) {
-          emit('status', 'failed', { message: 'SSE 流提前结束' });
+        if (!cancelled && !finished) {
+          emit('status', 'failed', { message: 'workbuddy 执行超时（3 分钟内未返回结果）' });
         }
       } catch (err) {
         if (!cancelled) {
-          emit('status', 'failed', { message: `workbuddy 网关异常: ${(err as Error).message}` });
+          emit('status', 'failed', { message: `workbuddy 异常: ${(err as Error).message}` });
         }
       }
     })();
@@ -359,7 +367,6 @@ export class WorkbuddyAdapter implements Adapter {
       cancel: () => {
         cancelled = true;
         finished = true;
-        abort.abort();
       },
     };
     this.handles.set(task.taskId, handle);
