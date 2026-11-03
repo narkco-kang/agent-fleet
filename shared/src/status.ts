@@ -59,7 +59,7 @@ export type CancelReason = 'user_cancel' | 'timeout' | 'device_offline' | 'syste
 export type TaskResultStatus = 'completed' | 'failed' | 'interrupted';
 
 /** 资产类型（规则 / 资料库 / skills） */
-export type AssetKind = 'rule' | 'knowledge' | 'skill';
+export type AssetKind = 'rule' | 'knowledge' | 'skill' | 'prompt';
 
 /** 资产内容形态（MVP 只用 text，P1 扩展 file） */
 export type AssetContentType = 'text' | 'file';
@@ -167,7 +167,7 @@ export const AGENT_TYPES: readonly AgentType[] = [
 
 export const TARGET_MODES: readonly TargetMode[] = ['auto', 'device', 'agent', 'role', 'team', 'swarm'] as const;
 
-export const ASSET_KINDS: readonly AssetKind[] = ['rule', 'knowledge', 'skill'] as const;
+export const ASSET_KINDS: readonly AssetKind[] = ['rule', 'knowledge', 'skill', 'prompt'] as const;
 
 export const DELIVERY_STATUSES: readonly DeliveryStatus[] = [
   'pending',

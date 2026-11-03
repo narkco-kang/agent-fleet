@@ -14,6 +14,7 @@ const KIND_DIRS: Record<AssetKind, string> = {
   rule: 'rules',
   knowledge: 'knowledge',
   skill: 'skills',
+  prompt: 'prompts',
 };
 
 /** 资产落盘目录 */

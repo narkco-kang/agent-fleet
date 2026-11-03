@@ -10,12 +10,14 @@ import { AssetEditorDialog } from '../components/assets/AssetEditorDialog';
 import { DeliverDialog } from '../components/assets/DeliverDialog';
 import { DeliveryRecords } from '../components/assets/DeliveryRecords';
 import { GithubSkillsDialog } from '../components/assets/GithubSkillsDialog';
+import { PromptCatalogDialog } from '../components/assets/PromptCatalogDialog';
 import { useT, useLanguageStore } from '../i18n';
 
 const KIND_KEY: Record<AssetKind, string> = {
   rule: 'assets.kind.rule',
   knowledge: 'assets.kind.knowledge',
   skill: 'assets.kind.skill',
+  prompt: 'assets.kind.prompt',
 };
 
 const SOURCE_KEY: Record<AssetSource, string> = {
@@ -49,6 +51,7 @@ export default function AssetsPage(): JSX.Element {
   const [deliverFor, setDeliverFor] = useState<Asset | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [githubOpen, setGithubOpen] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const batchFileRef = useRef<HTMLInputElement>(null);
 
@@ -111,6 +114,7 @@ export default function AssetsPage(): JSX.Element {
     ['rule', t('assets.kind.rule')],
     ['knowledge', t('assets.kind.knowledge')],
     ['skill', t('assets.kind.skill')],
+    ['prompt', t('assets.kind.prompt')],
   ];
 
   return (
@@ -123,6 +127,12 @@ export default function AssetsPage(): JSX.Element {
             className="inline-flex items-center gap-1 rounded-lg border border-[#0891B2] bg-white px-3 py-1.5 text-sm font-medium text-[#0891B2] hover:bg-[#ECFEFF]"
           >
             <CloudDownloadIcon fontSize="small" /> {t('assets.fetchGithub')}
+          </button>
+          <button
+            onClick={() => setPromptOpen(true)}
+            className="inline-flex items-center gap-1 rounded-lg border border-[#0891B2] bg-white px-3 py-1.5 text-sm font-medium text-[#0891B2] hover:bg-[#ECFEFF]"
+          >
+            <CloudDownloadIcon fontSize="small" /> {t('assets.fetchPrompts')}
           </button>
           <button
             onClick={() => batchFileRef.current?.click()}
@@ -275,6 +285,11 @@ export default function AssetsPage(): JSX.Element {
       <GithubSkillsDialog
         open={githubOpen}
         onClose={() => setGithubOpen(false)}
+        onImported={() => refresh()}
+      />
+      <PromptCatalogDialog
+        open={promptOpen}
+        onClose={() => setPromptOpen(false)}
         onImported={() => refresh()}
       />
     </div>

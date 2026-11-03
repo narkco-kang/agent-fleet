@@ -14,6 +14,7 @@ const KIND_KEY: Record<AssetKind, string> = {
   rule: 'assets.kind.rule',
   knowledge: 'assets.kind.knowledge',
   skill: 'assets.kind.skill',
+  prompt: 'assets.kind.prompt',
 };
 
 type DeviceWithAgents = DeviceSnapshot & { agents: AgentSnapshot[] };

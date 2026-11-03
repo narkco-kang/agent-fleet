@@ -14,6 +14,7 @@ const KIND_KEY: Record<AssetKind, string> = {
   rule: 'assets.kind.rule',
   knowledge: 'assets.kind.knowledge',
   skill: 'assets.kind.skill',
+  prompt: 'assets.kind.prompt',
 };
 
 /** 标签解析：支持中英文逗号与换行分隔，去空白去重（保持顺序） */

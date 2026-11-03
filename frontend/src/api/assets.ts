@@ -39,6 +39,21 @@ export interface RepoSkill {
   path: string;
 }
 
+/** GitHub 提示词仓库搜索结果 */
+export interface GithubPromptRepo {
+  fullName: string;
+  name: string;
+  description: string;
+  stars: number;
+  url: string;
+}
+
+/** 仓库内具体提示词条目 */
+export interface RepoPrompt {
+  name: string;
+  content: string;
+}
+
 /** 构造查询串（忽略空值） */
 function buildQuery(params: Record<string, string | undefined>): string {
   const qs = new URLSearchParams();
@@ -138,6 +153,25 @@ export const assetsApi = {
     repo: string,
     skills: Array<{ name: string; description?: string; path: string }>,
   ) => post<ApiOk<{ created: Asset[]; skipped: string[] }>>('/api/skills/repo/import', { owner, repo, skills }),
+
+  // ===== 提示词库（GitHub 抓取 + 导入）=====
+
+  /** 实时抓取 GitHub 最多星提示词仓库 */
+  searchGithubPrompts: (query?: string, limit = 20) =>
+    get<ApiOk<GithubPromptRepo[]>>(
+      `/api/prompts/github${buildQuery({ query, limit: String(limit) })}`,
+    ),
+
+  /** 列出仓库内具体提示词（解析 prompts.csv / PROMPTS.md） */
+  listRepoPrompts: (owner: string, repo: string) =>
+    get<ApiOk<RepoPrompt[]>>(`/api/prompts/repo/${owner}/${repo}`),
+
+  /** 批量导入仓库内提示词为 prompt 资产 */
+  importRepoPrompts: (
+    owner: string,
+    repo: string,
+    prompts: Array<{ name: string; content: string }>,
+  ) => post<ApiOk<{ created: Asset[]; skipped: string[] }>>('/api/prompts/repo/import', { owner, repo, prompts }),
 };
 
 export type { Asset, AssetContentType, AssetDelivery, AssetKind };

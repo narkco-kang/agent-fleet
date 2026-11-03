@@ -21,7 +21,7 @@ export interface GithubSkillRepo {
 }
 
 /** 获取 GitHub token：GITHUB_TOKEN 优先，其次 gh auth token */
-function getGithubToken(): string | null {
+export function getGithubToken(): string | null {
   if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
   try {
     const t = execFileSync('gh', ['auth', 'token'], {
@@ -114,7 +114,7 @@ export async function searchGithubSkills(query?: string, limit = 20): Promise<Gi
  * 批量翻译英文描述 → 中文（用 deepseek，DEEPSEEK_API_KEY 环境变量）。
  * 无 key / 调用失败 / 解析失败时返回空字符串数组，不阻断导入（前端回退显示英文）。
  */
-async function translateBatchToZh(texts: string[]): Promise<string[]> {
+export async function translateBatchToZh(texts: string[]): Promise<string[]> {
   const empty = texts.map(() => '');
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) return empty;
