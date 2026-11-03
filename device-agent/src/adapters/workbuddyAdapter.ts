@@ -6,23 +6,24 @@ import type { TaskSubmit } from '@agentfleet/shared';
 import type { Adapter, AdapterDetection, AdapterEventSink, AdapterRunHandle } from './adapter.js';
 
 /**
- * WorkBuddy Adapter —— 走桌面主进程的 50068「CodeBuddy Remote Control」执行。
+ * WorkBuddy Adapter —— 走桌面主进程的「CodeBuddy Remote Control」网关执行。
  *
- * 逆向结论（类比 DshAdapter 的 Electron 逆向，工具：rizin/ghidra/strings + asar 解包）：
- *
+ * 逆向结论（工具：rizin/ghidra/strings + asar 解包）：
  * 1. WorkBuddy.app 的 agent 内核是专属精简 bundle `cli/dist/codebuddy-lite-wb.mjs`
  *    （"wb"=WorkBuddy），内置 WORKBUDDY_TOOLS + 专属多模型网关。
- * 2. 登录态 token 用 `$wbEncrypted`（AES-GCM）加密，解密密钥（symmetricKey + RSA 私钥）
- *    只在桌面主进程（CredentialBootstrap IPC 注入），Keychain 无 WorkBuddy Safe Storage。
- *    → **纯 headless 无法解密登录态**，headless 起 codebuddy 必然卡 `Authentication required`。
- * 3. 因此唯一正路 = 桌面主进程的 50068「CodeBuddy Remote Control」，由其代为执行：
- *      POST /api/v1/runs             body={ text, sender:{id} } → { runId, status:"accepted" }
- *      GET  /api/v1/runs/:id/stream  SSE 流（event: message/done/error）
- *    认证 `Authorization: Bearer <gatewayPassword>`；gateway password 只是 50068 的本地
- *    访问保护（可关），可通过 settings 的 `gateway.auth=none` 关闭（本 Adapter 自动写入）。
+ * 2. 登录态 token 用 `$wbEncrypted`（AES-GCM）加密，解密密钥只在桌面主进程
+ *    （CredentialBootstrap IPC 注入），headless 起 codebuddy 必然卡 `Authentication required`。
+ * 3. 因此唯一正路 = 桌面主进程的「CodeBuddy Remote Control」网关，由其代为执行：
+ *      POST /api/v1/runs   body={ id, type, text, source:{platform,sender:{id}} } → { runId, status:"accepted" }
+ *      GET  /api/v1/runs/:id/stream  SSE 流（event: next → data JSON）
+ *    关键：网关端口是**动态的**（主进程每次启动随机分配，非固定 50068），password 也是
+ *    动态的、不落盘，通过环境变量注入：
+ *      CODEBUDDY_GATEWAY_PASSWORD  — Bearer 认证密码
+ *      CODEBUDDY_SERVICE_PROXY_URL — http://127.0.0.1:<port>/...（可提取端口）
+ *    Adapter 动态发现：① 环境变量 ② 扫描 Electron 监听端口探测 /api/v1/health。
  *
  * 激活/登录模型 = 用户点「打开平台」→ open -a "WorkBuddy AI" → 手动登录（Google/微信/
- * 手机号）→ ACK 后 activated=1；50068 可达 = 桌面应用运行且已登录，即可执行。
+ * 手机号）→ ACK 后 activated=1；网关可达 = 桌面应用运行且已登录。
  */
 
 /** WorkBuddy.app 内 codebuddy 引导脚本的绝对路径（据此加载 WorkBuddy 专属内核） */
@@ -62,26 +63,71 @@ export function findCodebuddy(): string | null {
 }
 
 /**
- * 探测 WorkBuddy 桌面主进程的 50068 Remote Control 网关。
- *  - reachable     ：网关在且免认证（可直接远程调用）
- *  - auth-required ：网关在但需要 gateway password（Bearer 认证）
- *  - offline       ：桌面应用未运行（50068 不可达）
- * 50068 可达 = WorkBuddy 桌面应用运行且已登录，是 workbuddy 平台真正可用的判据。
+ * 动态发现 WorkBuddy 桌面主进程的「CodeBuddy Remote Control」网关。
+ * 关键：网关端口是**动态的**（主进程每次启动随机分配，不是固定 50068），password 也是
+ * 动态的、不落盘，通过环境变量注入（CODEBUDDY_GATEWAY_PASSWORD / CODEBUDDY_SERVICE_PROXY_URL）。
+ * 发现顺序：① 环境变量（主进程注入，最可靠）② 扫描 Electron 监听端口探测 /api/v1/health。
  */
-async function probeGateway50068(): Promise<'reachable' | 'auth-required' | 'offline'> {
+interface GatewayInfo {
+  port: number;
+  /** true = 需要 Bearer password 认证 */
+  authRequired: boolean;
+}
+
+async function discoverGateway(): Promise<GatewayInfo | null> {
+  const port = gatewayPortFromEnv() ?? (await scanGatewayPort());
+  if (!port) return null;
   try {
-    const res = await fetch('http://127.0.0.1:50068/api/v1/health', {
+    const res = await fetch(`http://127.0.0.1:${port}/api/v1/health`, {
       signal: AbortSignal.timeout(2_000),
     });
-    if (res.status === 401 || res.status === 403) return 'auth-required';
-    return 'reachable';
+    return { port, authRequired: res.status === 401 || res.status === 403 };
   } catch {
-    return 'offline';
+    return null;
   }
 }
 
-/** 50068 Remote Control 网关地址（桌面主进程，仅监听 localhost） */
-const GATEWAY_BASE = 'http://127.0.0.1:50068';
+/** 从 CODEBUDDY_SERVICE_PROXY_URL 提取 gateway 端口（主进程注入，最可靠） */
+function gatewayPortFromEnv(): number | null {
+  const url = process.env.CODEBUDDY_SERVICE_PROXY_URL;
+  if (url) {
+    const m = url.match(/127\.0\.0\.1:(\d+)/);
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+
+/** 扫描 Electron 进程监听的 localhost 端口，探测 /api/v1/health 者即 gateway */
+async function scanGatewayPort(): Promise<number | null> {
+  let ports: number[] = [];
+  try {
+    const out = execFileSync('lsof', ['-nP', '-iTCP', '-sTCP:LISTEN'], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 3_000,
+    });
+    const set = new Set<number>();
+    for (const line of out.split('\n')) {
+      if (!line.includes('Electron')) continue;
+      const m = line.match(/127\.0\.0\.1:(\d+)/);
+      if (m) set.add(Number(m[1]));
+    }
+    ports = Array.from(set);
+  } catch {
+    /* lsof 不可用时忽略 */
+  }
+  for (const port of ports) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/api/v1/health`, {
+        signal: AbortSignal.timeout(800),
+      });
+      if (res.status === 401 || res.status === 200) return port;
+    } catch {
+      /* continue */
+    }
+  }
+  return null;
+}
 
 /** gateway password：CODEBUDDY_GATEWAY_PASSWORD 优先，AGENTFLEET_WORKBUDDY_GATEWAY_PASSWORD 兜底 */
 function getGatewayPassword(): string {
@@ -92,45 +138,7 @@ function getGatewayPassword(): string {
   );
 }
 
-/** USER settings 文件路径（gateway.auth 存这里，默认 ~/.codebuddy/settings.json） */
-function userSettingsPath(): string {
-  const cfgDir = process.env.CODEBUDDY_CONFIG_DIR?.trim();
-  if (cfgDir) return path.join(cfgDir, 'settings.json');
-  return path.join(os.homedir(), '.codebuddy', 'settings.json');
-}
-
-/**
- * 幂等写入 gateway.auth=none，关闭 50068 的本地访问保护（WorkBuddy 账号登录靠
- * Google/微信/手机号，无需 gateway password；50068 只监听 localhost，本地进程可信）。
- * 保留其它字段（enabledPlugins 等），只把 gateway.auth 置为 none；已是 none 则跳过。
- * 注意：需重启 WorkBuddy 桌面应用后生效（主进程启动时读 settings）。
- */
-function ensureGatewayAuthNone(): { wrote: boolean; path: string; error?: string } {
-  const file = userSettingsPath();
-  try {
-    let data: Record<string, unknown> = {};
-    if (fs.existsSync(file)) {
-      try {
-        data = JSON.parse(fs.readFileSync(file, 'utf-8')) as Record<string, unknown>;
-      } catch {
-        return { wrote: false, path: file, error: 'settings.json 解析失败' };
-      }
-    }
-    const gateway = (typeof data.gateway === 'object' && data.gateway !== null
-      ? (data.gateway as Record<string, unknown>)
-      : {}) as Record<string, unknown>;
-    if (gateway.auth === 'none') {
-      return { wrote: false, path: file }; // 已是 none，幂等跳过
-    }
-    data.gateway = { ...gateway, auth: 'none' };
-    fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-    return { wrote: true, path: file };
-  } catch (err) {
-    return { wrote: false, path: file, error: (err as Error).message };
-  }
-}
-
-/** 50068 SSE 消息结构（buildOutbound） */
+/** 网关 SSE 消息结构（buildOutbound） */
 interface GatewayMessage {
   id?: string;
   type?: 'accepted' | 'completed' | 'error';
@@ -157,17 +165,13 @@ export class WorkbuddyAdapter implements Adapter {
         maxConcurrency: 1,
       };
     }
-    const gateway = await probeGateway50068();
+    const gateway = await discoverGateway();
     const capabilities: string[] = ['coding', 'reasoning', 'tools'];
-    if (gateway !== 'offline') capabilities.push('remote-control');
+    if (gateway) capabilities.push('remote-control');
 
     let version = this.readVersion(exe);
-    if (gateway === 'reachable') {
-      version += ' (gateway)';
-    } else if (gateway === 'auth-required') {
-      // 自动关闭 50068 本地访问保护（幂等，账号登录靠 Google/微信，无需 gateway password）
-      const cfg = ensureGatewayAuthNone();
-      version += cfg.wrote ? ' (gateway auth→none，需重启 WorkBuddy)' : ' (gateway auth)';
+    if (gateway) {
+      version += gateway.authRequired ? ' (gateway auth)' : ' (gateway)';
     }
     return {
       found: true,
@@ -184,11 +188,9 @@ export class WorkbuddyAdapter implements Adapter {
     let seq = 0;
     const makeSeq = (): number => ++seq;
 
-    // 唯一执行路径 = 50068 Remote Control（桌面主进程持有登录态代为执行）。
-    // 不再 fallback ACP stdio：登录态解密密钥只在桌面主进程，headless 无法复用，
-    // 走 ACP 必然卡 Authentication required（此前报错的根因）。
-    const gateway = await probeGateway50068();
-    if (gateway === 'offline') {
+    // 唯一执行路径 = 桌面主进程的「CodeBuddy Remote Control」网关（动态端口 + 动态 password）。
+    const gateway = await discoverGateway();
+    if (!gateway) {
       sink({
         taskId: task.taskId,
         seq: makeSeq(),
@@ -196,43 +198,41 @@ export class WorkbuddyAdapter implements Adapter {
         status: 'failed',
         data: {
           message:
-            'WorkBuddy 桌面应用未运行或未登录（50068 Remote Control 不可达）。请打开并登录 WorkBuddy 桌面应用后重试',
+            'WorkBuddy 桌面应用未运行（Remote Control 网关不可达）。请打开并登录 WorkBuddy 桌面应用后重试',
         },
         ts: Date.now(),
       });
       return { cancel: () => undefined };
     }
 
-    // reachable 或已配 password 直接走
-    if (gateway === 'reachable' || getGatewayPassword()) {
-      return this.runViaGateway50068(task, sink, makeSeq);
+    // 网关需要 Bearer password（动态、不落盘，通过 CODEBUDDY_GATEWAY_PASSWORD 环境变量注入）
+    const password = getGatewayPassword();
+    if (gateway.authRequired && !password) {
+      sink({
+        taskId: task.taskId,
+        seq: makeSeq(),
+        eventType: 'status',
+        status: 'failed',
+        data: {
+          message:
+            'WorkBuddy 网关需要动态 password 认证（不落盘）。请在 device-agent 环境设置 CODEBUDDY_GATEWAY_PASSWORD 后重试',
+        },
+        ts: Date.now(),
+      });
+      return { cancel: () => undefined };
     }
 
-    // auth-required 且无 password：自动关闭 50068 本地访问保护（幂等），提示重启生效
-    const cfg = ensureGatewayAuthNone();
-    sink({
-      taskId: task.taskId,
-      seq: makeSeq(),
-      eventType: 'status',
-      status: 'failed',
-      data: {
-        message: cfg.wrote
-          ? `已自动配置 gateway.auth=none（${cfg.path}），请重启 WorkBuddy 桌面应用后重试`
-          : cfg.error
-            ? `50068 网关需要本地访问保护配置：${cfg.error}`
-            : '50068 网关已设为 gateway.auth=none，请重启 WorkBuddy 桌面应用后重试',
-      },
-      ts: Date.now(),
-    });
-    return { cancel: () => undefined };
+    return this.runViaGateway(task, sink, makeSeq, gateway.port);
   }
 
-  /** 走 50068 Remote Control 执行：POST /api/v1/runs → SSE 订阅结果流 */
-  private runViaGateway50068(
+  /** 走桌面主进程的 Remote Control 网关执行：POST /api/v1/runs → 订阅结果流 */
+  private runViaGateway(
     task: TaskSubmit,
     sink: AdapterEventSink,
     makeSeq: () => number,
+    port: number,
   ): AdapterRunHandle {
+    const base = `http://127.0.0.1:${port}`;
     const password = getGatewayPassword();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (password) headers.Authorization = `Bearer ${password}`;
@@ -252,33 +252,39 @@ export class WorkbuddyAdapter implements Adapter {
 
     void (async () => {
       try {
-        // 1. 提交任务（body = Gateway Protocol 消息格式）
-        const res = await fetch(`${GATEWAY_BASE}/api/v1/runs`, {
+        // 1. 提交任务（Gateway Protocol 消息格式：id + type + text + source）
+        const res = await fetch(`${base}/api/v1/runs`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ text: task.prompt, sender: { id: 'agentfleet' } }),
+          body: JSON.stringify({
+            id: `af-${task.taskId}`,
+            type: 'text',
+            text: task.prompt,
+            source: { platform: 'generic', sender: { id: 'agentfleet' } },
+          }),
           signal: AbortSignal.timeout(10_000),
         });
         if (res.status === 401 || res.status === 403) {
-          emit('status', 'failed', {
-            message:
-              '50068 网关开启了本地访问保护（gateway.auth=password）。请将 WorkBuddy 的 gateway.auth 设为 none，或设置 CODEBUDDY_GATEWAY_PASSWORD 环境变量后重试',
-          });
+          emit('status', 'failed', { message: 'WorkBuddy 网关认证失败（动态 password 不匹配）' });
           return;
         }
         if (!res.ok) {
-          emit('status', 'failed', { message: `50068 提交失败（HTTP ${res.status}）` });
+          emit('status', 'failed', { message: `WorkBuddy 提交失败（HTTP ${res.status}）` });
           return;
         }
-        const data = (await res.json()) as { runId?: string };
+        const data = (await res.json()) as { runId?: string; error?: { message?: string } };
+        if (data.error) {
+          emit('status', 'failed', { message: data.error.message ?? 'WorkBuddy 拒绝请求' });
+          return;
+        }
         const runId = data.runId;
         if (!runId) {
-          emit('status', 'failed', { message: '50068 未返回 runId' });
+          emit('status', 'failed', { message: 'WorkBuddy 未返回 runId' });
           return;
         }
 
-        // 2. 订阅 SSE 结果流
-        const streamRes = await fetch(`${GATEWAY_BASE}/api/v1/runs/${runId}/stream`, {
+        // 2. 订阅结果流（SSE：event next/message → data JSON；event done）
+        const streamRes = await fetch(`${base}/api/v1/runs/${runId}/stream`, {
           headers,
           signal: abort.signal,
         });
@@ -298,7 +304,7 @@ export class WorkbuddyAdapter implements Adapter {
             doneReceived = true;
             return;
           }
-          if (eventName !== 'message') return;
+          if (eventName !== 'next' && eventName !== 'message') return;
           try {
             const msg = JSON.parse(dataStr) as GatewayMessage;
             if (msg.type === 'accepted') {
@@ -344,7 +350,7 @@ export class WorkbuddyAdapter implements Adapter {
         }
       } catch (err) {
         if (!cancelled) {
-          emit('status', 'failed', { message: `workbuddy 50068 异常: ${(err as Error).message}` });
+          emit('status', 'failed', { message: `workbuddy 网关异常: ${(err as Error).message}` });
         }
       }
     })();
