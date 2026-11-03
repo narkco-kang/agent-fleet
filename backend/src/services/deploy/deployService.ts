@@ -11,7 +11,7 @@ import {
   updateTargetStatus,
 } from '../../db/repo/deployments.js';
 import { actionGuard } from '../actionGuard.js';
-import { connectSsh } from './sshClient.js';
+import { connectSsh, friendlySshError } from './sshClient.js';
 import { probeOS } from './osProbe.js';
 import {
   adaptPlatformsForOS,
@@ -221,7 +221,12 @@ async function runTarget(
       }
     }
   } catch (err) {
-    updateTargetStatus(target.id, 'failed', { error: (err as Error).message });
+    const friendly = friendlySshError(err as Error, {
+      host: target.ip,
+      port: target.port,
+      username: target.user,
+    });
+    updateTargetStatus(target.id, 'failed', { error: friendly });
   } finally {
     // 安全红线：无论成功失败，立即清除内存密码
     credentials.delete(target.id);

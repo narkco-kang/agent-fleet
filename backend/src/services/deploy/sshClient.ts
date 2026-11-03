@@ -25,6 +25,37 @@ export interface SshConnectOptions {
   privateKey?: string;
 }
 
+/**
+ * 把底层 ssh2 错误映射成面向用户的友好中文提示。
+ * 真实云服务器测试暴露：原始错误（如 "All configured authentication methods failed"、
+ * "connect ECONNREFUSED x.x.x.x:22"）对普通用户不友好，据此做一次集中翻译。
+ */
+export function friendlySshError(err: Error, opts: SshConnectOptions): string {
+  const msg = err.message ?? '';
+  const host = opts.host ?? '';
+  const port = opts.port ?? 22;
+
+  if (msg === 'ssh_connect_timeout') {
+    return `SSH 连接超时（${host}:${port}）：网络不可达或防火墙拦截`;
+  }
+  if (/All configured authentication methods failed/i.test(msg)) {
+    return `SSH 认证失败（${opts.username}@${host}）：密码错误，或目标机未开启密码认证（PasswordAuthentication）`;
+  }
+  if (/ECONNREFUSED/i.test(msg)) {
+    return `无法连接 SSH 端口 ${port}（${host}）：目标机未开启 SSH 服务。Windows 需先启用 OpenSSH Server，Linux 需安装并启动 openssh-server`;
+  }
+  if (/Permission denied/i.test(msg)) {
+    return `SSH 密码被拒绝（${opts.username}@${host}）：请检查账号密码是否正确`;
+  }
+  if (/ECONNRESET|ECONNABORTED|socket hang up/i.test(msg)) {
+    return `SSH 连接被重置（${host}:${port}）：可能是云安全组未放行 ${port} 端口，或 sshd 配置限制`;
+  }
+  if (/ENOTFOUND|getaddrinfo/i.test(msg)) {
+    return `无法解析主机 ${host}：请检查 IP/域名是否正确`;
+  }
+  return `SSH 连接失败（${host}:${port}）：${msg}`;
+}
+
 /** 建立 SSH 连接 */
 export function connectSsh(
   opts: SshConnectOptions,

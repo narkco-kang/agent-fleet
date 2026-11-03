@@ -267,6 +267,74 @@ export function buildInstallScript(os: DeployOS, platforms: AgentType[]): string
   return buildPosixScript(os, plan);
 }
 
+/**
+ * 基础运行时 bootstrap：一键部署应能自动检测并补齐 agent 平台依赖的运行时
+ * （npm 安装方式需要 Node.js/npm，pipx 安装方式需要 pipx），而不是只报「npm is required」。
+ * 仅当本次计划里存在对应安装方式的平台时才 bootstrap，幂等（已装秒过）。
+ */
+export function buildBootstrapLines(
+  os: DeployOS,
+  plan: InstallPlanStep[],
+): string[] {
+  const needNode = plan.some((s) => s.method === 'npm');
+  const needPipx = plan.some((s) => s.method === 'pipx');
+  if (os === 'windows') {
+    const ps: string[] = ['Write-Output "[agentfleet] bootstrap begin"'];
+    if (needNode) {
+      ps.push('if (Get-Command node -ErrorAction SilentlyContinue) { Write-Output "[agentfleet] node ok" }');
+      ps.push('else {');
+      ps.push('  Write-Output "[agentfleet] node missing, installing via winget..."');
+      ps.push('  if (Get-Command winget -ErrorAction SilentlyContinue) {');
+      ps.push('    winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements --silent');
+      ps.push('  } else { Write-Output "[agentfleet] winget not found, node not auto-installed" }');
+      ps.push('}');
+    }
+    if (needPipx) {
+      ps.push('if (Get-Command pipx -ErrorAction SilentlyContinue) { Write-Output "[agentfleet] pipx ok" }');
+      ps.push('else {');
+      ps.push('  Write-Output "[agentfleet] pipx missing, installing..."');
+      ps.push('  if (Get-Command py -ErrorAction SilentlyContinue) { py -m pip install --user pipx }');
+      ps.push('  else { Write-Output "[agentfleet] python(py) not found, pipx not auto-installed" }');
+      ps.push('}');
+    }
+    ps.push('Write-Output "[agentfleet] bootstrap end"');
+    return ps;
+  }
+
+  const lines: string[] = ['echo "[agentfleet] bootstrap begin"'];
+  if (needNode) {
+    lines.push(
+      'if command -v node >/dev/null 2>&1; then',
+      '  echo "[agentfleet] node ok: $(node -v 2>/dev/null)"',
+      'else',
+      '  echo "[agentfleet] node missing, installing Node.js LTS (免 sudo, 装到 ~/.local)..."',
+      '  AF_NODE_VERSION=v20.19.0',
+      '  case "$(uname -m)" in x86_64|amd64) AF_NODE_ARCH=x64;; aarch64|arm64) AF_NODE_ARCH=arm64;; *) AF_NODE_ARCH=x64;; esac',
+      '  curl -fsSL "https://nodejs.org/dist/$AF_NODE_VERSION/node-$AF_NODE_VERSION-linux-$AF_NODE_ARCH.tar.xz" -o /tmp/af-node.tar.xz \\',
+      '    && mkdir -p "$HOME/.local" \\',
+      '    && tar -xJf /tmp/af-node.tar.xz -C "$HOME/.local" --strip-components=1 \\',
+      '    && export PATH="$HOME/.local/bin:$PATH" \\',
+      '    && echo "[agentfleet] node installed: $(node -v 2>/dev/null)" \\',
+      '    || echo "[agentfleet] node install failed"',
+      'fi',
+    );
+  }
+  if (needPipx) {
+    lines.push(
+      'if command -v pipx >/dev/null 2>&1; then',
+      '  echo "[agentfleet] pipx ok"',
+      'else',
+      '  echo "[agentfleet] pipx missing, installing..."',
+      '  (python3 -m pip install --user pipx 2>/dev/null || pip3 install --user pipx 2>/dev/null) \\',
+      '    && echo "[agentfleet] pipx installed" \\',
+      '    || echo "[agentfleet] pipx install failed (no python3)"',
+      'fi',
+    );
+  }
+  lines.push('echo "[agentfleet] bootstrap end"');
+  return lines;
+}
+
 /** 从安装输出解析逐个平台验证结果 */
 export function parseInstallVerification(output: string): InstallVerification[] {
   const results: InstallVerification[] = [];
@@ -487,6 +555,7 @@ function buildPosixScript(os: DeployOS, plan: InstallPlanStep[]): string {
     'set +e',
     'export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"',
     `echo "[agentfleet] deploy begin os=${os}"`,
+    ...buildBootstrapLines(os, plan),
   ];
   for (const step of plan) {
     lines.push(`echo "[agentfleet] installing ${step.platform} method=${step.method}"`);
@@ -505,6 +574,7 @@ function buildWindowsScript(plan: InstallPlanStep[]): string {
   const psLines = [
     '$ErrorActionPreference = "Continue"',
     'Write-Output "[agentfleet] deploy begin os=windows"',
+    ...buildBootstrapLines('windows', plan),
   ];
   for (const step of plan) {
     psLines.push(`Write-Output ${psQuote(`[agentfleet] installing ${step.platform} method=${step.method}`)}`);

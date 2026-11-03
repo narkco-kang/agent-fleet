@@ -9,7 +9,7 @@ import { listBatches, updateBatchStatus } from '../db/repo/deployments.js';
 import type { DeploymentKind } from '@agentfleet/shared';
 import { actionGuard } from '../services/actionGuard.js';
 import { config } from '../config.js';
-import { connectSsh } from '../services/deploy/sshClient.js';
+import { connectSsh, friendlySshError } from '../services/deploy/sshClient.js';
 import { probeOS } from '../services/deploy/osProbe.js';
 import { probeInstalledPlatforms } from '../services/deploy/installedProbe.js';
 import { listPlatformCatalog } from '../services/deploy/installScripts.js';
@@ -146,7 +146,12 @@ export function registerDeployRoutes(app: FastifyInstance): void {
       const { results, installed, missing } = await probeInstalledPlatforms(conn, os);
       return { ok: true, data: { os, installed, missing, results } };
     } catch (err) {
-      return reply.code(502).send({ ok: false, error: (err as Error).message });
+      const friendly = friendlySshError(err as Error, {
+        host: ip,
+        port: body.port ?? 22,
+        username: user,
+      });
+      return reply.code(502).send({ ok: false, error: friendly });
     } finally {
       conn?.close();
     }
