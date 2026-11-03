@@ -1,7 +1,7 @@
 import type { AgentType, DeployOS } from '@agentfleet/shared';
 import { AGENT_TYPES } from '@agentfleet/shared';
 import type { SshConnection } from './sshClient.js';
-import { getInstallSpec } from './installScripts.js';
+import { encodeWindowsChunked, getInstallSpec } from './installScripts.js';
 
 /**
  * 已装平台探测（F1 增强）：对一台 SSH 目标机，探测 13 个 agent 平台哪些已安装。
@@ -24,6 +24,31 @@ export function buildInstalledProbeScript(os: DeployOS): string {
   return buildPosixProbeScript();
 }
 
+/**
+ * 生成「要依次通过 SSH 执行的探测命令列表」——probeInstalledPlatforms 实际使用的入口。
+ * Windows 探测脚本 base64 后超长（14 平台 > 8191 字符），必须分块执行，否则 cmd 报
+ * "The command line is too long" 导致探测静默失败。
+ */
+export function buildInstalledProbeCommands(os: DeployOS): string[] {
+  if (os !== 'windows') return [buildPosixProbeScript()];
+  const psLines = [
+    '$ErrorActionPreference = "Continue"',
+    'Write-Output "[agentfleet] installed_probe begin"',
+  ];
+  for (const platform of AGENT_TYPES) {
+    const spec = getInstallSpec(platform);
+    const names = spec?.commandNames?.length ? spec.commandNames : [platform];
+    const checks = names
+      .map((name) => `(Get-Command ${psQuote(name)} -ErrorAction SilentlyContinue)`)
+      .join(' -or ');
+    psLines.push(
+      `if (${checks}) { Write-Output ${psQuote(`[agentfleet:installed] platform=${platform} status=installed`)} } else { Write-Output ${psQuote(`[agentfleet:installed] platform=${platform} status=missing`)} }`,
+    );
+  }
+  psLines.push('Write-Output "[agentfleet] installed_probe end"');
+  return encodeWindowsChunked(psLines);
+}
+
 /** 解析探测输出：匹配标记并去重（同平台保留第一次出现） */
 export function parseInstalledProbe(output: string): InstalledProbeResult[] {
   const results: InstalledProbeResult[] = [];
@@ -44,8 +69,12 @@ export async function probeInstalledPlatforms(
   conn: SshConnection,
   os: DeployOS,
 ): Promise<{ results: InstalledProbeResult[]; installed: AgentType[]; missing: AgentType[] }> {
-  const execRes = await conn.exec(buildInstalledProbeScript(os));
-  const output = [execRes.stdout, execRes.stderr].filter(Boolean).join('\n');
+  const commands = buildInstalledProbeCommands(os);
+  let output = '';
+  for (const cmd of commands) {
+    const execRes = await conn.exec(cmd);
+    output += `${execRes.stdout}\n${execRes.stderr}\n`;
+  }
   const results = parseInstalledProbe(output);
   const installed = results.filter((r) => r.installed).map((r) => r.platform);
   const missing = results.filter((r) => !r.installed).map((r) => r.platform);

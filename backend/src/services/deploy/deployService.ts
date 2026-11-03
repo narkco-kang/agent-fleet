@@ -15,8 +15,8 @@ import { connectSsh, friendlySshError } from './sshClient.js';
 import { probeOS } from './osProbe.js';
 import {
   adaptPlatformsForOS,
-  buildInstallScript,
-  buildUninstallScript,
+  buildDeployCommands,
+  buildUninstallCommands,
   parseInstallVerification,
   parseUninstallVerification,
 } from './installScripts.js';
@@ -178,17 +178,21 @@ async function runTarget(
     updateTargetPlan(target.id, os, adaptedPlatforms);
 
     updateTargetStatus(target.id, 'installing', { os });
-    const script =
+    const commands =
       mode === 'uninstall'
-        ? buildUninstallScript(os, adaptedPlatforms)
-        : buildInstallScript(os, adaptedPlatforms);
-    const execRes = await conn.exec(script);
-    const combinedOutput = [execRes.stdout, execRes.stderr].filter(Boolean).join('\n');
-    if (execRes.code !== 0 && execRes.code !== -1 && execRes.stderr) {
-      // 命令退出码非 0：不中断，最终以逐平台 verify 标记为准。
-      console.warn(
-        `[${mode}] ${target.ip} 脚本退出码 ${execRes.code}: ${execRes.stderr}`,
-      );
+        ? buildUninstallCommands(os, adaptedPlatforms)
+        : buildDeployCommands(os, adaptedPlatforms);
+    // Windows 分块执行（规避 cmd 8191 命令行限制），POSIX 单条 bash
+    let combinedOutput = '';
+    for (const cmd of commands) {
+      const execRes = await conn.exec(cmd);
+      combinedOutput += `${execRes.stdout}\n${execRes.stderr}\n`;
+      if (execRes.code !== 0 && execRes.code !== -1 && execRes.stderr) {
+        // 命令退出码非 0：不中断，最终以逐平台 verify 标记为准。
+        console.warn(
+          `[${mode}] ${target.ip} 命令退出码 ${execRes.code}: ${execRes.stderr}`,
+        );
+      }
     }
 
     updateTargetStatus(target.id, 'verifying');

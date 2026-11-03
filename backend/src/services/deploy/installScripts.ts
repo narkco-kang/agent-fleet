@@ -268,6 +268,85 @@ export function buildInstallScript(os: DeployOS, platforms: AgentType[]): string
 }
 
 /**
+ * 把多条 PowerShell 语句编码成单个 `powershell -EncodedCommand <b64>` 命令。
+ */
+export function encodeWindowsChunk(statements: string[]): string {
+  return `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${Buffer.from(statements.join('; '), 'utf16le').toString('base64')}`;
+}
+
+/**
+ * 把 PowerShell 语句数组按 Windows cmd 命令行长度限制（8191 字符）贪心分组成
+ * 多个 `powershell -EncodedCommand <b64>` 命令。
+ *
+ * 真实 Windows Server 实测：脚本 base64 后超长会报 "The command line is too long"
+ * （cmd 对单条命令的限制约 8191 字符），导致整个探测/部署脚本静默失败。
+ */
+export function encodeWindowsChunked(statements: string[], maxChars = 6000): string[] {
+  const chunks: string[][] = [];
+  let cur: string[] = [];
+  let curLen = 0;
+  for (const stmt of statements) {
+    const b64Len = Buffer.from(stmt, 'utf16le').toString('base64').length;
+    if (cur.length > 0 && curLen + b64Len > maxChars) {
+      chunks.push(cur);
+      cur = [];
+      curLen = 0;
+    }
+    cur.push(stmt);
+    curLen += b64Len;
+  }
+  if (cur.length > 0) chunks.push(cur);
+  return chunks.map((c) => encodeWindowsChunk(c));
+}
+
+/**
+ * 生成「要依次通过 SSH 执行的命令列表」——这是 deployService 实际使用的入口。
+ * - POSIX  返回单个 bash 脚本（bash 命令行长度上限约 2MB，无问题）。
+ * - Windows 返回多个分块 powershell 命令（规避 cmd 8191 限制）；每平台独立成块，
+ *   保证 `$LASTEXITCODE`（安装/验证退出码）在同一进程内正确。
+ */
+export function buildDeployCommands(os: DeployOS, platforms: AgentType[]): string[] {
+  const plan = buildInstallPlan(os, platforms);
+  if (os !== 'windows') return [buildPosixScript(os, plan)];
+
+  const cmds: string[] = [];
+  // bootstrap（Node.js/pipx）作为首个块，仅在有实际内容时执行
+  const bootstrap = buildBootstrapLines('windows', plan);
+  if (bootstrap.length > 2) cmds.push(encodeWindowsChunk(bootstrap));
+
+  for (const step of plan) {
+    cmds.push(
+      encodeWindowsChunk([
+        `Write-Output ${psQuote(`[agentfleet] installing ${step.platform} method=${step.method}`)}`,
+        step.command,
+        `Write-Output ${psQuote(`[agentfleet] install_exit ${step.platform} code=$LASTEXITCODE`)}`,
+        `Write-Output ${psQuote(`[agentfleet] verifying ${step.platform}`)}`,
+        step.verifyCommand,
+        `Write-Output ${psQuote(`[agentfleet] verify_exit ${step.platform} code=$LASTEXITCODE`)}`,
+      ]),
+    );
+  }
+  return cmds;
+}
+
+/**
+ * 卸载命令列表（同样规避 Windows cmd 长度限制，每平台独立成块）。
+ */
+export function buildUninstallCommands(os: DeployOS, platforms: AgentType[]): string[] {
+  const plan = buildUninstallPlan(os, platforms);
+  if (os !== 'windows') return [buildPosixUninstallScript(os, plan)];
+
+  return plan.map((step) =>
+    encodeWindowsChunk([
+      `Write-Output ${psQuote(`[agentfleet] uninstalling ${step.platform} method=${step.method}`)}`,
+      step.command,
+      `Write-Output ${psQuote(`[agentfleet] uninstall_exit ${step.platform} code=$LASTEXITCODE`)}`,
+      step.verifyCommand,
+    ]),
+  );
+}
+
+/**
  * 基础运行时 bootstrap：一键部署应能自动检测并补齐 agent 平台依赖的运行时
  * （npm 安装方式需要 Node.js/npm，pipx 安装方式需要 pipx），而不是只报「npm is required」。
  * 仅当本次计划里存在对应安装方式的平台时才 bootstrap，幂等（已装秒过）。
