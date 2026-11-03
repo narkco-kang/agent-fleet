@@ -166,7 +166,7 @@ function bridgePluginDir(): string {
 }
 
 /**
- * 确保 WorkBuddy 桥接插件已安装（幂等）。桥接作为 MCP stdio server 注册为插件，
+ * 确保 WorkBuddy 桥接插件已安装并启用（幂等）。桥接作为 MCP stdio server 注册为插件，
  * defer_loading:false = WorkBuddy 启动即 spawn 桥接，桥接继承动态 password 写入 bridge 文件。
  * device-agent 探测 workbuddy 时自动安装，用户只需登录 WorkBuddy + 重启。
  */
@@ -175,37 +175,38 @@ function ensureBridgeInstalled(): boolean {
     const pluginDir = bridgePluginDir();
     const bridgeDest = path.join(pluginDir, 'bridge.mjs');
     const pluginJson = path.join(pluginDir, '.codebuddy-plugin', 'plugin.json');
-    if (fs.existsSync(bridgeDest) && fs.existsSync(pluginJson)) return true;
 
     // 从 device-agent 的 scripts 目录复制桥接脚本（随源码分发）
     const here = path.dirname(fileURLToPath(import.meta.url));
     const bridgeSrc = path.join(here, '..', '..', 'scripts', 'workbuddy-bridge.mjs');
     if (!fs.existsSync(bridgeSrc)) return false;
 
+    // 1. 复制桥接脚本 + 写 plugin.json（幂等）
     fs.mkdirSync(path.dirname(pluginJson), { recursive: true });
-    fs.copyFileSync(bridgeSrc, bridgeDest);
-
-    fs.writeFileSync(
-      pluginJson,
-      `${JSON.stringify(
-        {
-          name: 'agentfleet-bridge',
-          version: '1.0.0',
-          description: 'AgentFleet WorkBuddy 网关桥接：把动态 gateway password 搬运给 device-agent',
-          mcpServers: {
-            'agentfleet-bridge': {
-              command: 'node',
-              args: ['${CODEBUDDY_PLUGIN_ROOT}/bridge.mjs'],
-              defer_loading: false,
+    if (!fs.existsSync(bridgeDest)) fs.copyFileSync(bridgeSrc, bridgeDest);
+    if (!fs.existsSync(pluginJson)) {
+      fs.writeFileSync(
+        pluginJson,
+        `${JSON.stringify(
+          {
+            name: 'agentfleet-bridge',
+            version: '1.0.0',
+            description: 'AgentFleet WorkBuddy 网关桥接：把动态 gateway password 搬运给 device-agent',
+            mcpServers: {
+              'agentfleet-bridge': {
+                command: 'node',
+                args: ['${CODEBUDDY_PLUGIN_ROOT}/bridge.mjs'],
+                defer_loading: false,
+              },
             },
           },
-        },
-        null,
-        2,
-      )}\n`,
-    );
+          null,
+          2,
+        )}\n`,
+      );
+    }
 
-    // 注册到 installed_plugins.json
+    // 2. 注册 installed_plugins.json（幂等）
     const installedFile = path.join(os.homedir(), '.codebuddy', 'plugins', 'installed_plugins.json');
     let installed: { version?: number; plugins?: Record<string, unknown[]> } = { version: 2, plugins: {} };
     try {
@@ -221,10 +222,30 @@ function ensureBridgeInstalled(): boolean {
       installedAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
     };
-    const list = installed.plugins?.[key] ?? [];
     installed.plugins = installed.plugins ?? {};
-    installed.plugins[key] = [entry, ...(list as unknown[]).filter((e) => (e as { version?: string }).version !== '1.0.0')];
-    fs.writeFileSync(installedFile, `${JSON.stringify(installed, null, 2)}\n`);
+    const list = (installed.plugins[key] ?? []) as unknown[];
+    if (!list.some((e) => (e as { version?: string }).version === '1.0.0')) {
+      installed.plugins[key] = [entry, ...list];
+      fs.writeFileSync(installedFile, `${JSON.stringify(installed, null, 2)}\n`);
+    }
+
+    // 3. 注册 configured-plugins.json（启用，关键：只 installed 不 configured 不会被加载）
+    const configuredFile = path.join(os.homedir(), '.workbuddy-ai', 'plugins', 'configured-plugins.json');
+    let configured: {
+      version?: number;
+      builtInMarketPlugins?: Array<{ name?: string; marketplaceName?: string; scope?: string }>;
+    } = { version: 1, builtInMarketPlugins: [] };
+    try {
+      configured = JSON.parse(fs.readFileSync(configuredFile, 'utf-8')) as typeof configured;
+    } catch {
+      /* 首次注册 */
+    }
+    const enabledList = configured.builtInMarketPlugins ?? [];
+    if (!enabledList.some((p) => p.name === 'agentfleet-bridge')) {
+      enabledList.push({ name: 'agentfleet-bridge', marketplaceName: 'agentfleet', scope: 'user' });
+      configured.builtInMarketPlugins = enabledList;
+      fs.writeFileSync(configuredFile, `${JSON.stringify(configured, null, 2)}\n`);
+    }
 
     return true;
   } catch {
