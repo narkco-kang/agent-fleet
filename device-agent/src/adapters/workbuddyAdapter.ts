@@ -91,14 +91,15 @@ async function discoverGateway(): Promise<GatewayInfo | null> {
   }
 }
 
-/** 从 CODEBUDDY_SERVICE_PROXY_URL 提取 gateway 端口（主进程注入，最可靠） */
+/** 从 CODEBUDDY_SERVICE_PROXY_URL 或桥接文件提取 gateway 端口 */
 function gatewayPortFromEnv(): number | null {
   const url = process.env.CODEBUDDY_SERVICE_PROXY_URL;
   if (url) {
     const m = url.match(/127\.0\.0\.1:(\d+)/);
     if (m) return Number(m[1]);
   }
-  return null;
+  const bridge = readBridge();
+  return bridge.port > 0 ? bridge.port : null;
 }
 
 /** 扫描 Electron 进程监听的 localhost 端口，探测 /api/v1/health 者即 gateway */
@@ -133,12 +134,29 @@ async function scanGatewayPort(): Promise<number | null> {
   return null;
 }
 
-/** gateway password：CODEBUDDY_GATEWAY_PASSWORD 优先，AGENTFLEET_WORKBUDDY_GATEWAY_PASSWORD 兜底 */
+/** 从桥接文件读取 gateway password + 端口（桥接进程由 WorkBuddy 主进程 spawn 时写入） */
+function readBridge(): { password: string; port: number } {
+  try {
+    const file = path.join(os.homedir(), '.workbuddy-ai', 'gateway-bridge.json');
+    if (fs.existsSync(file)) {
+      const raw = JSON.parse(fs.readFileSync(file, 'utf-8')) as {
+        password?: string;
+        port?: number;
+      };
+      return { password: raw.password ?? '', port: raw.port ?? 0 };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { password: '', port: 0 };
+}
+
+/** gateway password：环境变量优先，桥接文件兜底（桥接由 WorkBuddy spawn，继承动态 password） */
 function getGatewayPassword(): string {
   return (
     process.env.CODEBUDDY_GATEWAY_PASSWORD ??
     process.env.AGENTFLEET_WORKBUDDY_GATEWAY_PASSWORD ??
-    ''
+    readBridge().password
   );
 }
 
