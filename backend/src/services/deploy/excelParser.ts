@@ -82,7 +82,24 @@ export function normalizeRow(
 
   const port = portField ? parseInt(String(row[portField] ?? '').trim(), 10) : NaN;
   const deviceId = deviceField ? String(row[deviceField] ?? '').trim() : '';
-  const modelConfigs = modelField ? parseModelConfigs(String(row[modelField] ?? '')) : [];
+  // 模型配置：JSON 部署直接传对象数组；Excel 传字符串（JSON 或 semicolon 格式）
+  let modelConfigs: PlatformModelConfig[] = [];
+  if (modelField) {
+    const rawModel = row[modelField];
+    if (Array.isArray(rawModel)) {
+      modelConfigs = (rawModel as Array<Record<string, unknown>>)
+        .filter((c) => c && typeof c.agentType === 'string' && typeof c.model === 'string')
+        .map((c) => ({
+          agentType: c.agentType as AgentType,
+          model: c.model as string,
+          fallbacks: Array.isArray(c.fallbacks)
+            ? (c.fallbacks as unknown[]).filter((f): f is string => typeof f === 'string')
+            : [],
+        }));
+    } else {
+      modelConfigs = parseModelConfigs(String(rawModel ?? ''));
+    }
+  }
 
   return {
     target: {
