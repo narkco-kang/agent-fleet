@@ -378,7 +378,7 @@ export class WorkbuddyAdapter implements Adapter {
       return { cancel: () => undefined };
     }
 
-    // 网关需要 Bearer password（动态、不落盘，通过 CODEBUDDY_GATEWAY_PASSWORD 环境变量注入）
+    // 网关需要 Bearer password（动态、不落盘，只在 WorkBuddy 主进程注入给其子进程）
     const password = getGatewayPassword();
     if (gateway.authRequired && !password) {
       sink({
@@ -388,7 +388,7 @@ export class WorkbuddyAdapter implements Adapter {
         status: 'failed',
         data: {
           message:
-            'WorkBuddy 网关需要动态 password 认证（不落盘）。请在 device-agent 环境设置 CODEBUDDY_GATEWAY_PASSWORD 后重试',
+            'WorkBuddy 网关需要动态密码（不落盘）。请从 WorkBuddy 集成终端启动 device-agent（自动继承密码），或设置 CODEBUDDY_GATEWAY_PASSWORD 环境变量后重试',
         },
         ts: Date.now(),
       });
