@@ -82,6 +82,13 @@ export class Bm25Index {
     return hits.slice(0, limit);
   }
 
+  /** 清空全部文档（重建索引前调用）。 */
+  clear(): void {
+    this.docs = [];
+    this.docFreq.clear();
+    this.avgLen = 0;
+  }
+
   /** 文档数。 */
   size(): number {
     return this.docs.length;

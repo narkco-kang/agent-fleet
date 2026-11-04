@@ -139,6 +139,12 @@ class MemoryLedgerService {
       rev: ++this.rev,
       note,
       status: input.status,
+      // 写入溯源（docs/25 第 4 项）：记录源任务/设备/agent，检索可追溯
+      provenance: {
+        taskId: input.taskId,
+        deviceId: input.deviceId,
+        agentType: input.agentType,
+      },
     };
     this.mempool.add(change);
     this.searchIndex.add(change); // 立即入检索索引（不等出块）
@@ -294,6 +300,22 @@ class MemoryLedgerService {
       change: h.item,
       score: h.score,
     }));
+  }
+
+  /** 写入溯源追溯（docs/25 第 4 项）：按 provenance.taskId 追溯该任务的全部终态记录。 */
+  async findByTask(taskId: string): Promise<MemoryChange[]> {
+    const doc = await this.ledger.load();
+    return doc.blocks
+      .flatMap((b) => b.changes)
+      .filter((c) => c.provenance?.taskId === taskId);
+  }
+
+  /** 图遍历检索（docs/25 第 2 项）：实体匹配 → 图遍历，映射回完整 change。 */
+  graphSearch(query: string, maxDepth = 2, limit = 20): Array<{ change: MemoryChange; depth: number; matched: boolean }> {
+    return this.searchIndex.graphSearch(query, maxDepth, limit).flatMap((h) => {
+      const change = this.searchIndex.getChange(h.changeId);
+      return change ? [{ change, depth: h.depth, matched: h.matched }] : [];
+    });
   }
 
   /**

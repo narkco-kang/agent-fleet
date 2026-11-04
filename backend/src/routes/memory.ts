@@ -67,4 +67,25 @@ export function registerMemoryRoutes(app: FastifyInstance): void {
       return { ok: true, data: memoryLedger.findSimilar(text, threshold, limit) };
     },
   );
+
+  /** 写入溯源追溯（docs/25 第 4 项）：按 provenance.taskId 追溯该任务的全部终态记录。 */
+  app.get<{ Params: { taskId: string } }>('/api/memory/trace/:taskId', async (req) => {
+    const changes = await memoryLedger.findByTask(req.params.taskId);
+    return { ok: true, data: changes };
+  });
+
+  /** 图遍历检索（docs/25 第 2 项）：实体匹配 → BFS 图遍历召回图结构相邻记忆。 */
+  app.get<{ Querystring: { q?: string; maxDepth?: string; limit?: string } }>(
+    '/api/memory/graph-search',
+    async (req, reply) => {
+      const q = req.query.q?.trim();
+      if (!q) {
+        return reply.code(400).send({ ok: false, error: 'q required' });
+      }
+      const maxDepth = Math.min(Math.max(Number(req.query.maxDepth ?? 2) || 2, 0), 5);
+      const limit = Math.min(Math.max(Number(req.query.limit ?? 20) || 20, 1), 50);
+      const hits = memoryLedger.graphSearch(q, maxDepth, limit);
+      return { ok: true, data: hits };
+    },
+  );
 }

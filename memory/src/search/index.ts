@@ -5,4 +5,5 @@ export * from './tokenize';
 export * from './bm25';
 export * from './scrub';
 export * from './similarity';
+export * from './graph-traversal';
 export * from './memory-index';

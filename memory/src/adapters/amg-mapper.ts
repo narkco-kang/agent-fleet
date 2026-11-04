@@ -6,7 +6,7 @@
  * 字段不丢：evidence / validity（valid_from / valid_until）随 node 透传。
  */
 import { randomUUID } from 'node:crypto';
-import type { ChangeOp, MemoryChange } from '../types/block';
+import type { ChangeOp, ChangeProvenance, MemoryChange } from '../types/block';
 import type { MemoryEdge, MemoryNode } from '../types/memory';
 import { ERROR_CODES } from '../types';
 
@@ -24,6 +24,8 @@ export interface SemanticOp {
   status?: string;
   old_id?: string;
   new_id?: string;
+  /** 写入溯源（可选；源任务/会话，检索可追溯）。 */
+  provenance?: ChangeProvenance;
 }
 
 /** amg op（连字符）→ 账本 ChangeOp（下划线）。 */
@@ -112,6 +114,7 @@ export function toChange(op: SemanticOp, id?: string): MemoryChange {
       break;
   }
 
+  if (op.provenance) change.provenance = op.provenance;
   return change;
 }
 
@@ -129,5 +132,6 @@ export function toSemantic(change: MemoryChange): SemanticOp {
     status: change.status,
     old_id: change.supersede?.old_id,
     new_id: change.supersede?.new_id,
+    provenance: change.provenance,
   };
 }

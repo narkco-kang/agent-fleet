@@ -49,3 +49,6 @@ export * from './semantic/extractor';
 
 // Dreaming 自演化（P1-2：筛候选 → 抽取 → 冲突消解写回语义索引）
 export * from './semantic/dreaming';
+
+// 遗忘衰减 + 访问加强（docs/25：检索排序权重，不删账本）
+export * from './semantic/decay';

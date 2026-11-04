@@ -21,6 +21,18 @@ export interface SupersedePayload {
   new_id: string;
 }
 
+/** 写入溯源（provenance 链，docs/25 落地清单第 4 项）：记录这条 change 由哪个任务/会话产生。 */
+export interface ChangeProvenance {
+  /** 源任务 id。 */
+  taskId?: string;
+  /** 源会话 id。 */
+  sessionId?: string;
+  /** 源设备 id。 */
+  deviceId?: string;
+  /** 源 agent 平台。 */
+  agentType?: string;
+}
+
 /** 块内交易（与 amg 语义兼容）。 */
 export interface MemoryChange {
   /** 本 change 的稳定标识（uuid），Merkle 叶子定位 / 幂等去重用。 */
@@ -44,6 +56,8 @@ export interface MemoryChange {
   status?: string;
   /** supersede 的语义载荷。 */
   supersede?: SupersedePayload;
+  /** 写入溯源（可选；记录源任务/会话，供检索追溯）。 */
+  provenance?: ChangeProvenance;
 }
 
 /**
