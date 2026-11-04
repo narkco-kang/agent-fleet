@@ -69,6 +69,7 @@ export function NeuralGraph({
   const data = useGraphData();
   const { isMobile } = useBreakpoint();
   const [focus, setFocus] = useState<string | null>(null);
+  const [taskFilter, setTaskFilter] = useState<string>('all');
 
   const devices = useMemo(
     () =>
@@ -89,6 +90,12 @@ export function NeuralGraph({
         .sort((a, b) => (b.data.createdAt ?? 0) - (a.data.createdAt ?? 0)),
     [data],
   );
+  // 任务栏状态筛选（failed 含 cancelled/interrupted）
+  const visibleTasks = useMemo(() => {
+    if (taskFilter === 'all') return tasks;
+    if (taskFilter === 'failed') return tasks.filter((t) => ['failed', 'cancelled', 'interrupted'].includes(t.data.status));
+    return tasks.filter((t) => t.data.status === taskFilter);
+  }, [tasks, taskFilter]);
 
   // 归属索引：agentId → deviceId；task 的 agentId
   const agentDevice = useMemo(() => {
@@ -222,8 +229,13 @@ export function NeuralGraph({
         </Column>
 
         {/* 任务栏 */}
-        <Column title="任务" count={tasks.length} empty="暂无任务，点右上角「新建任务」下发">
-          {tasks.map((t) => {
+        <Column
+          title="任务"
+          count={tasks.length}
+          empty="暂无任务，点右上角「新建任务」下发"
+          headerExtra={<TaskFilter value={taskFilter} onChange={setTaskFilter} />}
+        >
+          {visibleTasks.map((t) => {
             const st = t.data.status;
             const color = STATUS_VAR[st] ?? 'var(--offline)';
             const running = st === 'running';
@@ -266,20 +278,47 @@ function Kpi({ value, total, label, sub, color }: { value: number; total?: numbe
   );
 }
 
-/** 栏容器（标题 + 计数 + 可滚动卡片列表） */
-function Column({ title, count, empty, children }: { title: string; count: number; empty: string; children: ReactNode }): JSX.Element {
+/** 栏容器（标题 + 计数 + 可选筛选条 + 可滚动卡片列表） */
+function Column({ title, count, empty, headerExtra, children }: { title: string; count: number; empty: string; headerExtra?: ReactNode; children: ReactNode }): JSX.Element {
   return (
     <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-[var(--border)]" style={{ background: 'var(--surface)' }}>
       <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-3 py-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text)]">{title}</span>
         <span className="rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-muted)]">{count}</span>
       </div>
+      {headerExtra}
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2.5">
         {children}
         {Children.count(children) === 0 && (
           <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-xs text-[var(--text-muted)]">{empty}</div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** 任务状态筛选条 */
+function TaskFilter({ value, onChange }: { value: string; onChange: (v: string) => void }): JSX.Element {
+  const opts: Array<{ v: string; label: string }> = [
+    { v: 'all', label: '全部' },
+    { v: 'running', label: '运行中' },
+    { v: 'queued', label: '排队' },
+    { v: 'completed', label: '完成' },
+    { v: 'failed', label: '失败' },
+  ];
+  return (
+    <div className="flex shrink-0 flex-wrap gap-1 border-b border-[var(--border)] px-2.5 py-1.5">
+      {opts.map((o) => (
+        <button
+          key={o.v}
+          onClick={() => onChange(o.v)}
+          className={`rounded px-2 py-0.5 text-[11px] transition-colors ${
+            value === o.v ? 'bg-[var(--brand)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)]'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
