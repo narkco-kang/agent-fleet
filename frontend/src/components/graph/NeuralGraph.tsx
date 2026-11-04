@@ -148,6 +148,11 @@ export function NeuralGraph({
   const busyAgents = agents.filter((a) => a.data.status === 'busy').length;
   const runningTasks = tasks.filter((t) => t.data.status === 'running').length;
   const alerts = tasks.filter((t) => t.data.status === 'failed' || t.data.status === 'interrupted' || t.data.status === 'cancelled').length;
+  // 状态分布
+  const needsLoginAgents = agents.filter((a) => a.data.status === 'needs_login' || (a.data.activated as boolean | undefined) === false).length;
+  const idleAgents = agents.length - busyAgents - needsLoginAgents - agents.filter((a) => a.data.status === 'error').length;
+  const queuedTasks = tasks.filter((t) => t.data.status === 'queued').length;
+  const completedTasks = tasks.filter((t) => t.data.status === 'completed').length;
 
   const click = (node: GraphNode, target: DetailTarget): void => {
     if (focus === node.id) {
@@ -188,7 +193,15 @@ export function NeuralGraph({
         }}
       >
         {/* 设备栏 */}
-        <Column title="设备" count={devices.length} empty="暂无设备接入">
+        <Column
+          title="设备"
+          count={devices.length}
+          empty="暂无设备接入"
+          statusBar={<StatusBar items={[
+            { color: 'var(--success)', count: onlineDevices, label: '在线' },
+            { color: 'var(--offline)', count: devices.length - onlineDevices, label: '离线' },
+          ]} />}
+        >
           {devices.map((d) => {
             const devAgents = agents.filter((a) => a.deviceId === d.id);
             const color = STATUS_VAR[d.data.status] ?? 'var(--offline)';
@@ -211,7 +224,16 @@ export function NeuralGraph({
         </Column>
 
         {/* Agent 栏 */}
-        <Column title="Agent" count={agents.length} empty="设备接入后此处显示 agent 平台">
+        <Column
+          title="Agent"
+          count={agents.length}
+          empty="设备接入后此处显示 agent 平台"
+          statusBar={<StatusBar items={[
+            { color: 'var(--warning)', count: busyAgents, label: '处理中' },
+            { color: 'var(--agent)', count: idleAgents, label: '空闲' },
+            { color: 'var(--offline)', count: needsLoginAgents, label: '待登录' },
+          ]} />}
+        >
           {agents.map((a) => {
             const color = agentColor(a.data);
             const busy = a.data.status === 'busy';
@@ -243,6 +265,12 @@ export function NeuralGraph({
           title="任务"
           count={tasks.length}
           empty="暂无任务，点右上角「新建任务」下发"
+          statusBar={<StatusBar items={[
+            { color: 'var(--warning)', count: runningTasks, label: '运行中' },
+            { color: 'var(--offline)', count: queuedTasks, label: '排队' },
+            { color: 'var(--success)', count: completedTasks, label: '完成' },
+            { color: 'var(--danger)', count: alerts, label: '失败' },
+          ]} />}
           headerExtra={<TaskFilter value={taskFilter} onChange={setTaskFilter} />}
         >
           {visibleTasks.map((t) => {
@@ -289,20 +317,45 @@ function Kpi({ value, total, label, sub, color }: { value: number; total?: numbe
   );
 }
 
-/** 栏容器（标题 + 计数 + 可选筛选条 + 可滚动卡片列表） */
-function Column({ title, count, empty, headerExtra, children }: { title: string; count: number; empty: string; headerExtra?: ReactNode; children: ReactNode }): JSX.Element {
+/** 栏容器（标题 + 计数 + 状态分布条 + 可选筛选条 + 可滚动卡片列表） */
+function Column({ title, count, empty, statusBar, headerExtra, children }: { title: string; count: number; empty: string; statusBar?: ReactNode; headerExtra?: ReactNode; children: ReactNode }): JSX.Element {
   return (
     <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-[var(--border)]" style={{ background: 'var(--surface)' }}>
       <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-3 py-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text)]">{title}</span>
         <span className="rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-muted)]">{count}</span>
       </div>
+      {statusBar}
       {headerExtra}
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2.5">
         {children}
         {Children.count(children) === 0 && (
           <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-xs text-[var(--text-muted)]">{empty}</div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** 状态分布迷你条：色块按占比 + 计数（一眼看状态构成） */
+function StatusBar({ items }: { items: Array<{ color: string; count: number; label: string }> }): JSX.Element | null {
+  const total = items.reduce((s, i) => s + i.count, 0);
+  const visible = items.filter((i) => i.count > 0);
+  if (total === 0 || visible.length === 0) return null;
+  return (
+    <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-2.5 py-1.5">
+      <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--bg-subtle)]">
+        {visible.map((i) => (
+          <div key={i.label} style={{ width: `${(i.count / total) * 100}%`, background: i.color }} title={`${i.label} ${i.count}`} />
+        ))}
+      </div>
+      <div className="flex shrink-0 items-center gap-2 font-mono text-[10px] text-[var(--text-muted)]">
+        {visible.map((i) => (
+          <span key={i.label} className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: i.color }} />
+            {i.count}
+          </span>
+        ))}
       </div>
     </div>
   );

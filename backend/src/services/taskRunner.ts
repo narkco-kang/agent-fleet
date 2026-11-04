@@ -2,7 +2,7 @@ import type { AgentType, TaskEvent, TaskEventType, TaskResult, TaskStatus } from
 import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
 import { getTask, listTasks, setTaskResult, updateTaskStatus } from '../db/repo/tasks.js';
-import { appendMessage } from '../db/repo/messages.js';
+import { appendMessage, listMessagesByTask } from '../db/repo/messages.js';
 import { release, enqueueTask, type SchedulerSubmitInput, type GatewayTaskResult } from './scheduler.js';
 import { setSchedulerHooks } from './scheduler.js';
 import { sendToDevice, broadcastToDashboards, broadcastToGateways } from '../transport/wsServer.js';
@@ -189,6 +189,15 @@ export function onDeviceTaskResult(result: TaskResult): void {
     tokensOut: result.result?.tokensOut,
     error: status === 'failed' ? (result.result?.error ?? '任务执行失败') : null,
   });
+
+  // 设备任务若未流式回传 text（one-shot 直接 completed），补一条最终结果，保证输出可见
+  const text = result.result?.text ?? '';
+  if (status === 'completed' && text) {
+    const hasText = listMessagesByTask(result.taskId, 500).some((m) => m.event_type === 'text');
+    if (!hasText) {
+      emitEvent(result.taskId, 'text', status, { text });
+    }
+  }
 
   // 结果作为一条 system 事件落库（时间线可见）
   appendMessage(
