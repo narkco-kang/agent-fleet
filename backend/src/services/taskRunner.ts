@@ -2,7 +2,7 @@ import type { AgentType, TaskEvent, TaskEventType, TaskResult, TaskStatus } from
 import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
 import { circuitBreaker } from './circuitBreaker.js';
-import { getTask, listTasks, setTaskResult, updateTaskStatus } from '../db/repo/tasks.js';
+import { getTask, listTasks, setTaskResult, updateTaskStatus, setTaskCheckpoint, clearTaskCheckpoint } from '../db/repo/tasks.js';
 import { saveTaskContext } from '../db/repo/taskContexts.js';
 import { createGate } from '../db/repo/decisionGates.js';
 import { appendMessage, listMessagesByTask } from '../db/repo/messages.js';
@@ -280,6 +280,9 @@ export function onDeviceDisconnected(deviceId: string): void {
       Date.now(),
       randomId('msg'),
     );
+    // 断点续跑（P1-3）：把已流式回传的部分输出保存为 checkpoint，重派时注入续跑上下文
+    const partial = extractPartialOutput(t.task_id);
+    if (partial) setTaskCheckpoint(t.task_id, partial);
     // 自动迁移：改回 queued 并释放占用，dispatch 会重新派发到其他在线设备
     updateTaskStatus(t.task_id, 'queued', { error: '设备断线，已自动迁移' });
     const rec = running.get(t.task_id);
@@ -298,6 +301,22 @@ export function onDeviceDisconnected(deviceId: string): void {
     });
   }
   deviceRegistry.remove(deviceId);
+}
+
+/** 抽取任务已产生的部分输出（text 事件拼接，截断到有界长度），供断点续跑 */
+function extractPartialOutput(taskId: string): string {
+  const texts = listMessagesByTask(taskId, 500)
+    .filter((m) => m.event_type === 'text')
+    .map((m) => {
+      try {
+        const d = JSON.parse(m.data || '{}') as { text?: string };
+        return d.text ?? '';
+      } catch {
+        return '';
+      }
+    })
+    .filter(Boolean);
+  return texts.join('\n').slice(-4000); // 有界：最多保留末尾 4KB，避免 prompt 膨胀
 }
 
 /** 取消任务 */
@@ -442,6 +461,10 @@ function finalize(taskId: string, status: TaskStatus): void {
   }
   release(rec.deviceId, rec.agentType);
   running.delete(taskId);
+  // 终态清 checkpoint（避免残留影响后续重试/查询）
+  if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+    clearTaskCheckpoint(taskId);
+  }
 }
 
 /** 供快照/查询使用的运行中计数 */

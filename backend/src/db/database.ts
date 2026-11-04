@@ -54,6 +54,9 @@ function runMigrations(database: Database.Database): void {
   if (!taskCols.includes('target_sub_role')) {
     database.exec(`ALTER TABLE tasks ADD COLUMN target_sub_role TEXT`);
   }
+  if (!taskCols.includes('checkpoint')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN checkpoint TEXT`);
+  }
 
   const deviceCols = (
     database.prepare(`PRAGMA table_info(devices)`).all() as Array<{ name: string }>

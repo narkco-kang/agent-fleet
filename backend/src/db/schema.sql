@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   duration_ms        INTEGER,
   tokens_in          INTEGER,
   tokens_out         INTEGER,
+  checkpoint         TEXT,
   created_at         INTEGER NOT NULL,
   started_at         INTEGER,
   finished_at        INTEGER

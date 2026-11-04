@@ -200,6 +200,11 @@ function dispatchLocalTask(
   incBusy(deviceId);
   syncRegistryBusy();
 
+  // 断点续跑（P1-3）：有 checkpoint 时注入续跑上下文，让新 agent 基于部分输出继续
+  const prompt = task.checkpoint
+    ? `${task.prompt}\n\n【续跑上下文】此前执行已中断，已产生如下部分输出：\n${task.checkpoint}\n\n请基于上述已完成部分继续完成原任务，不要重复已完成的工作。`
+    : task.prompt;
+
   // 下发 task.submit 给设备
   const envelope = {
     v: 1 as const,
@@ -213,7 +218,7 @@ function dispatchLocalTask(
       sessionId: task.session_id,
       origin: task.origin,
       originRef: task.origin_ref,
-      prompt: task.prompt,
+      prompt,
       operationId: task.task_id,
       target: {
         mode: task.target_mode,

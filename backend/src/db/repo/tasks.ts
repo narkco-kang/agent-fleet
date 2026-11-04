@@ -30,6 +30,7 @@ export interface TaskRow {
   duration_ms: number | null;
   tokens_in: number | null;
   tokens_out: number | null;
+  checkpoint: string | null;
   created_at: number;
   started_at: number | null;
   finished_at: number | null;
@@ -166,6 +167,18 @@ export function assignTaskTarget(
       `UPDATE tasks SET target_device_id = ?, target_agent_type = ? WHERE task_id = ?`,
     )
     .run(deviceId, agentType, taskId);
+}
+
+/** 写入断点续跑 checkpoint（P1-3：断线时保存部分输出，重派时注入续跑上下文） */
+export function setTaskCheckpoint(taskId: string, checkpoint: string): void {
+  getDb()
+    .prepare(`UPDATE tasks SET checkpoint = ? WHERE task_id = ?`)
+    .run(checkpoint, taskId);
+}
+
+/** 清除 checkpoint（任务终态后，避免残留影响重试） */
+export function clearTaskCheckpoint(taskId: string): void {
+  getDb().prepare(`UPDATE tasks SET checkpoint = NULL WHERE task_id = ?`).run(taskId);
 }
 
 /** 列表查询（支持状态/设备/agent 筛选 + 分页；status 可传单值或数组） */
