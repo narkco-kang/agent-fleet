@@ -89,10 +89,14 @@ export function detectToolUse(j: {
 export function runCli(opts: CliRunOptions): CliRunHandle {
   // 沙箱包裹（P0-2）：readonly/isolated 时用 sandbox-exec/bwrap 包裹命令
   const { cmd, args } = buildSandboxCommand(opts.sandbox ?? 'none', opts.cmd, opts.args);
+  // Windows：npm 全局 CLI 是 .cmd/.bat 批处理，必须 shell:true 经 cmd.exe 执行，
+  // 否则 spawn 直接 CreateProcess 会 ENOENT（真实多机 benchmark 踩过）
+  const isWindowsBatch = process.platform === 'win32' && /\.(cmd|bat)$/i.test(cmd);
   const child = spawn(cmd, args, {
     cwd: opts.cwd ?? process.cwd(),
     env: process.env,
     stdio: ['ignore', 'pipe', 'pipe'],
+    shell: isWindowsBatch,
   });
 
   let seq = 0;

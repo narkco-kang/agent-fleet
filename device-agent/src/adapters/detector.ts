@@ -78,11 +78,25 @@ function tryWhich(cmd: string): string | null {
     const whichCmd = os.platform() === 'win32' ? 'where' : 'which';
     const out = execFileSync(whichCmd, [cmd], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     if (!out) return null;
-    // where 可能返回多行（.cmd 与无后缀）；取第一个命中
-    return out.split(/\r?\n/)[0] ?? null;
+    return preferExecutable(out.split(/\r?\n/), os.platform() === 'win32');
   } catch {
     return null;
   }
+}
+
+/**
+ * 从 where/which 的多行输出里挑可执行文件。
+ * Windows 的 where 会同时返回「无扩展名（Unix shell 脚本）」和「.cmd（Windows 批处理）」，
+ * 必须优先 .cmd/.bat/.exe，否则 spawn 无扩展名脚本会 ENOENT（真实多机 benchmark 踩过）。
+ */
+export function preferExecutable(lines: string[], isWindows: boolean): string | null {
+  const clean = lines.map((l) => l.trim()).filter(Boolean);
+  if (clean.length === 0) return null;
+  if (isWindows) {
+    const exec = clean.find((l) => /\.(cmd|bat|exe)$/i.test(l));
+    if (exec) return exec;
+  }
+  return clean[0];
 }
 
 /** npm 全局包探测：返回可执行文件路径 */
