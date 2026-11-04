@@ -208,6 +208,9 @@ export function onDeviceTaskResult(result: TaskResult): void {
   // 幂等（对抗性故障注入）：任务已是终态则忽略重复 result（防重复释放/记账/广播）
   const existing = getTask(result.taskId);
   if (existing && isTerminal(existing.status)) return;
+  // 只有 running 任务才接受 result：断连迁移后的任务已改回 queued，旧设备迟到上报的
+  // result 若被接受会把 queued 误判为 completed（对抗性故障注入 DEFECT-FI-01 守着）
+  if (existing && existing.status !== 'running') return;
   const status: TaskStatus = result.status === 'interrupted' ? 'interrupted' : result.status;
 
   setTaskResult(result.taskId, {

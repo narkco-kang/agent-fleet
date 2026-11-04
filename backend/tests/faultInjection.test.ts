@@ -14,8 +14,10 @@ import {
   initTaskRunner,
   onDeviceTaskResult,
   onDeviceTaskEvent,
+  onDeviceDisconnected,
   runningCount,
 } from '../src/services/taskRunner.js';
+import { createGate, resolveGate } from '../src/db/repo/decisionGates.js';
 import type { AgentType, TaskResult } from '@agentfleet/shared';
 
 /**
@@ -188,5 +190,59 @@ describe('对抗性故障注入', () => {
 
     onDeviceTaskResult(completedResult('task-fi4')); // 重复
     expect(runningCount()).toBe(0); // 不二次释放（保持 0，不出现负数/异常）
+  });
+
+  it('断连迁移后旧设备迟到 result 被忽略，不覆盖迁移后的 queued 状态', () => {
+    registerDevice('dev-fi5');
+    seedAgent('dev-fi5', 'codex');
+    enqueueTask({
+      taskId: 'task-fi5',
+      sessionId: 'sess-fi5',
+      origin: 'dashboard',
+      originRef: 'qa',
+      prompt: '写一个工具函数',
+      targetMode: 'device',
+      targetDeviceId: 'dev-fi5',
+      targetAgentType: 'codex',
+    });
+    expect(getTask('task-fi5')?.status).toBe('running');
+
+    // 设备断线 → 任务自动迁移（running → queued）
+    onDeviceDisconnected('dev-fi5');
+    expect(getTask('task-fi5')?.status).toBe('queued');
+
+    // 旧设备网络恢复后迟到上报 completed result（对抗：乱序/延迟）
+    onDeviceTaskResult(completedResult('task-fi5'));
+
+    // 迁移后的任务不应被旧设备迟到的 result 覆盖为 completed
+    expect(getTask('task-fi5')?.status).toBe('queued');
+  });
+
+  it('空/null 输入防御：不崩溃', () => {
+    // null / undefined / 空 taskId 的 result 与 event 均不应抛异常
+    expect(() => onDeviceTaskResult(null as never)).not.toThrow();
+    expect(() => onDeviceTaskResult({} as never)).not.toThrow();
+    expect(() => onDeviceTaskEvent(null as never)).not.toThrow();
+    expect(() => onDeviceTaskEvent({} as never)).not.toThrow();
+    expect(() => onDeviceTaskEvent({ taskId: '', seq: 1, eventType: 'text', data: {}, ts: Date.now() })).not.toThrow();
+  });
+
+  it('决策门重复 resolve 幂等：第二次返回 undefined 且状态不变', () => {
+    const gate = createGate('task-fi6', '是否继续', ['继续', '终止']);
+    expect(gate.status).toBe('open');
+
+    // 第一次 resolve 成功
+    const r1 = resolveGate(gate.gateId, '继续');
+    expect(r1?.status).toBe('resolved');
+    expect(r1?.resolvedOption).toBe('继续');
+
+    // 重复 resolve：返回 undefined，且不覆盖已解析的选项
+    const r2 = resolveGate(gate.gateId, '终止');
+    expect(r2).toBeUndefined();
+    expect(resolveGate(gate.gateId, '继续')).toBeUndefined();
+
+    // 非法选项（未 resolve 的新 gate）也应拒绝
+    const gate2 = createGate('task-fi7', '选择', ['A', 'B']);
+    expect(resolveGate(gate2.gateId, 'C')).toBeUndefined();
   });
 });
