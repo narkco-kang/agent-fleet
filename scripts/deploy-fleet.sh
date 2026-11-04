@@ -24,6 +24,9 @@ WIN165_HOST="165.154.1.120"
 WIN165_USER="administrator"
 WIN165_PASS="8oetmU8rRFDAa*9Ux4"
 
+# Win165 的 node 不在 PATH（之前 curl 解压目录），用完整路径
+WIN165_NODE='C:\Users\Administrator\AppData\Local\af-node\node-v20.19.0-win-x64\node.exe'
+
 RELAY_URL="ws://118.194.233.141:4174"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -79,9 +82,20 @@ case "${1:-}" in
     scp_ubuntu "$ROOT/dist/modelgateway.cjs" "$UBUNTU_USER@$UBUNTU_HOST:modelgateway.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
     scp_win120 "$ROOT/dist/modelgateway.cjs" "$WIN120_USER@$WIN120_HOST:modelgateway.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
     scp_win165 "$ROOT/dist/modelgateway.cjs" "$WIN165_USER@$WIN165_HOST:modelgateway.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+
     echo "[fleet] 启动 Ubuntu modelgateway（设备本地 responses/anthropic 转换网关）..."
     ssh_ubuntu "pkill -f modelgateway.cjs 2>/dev/null; sleep 1; export PATH=\$HOME/.local/bin:\$PATH; setsid env MODELGATEWAY_PORT=18765 node ~/modelgateway.cjs > ~/modelgateway.log 2>&1 < /dev/null & sleep 2; ss -tlnp 2>/dev/null | grep 18765 && echo mg-ok" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"
-    echo "[fleet] Windows 设备 modelgateway 需手动启动（node ~/modelgateway.cjs），或后续补 schtasks 常驻"
+
+    echo "[fleet] Windows 设备 modelgateway 常驻（schtasks）..."
+    # Win120：node 在 PATH，直接 node
+    printf '@echo off\r\ncd /d C:\\Users\\Administrator\r\nnode modelgateway.cjs >> modelgateway.log 2>&1\r\n' > /tmp/start-modelgateway-win120.bat
+    # Win165：node 不在 PATH，用完整路径
+    printf '@echo off\r\ncd /d C:\\Users\\Administrator\r\n%s modelgateway.cjs >> modelgateway.log 2>&1\r\n' "$WIN165_NODE" > /tmp/start-modelgateway-win165.bat
+    scp_win120 /tmp/start-modelgateway-win120.bat "$WIN120_USER@$WIN120_HOST:C:/Users/Administrator/start-modelgateway.bat" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+    scp_win165 /tmp/start-modelgateway-win165.bat "$WIN165_USER@$WIN165_HOST:C:/Users/Administrator/start-modelgateway.bat" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+    ssh_win120 'schtasks /create /f /tn AgentFleetModelGateway /tr "cmd /c C:\Users\Administrator\start-modelgateway.bat" /sc onstart /ru SYSTEM 2>&1 && schtasks /run /tn AgentFleetModelGateway 2>&1' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+    ssh_win165 'schtasks /create /f /tn AFDevModelGateway /tr "cmd /c C:\Users\Administrator\start-modelgateway.bat" /sc onstart /ru SYSTEM 2>&1 && schtasks /run /tn AFDevModelGateway 2>&1' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+    echo "[fleet] modelgateway 部署完成（Ubuntu setsid + Win120/Win165 schtasks 常驻）"
     ;;
   *)
     echo "用法: bash scripts/deploy-fleet.sh {restart|status|deploy|relay|modelgateway}"
