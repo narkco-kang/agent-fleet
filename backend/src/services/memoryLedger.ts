@@ -18,8 +18,9 @@ import {
   scrubSecrets,
   MemorySearchIndex,
   semanticDistribution,
+  DreamEngine,
 } from '@agentfleet/memory';
-import type { Block, MemoryChange, KeyPair, SemanticFact } from '@agentfleet/memory';
+import type { Block, MemoryChange, KeyPair, SemanticFact, DreamResult } from '@agentfleet/memory';
 
 /** 团队账本落盘目录（可被环境变量覆盖）。 */
 const MEMORY_DIR = process.env.MEMORY_DIR ?? './data/memory';
@@ -75,6 +76,8 @@ class MemoryLedgerService {
   private rev = 0;
   /** 语义检索索引（借鉴 AgentMemory：BM25 关键词召回，可重建、可丢弃，账本仍 append-only）。 */
   private readonly searchIndex = new MemorySearchIndex();
+  /** Dreaming 自演化引擎（P1-2）：空闲触发、幂等、busy-retreat，只写语义索引不写账本。 */
+  private readonly dreamEngine = new DreamEngine();
   /** 出块回调（memorySync 注入：广播新区块给所有在线设备）。 */
   private onBlock: ((block: Block) => void | Promise<void>) | null = null;
   /** flush 串行化队列：并发任务终态会并发 flush，非原子的「读 tip + drain + append」
@@ -152,15 +155,21 @@ class MemoryLedgerService {
 
   private async doFlush(): Promise<Block | null> {
     if (this.mempool.size() === 0) return null;
-    const tip = await this.ledger.tip();
-    const changes = this.mempool.drain(this.mempool.size());
-    const block = this.producer.buildBlock(changes, tip);
-    const status = await this.ledger.appendBlock(block);
-    if (status === 'ok') {
-      await this.onBlock?.(block);
-      return block;
+    // 出块期间置 busy，让 Dreaming 撤退（不抢出块资源）
+    this.dreamEngine.setBusy(true);
+    try {
+      const tip = await this.ledger.tip();
+      const changes = this.mempool.drain(this.mempool.size());
+      const block = this.producer.buildBlock(changes, tip);
+      const status = await this.ledger.appendBlock(block);
+      if (status === 'ok') {
+        await this.onBlock?.(block);
+        return block;
+      }
+      return null;
+    } finally {
+      this.dreamEngine.setBusy(false);
     }
-    return null;
   }
 
   /** 返回 index 之后的全部区块（设备补同步用）。 */
@@ -305,6 +314,22 @@ class MemoryLedgerService {
       samples[cat] = facts.filter((f) => f.category === cat).slice(-limitPerCategory).reverse();
     }
     return { total: changes.length, coverage, byCategory, samples };
+  }
+
+  /**
+   * Dreaming 自演化（P1-2）：筛候选 → 抽取 → 冲突消解写回语义索引（不写账本）。
+   * 幂等：同批 change 重复 dream 不产生重复事实。busy 时撤退（不抢出块资源）。
+   */
+  async dream(): Promise<DreamResult> {
+    const doc = await this.ledger.load();
+    const changes = doc.blocks.flatMap((b) => b.changes);
+    return this.dreamEngine.dream(changes);
+  }
+
+  /** 当前 Dreaming 沉淀的语义事实（按类别可选）。 */
+  dreamFacts(category?: string): SemanticFact[] {
+    if (!category) return this.dreamEngine.all();
+    return this.dreamEngine.all().filter((f) => f.category === category);
   }
 
   /** 供测试/诊断生成一条任意 change（随机 uuid，不幂等）。 */

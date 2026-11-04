@@ -16,6 +16,16 @@ export function registerMemoryRoutes(app: FastifyInstance): void {
     return { ok: true, data: await memoryLedger.semanticStats(limit) };
   });
 
+  /** Dreaming 自演化（P1-2）：手动/空闲触发一次，返回本次沉淀统计。 */
+  app.post('/api/memory/dream', async () => {
+    return { ok: true, data: await memoryLedger.dream() };
+  });
+
+  /** 查询 Dreaming 已沉淀的语义事实。 */
+  app.get<{ Querystring: { category?: string } }>('/api/memory/dream/facts', async (req) => {
+    return { ok: true, data: memoryLedger.dreamFacts(req.query.category) };
+  });
+
   /** 诊断/测试：直接写入一条 change 并出块（用于验证同步链路，不依赖任务执行）。 */
   app.post<{ Body: { note?: string; status?: string } }>(
     '/api/memory/record',

@@ -46,3 +46,6 @@ export * from './search';
 
 // 语义记忆分层（P1-1：五类分类 + 结构化事实抽取）
 export * from './semantic/extractor';
+
+// Dreaming 自演化（P1-2：筛候选 → 抽取 → 冲突消解写回语义索引）
+export * from './semantic/dreaming';
