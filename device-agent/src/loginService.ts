@@ -34,7 +34,8 @@ export function parseLoginChallenge(
 
 /** 专用 Adapter 平台的登录规格（不在 platformCatalog 里，如 grok） */
 const DEDICATED_LOGIN_SPEC: Record<string, LoginSpec> = {
-  grok: { args: ['login', '--device-auth'], note: 'grok login --device-auth（浏览器授权短码）' },
+  // grok 官方 CLI 无 device-auth：headless 用 XAI_API_KEY 环境变量，GUI 环境首次启动打开本机浏览器 OAuth（非 URL+code）
+  grok: { args: [], note: 'grok 无 device-auth 命令：headless 用 XAI_API_KEY 环境变量认证，GUI 环境首次启动打开浏览器 OAuth' },
 };
 
 export interface LoginHandle {
