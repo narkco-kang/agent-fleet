@@ -24,6 +24,7 @@ const STATUS_VAR: Record<string, string> = {
   error: 'var(--danger)',
   needs_login: 'var(--offline)',
   queued: 'var(--offline)',
+  waiting: 'var(--offline)',
   running: 'var(--warning)',
   completed: 'var(--success)',
   failed: 'var(--danger)',
@@ -39,6 +40,7 @@ const STATUS_LABEL: Record<string, string> = {
   error: '异常',
   needs_login: '待登录',
   queued: '排队',
+  waiting: '等待',
   running: '运行中',
   completed: '完成',
   failed: '失败',
@@ -151,7 +153,7 @@ export function NeuralGraph({
   // 状态分布
   const needsLoginAgents = agents.filter((a) => a.data.status === 'needs_login' || (a.data.activated as boolean | undefined) === false).length;
   const idleAgents = agents.length - busyAgents - needsLoginAgents - agents.filter((a) => a.data.status === 'error').length;
-  const queuedTasks = tasks.filter((t) => t.data.status === 'queued').length;
+  const queuedTasks = tasks.filter((t) => t.data.status === 'queued' || t.data.status === 'waiting').length;
   const completedTasks = tasks.filter((t) => t.data.status === 'completed').length;
 
   const click = (node: GraphNode, target: DetailTarget): void => {
@@ -368,6 +370,7 @@ function TaskFilter({ value, onChange }: { value: string; onChange: (v: string) 
     { v: 'all', label: '全部' },
     { v: 'running', label: '运行中' },
     { v: 'queued', label: '排队' },
+    { v: 'waiting', label: '等待' },
     { v: 'completed', label: '完成' },
     { v: 'failed', label: '失败' },
   ];

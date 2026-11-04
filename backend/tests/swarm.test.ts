@@ -10,7 +10,7 @@ import { setAgentActivated, upsertAgents } from '../src/db/repo/agents.js';
 import { getDevice, upsertDevice } from '../src/db/repo/devices.js';
 import { getTask } from '../src/db/repo/tasks.js';
 import { setRelayForward } from '../src/transport/wsServer.js';
-import { enqueueTask } from '../src/services/scheduler.js';
+import { enqueueTask, release } from '../src/services/scheduler.js';
 import { buildSystemPrompt } from '../src/services/swarm/personaBuilder.js';
 import { SWARM_PRESETS } from '../src/services/swarm/presets.js';
 import * as roleTeamRepo from '../src/db/repo/roleTeams.js';
@@ -891,7 +891,7 @@ describe('I. 多设备饱和度回归（DEFECT-SWARM-01）', () => {
     expect(row?.target_agent_type).toBe('codex');
   });
 
-  it('DEFECT-SWARM-01：团队内设备全部满员时任务保持 queued 且不下发', () => {
+  it('DEFECT-SWARM-01：团队内设备全部满员时任务进入 waiting 且不下发', () => {
     registerDevice('dev-full-a');
     seedAgent('dev-full-a', 'codex', { capabilities: ['coding'] });
     registerDevice('dev-full-b');
@@ -912,15 +912,50 @@ describe('I. 多设备饱和度回归（DEFECT-SWARM-01）', () => {
       sessionId: 'sess-saturation-all',
       origin: 'dashboard',
       originRef: 'qa-swarm',
-      prompt: '无空闲设备时应保持排队',
+      prompt: '无空闲设备时应进入等待',
       targetMode: 'swarm',
       targetRoleTeamId: teamId,
       targetSubRole: 'engineer',
     });
 
     const row = getTask('task-saturation-all');
-    expect(row?.status).toBe('queued');
+    expect(row?.status).toBe('waiting'); // 目标 agent 满员 → waiting（区别于未匹配的 queued）
     expect(row?.target_device_id).toBeNull();
+  });
+
+  it('P1-5：waiting 任务在 agent 释放后自动投递', async () => {
+    registerDevice('dev-rel');
+    seedAgent('dev-rel', 'codex', { capabilities: ['coding'] });
+
+    const teamId = createTeam('rel-team', [
+      subRoleInput('engineer', { preferredAgentType: 'codex', requiredCapabilities: ['coding'], position: 0 }),
+    ]);
+    swarmService.bindDevice(teamId, 'dev-rel');
+    swarmService.setDeviceSubRoleBinding('dev-rel', 'engineer', 'codex');
+
+    // 模拟 codex 已满员
+    getDb().prepare(`UPDATE agents SET busy_count = 1 WHERE device_id = 'dev-rel'`).run();
+
+    enqueueTask({
+      taskId: 'task-wait-1',
+      sessionId: 'sess-wait-1',
+      origin: 'dashboard',
+      originRef: 'qa-swarm',
+      prompt: '等待释放后自动投递',
+      targetMode: 'swarm',
+      targetRoleTeamId: teamId,
+      targetSubRole: 'engineer',
+    });
+
+    expect(getTask('task-wait-1')?.status).toBe('waiting');
+
+    // 释放占用 → setImmediate(dispatch) 自动投递
+    release('dev-rel', 'codex');
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(getTask('task-wait-1')?.status).toBe('running');
+    expect(getTask('task-wait-1')?.target_device_id).toBe('dev-rel');
   });
 });
 

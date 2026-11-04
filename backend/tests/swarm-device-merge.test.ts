@@ -40,15 +40,18 @@ function makeEnvelope(payload: TaskSubmit): Envelope {
   } as Envelope;
 }
 
+let taskSeq = 0;
 function makeTask(over: Partial<TaskSubmit> = {}): TaskSubmit {
+  const taskId = over.taskId ?? `task-${++taskSeq}`;
   return {
-    taskId: 'task-1',
+    taskId,
     sessionId: 'sess-1',
     origin: 'dashboard',
     originRef: 'qa',
     prompt: '请实现登录接口',
     target: { mode: 'swarm', deviceId: 'dev-1', agentType: 'codex' },
     options: {},
+    operationId: taskId,
     createdAt: Date.now(),
     ...over,
   };

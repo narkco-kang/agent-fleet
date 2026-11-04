@@ -55,7 +55,7 @@ export default function TaskDetailPage(): JSX.Element {
       </div>
 
       <div className="mb-4 flex gap-2">
-        {(task.status === 'running' || task.status === 'queued') && (
+        {(task.status === 'running' || task.status === 'queued' || task.status === 'waiting' || task.status === 'blocked') && (
           <button
             onClick={() => void http.cancelTask(task.taskId)}
             className="rounded-lg border border-[#EF4444] px-3 py-1.5 text-sm text-[#EF4444] hover:bg-[#FEE2E2]"

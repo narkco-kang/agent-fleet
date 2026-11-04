@@ -130,12 +130,13 @@ export function enqueueTask(input: SchedulerSubmitInput): string {
  * 派发循环：为 queued 任务找到可用设备/agent 并下发。
  */
 export function dispatch(): void {
-  const queued = listTasks({ status: 'queued' });
-  if (queued.length === 0) return;
+  // queued（未分配目标）+ waiting（已认目标但 agent 满员排队）都进入派发池
+  const pending = listTasks({ status: ['queued', 'waiting'] });
+  if (pending.length === 0) return;
   // 预构建一次，避免循环内对每个任务重复全表查询（O(tasks²) 退化）
   const pairs = onlineDeviceAgents();
   const primaryAgents = listPrimaryAgents();
-  for (const task of queued) {
+  for (const task of pending) {
     // 蜂群角色团队分支：软绑定三级决策 → 本地设备 + persona 注入（无网关降级）
     if (task.target_mode === 'swarm') {
       const candidates = swarmRouter.resolveCandidates({
@@ -185,7 +186,11 @@ function dispatchLocalTask(
   agent: AgentRow,
   systemPrompt?: string,
 ): boolean {
-  if (!claimAgent(deviceId, agent.agent_type)) return false; // 认领失败，保持 queued
+  if (!claimAgent(deviceId, agent.agent_type)) {
+    // 认领失败（agent 满员）→ 标记 waiting（区别于未分配目标的 queued），等待释放后自动再投递
+    if (task.status === 'queued') updateTaskStatus(task.task_id, 'waiting');
+    return false;
+  }
   // 同步内存快照：让本批 dispatch 后续的 pickBest 不再选中已满员的 agent
   agent.busy_count += 1;
 
@@ -209,6 +214,7 @@ function dispatchLocalTask(
       origin: task.origin,
       originRef: task.origin_ref,
       prompt: task.prompt,
+      operationId: task.task_id,
       target: {
         mode: task.target_mode,
         deviceId,

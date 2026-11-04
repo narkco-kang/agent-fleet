@@ -168,16 +168,24 @@ export function assignTaskTarget(
     .run(deviceId, agentType, taskId);
 }
 
-/** 列表查询（支持状态/设备/agent 筛选 + 分页） */
+/** 列表查询（支持状态/设备/agent 筛选 + 分页；status 可传单值或数组） */
 export function listTasks(
-  filters: { status?: TaskStatus; deviceId?: string; agentType?: AgentType } = {},
+  filters: { status?: TaskStatus | TaskStatus[]; deviceId?: string; agentType?: AgentType } = {},
   limit = 200,
 ): TaskRow[] {
   const clauses: string[] = [];
   const params: Record<string, unknown> = {};
   if (filters.status) {
-    clauses.push('status = @status');
-    params.status = filters.status;
+    const arr = Array.isArray(filters.status) ? filters.status : [filters.status];
+    if (arr.length === 1) {
+      clauses.push('status = @status');
+      params.status = arr[0];
+    } else {
+      clauses.push(`status IN (${arr.map((_, i) => `@status${i}`).join(', ')})`);
+      arr.forEach((s, i) => {
+        params[`status${i}`] = s;
+      });
+    }
   }
   if (filters.deviceId) {
     clauses.push('target_device_id = @deviceId');
@@ -200,6 +208,7 @@ export function countTasksByStatus(): Record<TaskStatus, number> {
     .all() as Array<{ status: TaskStatus; n: number }>;
   const out: Record<TaskStatus, number> = {
     queued: 0,
+    waiting: 0,
     running: 0,
     blocked: 0,
     completed: 0,

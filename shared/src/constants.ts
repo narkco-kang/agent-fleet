@@ -14,6 +14,9 @@ export const HEARTBEAT_INTERVAL_MS = 2_000;
 /** 心跳超时阈值（毫秒），超过 6s 未心跳判定离线（3 个心跳周期，容错抖动） */
 export const HEARTBEAT_TIMEOUT_MS = 6_000;
 
+/** 心跳连续 miss 上限：连续 N 个超时窗口未收到心跳才判死（防抖动误杀，对齐 Orca MISSED_PROBE_LIMIT） */
+export const MISSED_PROBE_LIMIT = 3;
+
 /** 协调服务（后端）HTTP + WS 同端口 */
 export const BACKEND_PORT = 4173;
 

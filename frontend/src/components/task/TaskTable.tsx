@@ -57,7 +57,7 @@ export function TaskTable(): JSX.Element {
           <button className="text-xs text-[#4F46E5] hover:underline" onClick={() => navigate(`/tasks/${t.taskId}`)}>
             详情
           </button>
-          {(t.status === 'running' || t.status === 'queued') && (
+          {(t.status === 'running' || t.status === 'queued' || t.status === 'waiting' || t.status === 'blocked') && (
             <button
               className="text-xs text-[#EF4444] hover:underline"
               onClick={(e) => {
@@ -87,7 +87,7 @@ export function TaskTable(): JSX.Element {
   return (
     <div>
       <div className="mb-3 flex gap-2">
-        {['all', 'queued', 'running', 'completed', 'failed', 'interrupted'].map((s) => (
+        {['all', 'queued', 'waiting', 'running', 'completed', 'failed', 'interrupted'].map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}

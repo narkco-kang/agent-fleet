@@ -304,7 +304,7 @@ export function onDeviceDisconnected(deviceId: string): void {
 export function cancelTask(taskId: string, reason: 'user_cancel' | 'system' = 'user_cancel'): boolean {
   const task = getTask(taskId);
   if (!task) return false;
-  if (task.status !== 'queued' && task.status !== 'running') return false;
+  if (task.status !== 'queued' && task.status !== 'waiting' && task.status !== 'running' && task.status !== 'blocked') return false;
 
   const rec = running.get(taskId);
   if (task.status === 'running' && rec) {

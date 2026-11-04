@@ -1,5 +1,6 @@
 import type WebSocket from 'ws';
 import type { DeviceLoad } from '@agentfleet/shared';
+import { MISSED_PROBE_LIMIT } from '@agentfleet/shared';
 import { config } from '../config.js';
 import { setDeviceStatus, setDeviceRelay } from '../db/repo/devices.js';
 
@@ -16,6 +17,8 @@ export interface DeviceEntry {
   relay: boolean;
   kind: ConnectionKind;
   lastHeartbeat: number;
+  /** 连续心跳 miss 次数（收到心跳归零；≥ MISSED_PROBE_LIMIT 判死，防抖动误杀） */
+  missedCount: number;
   load: DeviceLoad;
   busyAgents: number;
   lanAddr?: string;
@@ -48,6 +51,7 @@ class DeviceRegistry {
       relay: kind === 'relay',
       kind,
       lastHeartbeat: Date.now(),
+      missedCount: 0,
       load: prev?.load ?? { cpu: 0, mem: 0 },
       busyAgents: prev?.busyAgents ?? 0,
       lanAddr: opts.lanAddr,
@@ -65,6 +69,7 @@ class DeviceRegistry {
     const e = this.devices.get(deviceId);
     if (e) {
       e.lastHeartbeat = Date.now();
+      e.missedCount = 0; // 收到心跳即归零，容错窗口重开
       e.load = load;
       e.busyAgents = busyAgents;
     }
@@ -79,7 +84,8 @@ class DeviceRegistry {
   isOnline(deviceId: string): boolean {
     const e = this.devices.get(deviceId);
     if (!e) return false;
-    return Date.now() - e.lastHeartbeat <= config.heartbeatTimeoutMs;
+    // 容错：连续 miss 未达上限仍视为在线（防单次抖动误杀）
+    return e.missedCount < MISSED_PROBE_LIMIT;
   }
 
   /** 删除（直连断开且中继不在线时调用） */
@@ -99,19 +105,24 @@ class DeviceRegistry {
       .map((e) => e.deviceId);
   }
 
-  /** 定时清扫：心跳超时 → 标记 offline（1s 间隔，配合 6s 超时实现秒级断连感知） */
+  /** 定时清扫：心跳超时累计连续 miss，达 MISSED_PROBE_LIMIT 才标记 offline（1s 间隔，防抖动误杀） */
   startSweeper(): void {
     if (this.sweepTimer) return;
     this.sweepTimer = setInterval(() => {
       const now = Date.now();
       for (const e of this.devices.values()) {
         if (now - e.lastHeartbeat > config.heartbeatTimeoutMs) {
-          this.devices.delete(e.deviceId);
-          setDeviceStatus(e.deviceId, 'offline');
-          if (process.env.AGENTFLEET_DEBUG_RELAY === '1') {
-            console.log(`[registry] sweep 判定超时 ${e.deviceId} age=${now - e.lastHeartbeat}ms`);
+          e.missedCount += 1;
+          if (e.missedCount >= MISSED_PROBE_LIMIT) {
+            this.devices.delete(e.deviceId);
+            setDeviceStatus(e.deviceId, 'offline');
+            if (process.env.AGENTFLEET_DEBUG_RELAY === '1') {
+              console.log(
+                `[registry] sweep 判定离线 ${e.deviceId} miss=${e.missedCount} age=${now - e.lastHeartbeat}ms`,
+              );
+            }
+            offlineHandler?.(e.deviceId);
           }
-          offlineHandler?.(e.deviceId);
         }
       }
     }, 1_000);

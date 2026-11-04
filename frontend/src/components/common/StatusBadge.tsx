@@ -14,6 +14,8 @@ const STATUS_META: Record<string, { bg: string; fg: string; dot: string; label: 
   running: { bg: '#FEF3C7', fg: '#B45309', dot: '#F59E0B', label: '运行中' },
   busy: { bg: '#FEF3C7', fg: '#B45309', dot: '#F59E0B', label: '忙碌' },
   queued: { bg: '#F1F5F9', fg: '#475569', dot: '#94A3B8', label: '排队' },
+  waiting: { bg: '#F1F5F9', fg: '#475569', dot: '#94A3B8', label: '等待' },
+  blocked: { bg: '#F1F5F9', fg: '#475569', dot: '#94A3B8', label: '待决策' },
   offline: { bg: '#F1F5F9', fg: '#475569', dot: '#94A3B8', label: '离线' },
   failed: { bg: '#FEE2E2', fg: '#B91C1C', dot: '#EF4444', label: '失败' },
   error: { bg: '#FEE2E2', fg: '#B91C1C', dot: '#EF4444', label: '异常' },

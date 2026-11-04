@@ -19,6 +19,8 @@ export interface TaskSubmit {
   options: TaskOptions;
   /** 蜂群角色 persona 注入上下文（可选；设备侧合并到 prompt 前缀） */
   systemPrompt?: string;
+  /** 投递幂等键（P1-5）：协调器重发同一任务时，设备按它去重，避免重复执行 */
+  operationId?: string;
   createdAt: number;
 }
 

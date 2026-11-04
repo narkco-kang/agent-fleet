@@ -110,7 +110,7 @@ export function useGraphData(): GraphData {
           links.push({ id: `stream-${agentNodeId}-${id}`, source: agentNodeId, target: id, kind: 'stream' });
         } else if (t.status === 'completed') {
           links.push({ id: `return-${agentNodeId}-${id}`, source: agentNodeId, target: id, kind: 'return' });
-        } else if (t.status === 'queued') {
+        } else if (t.status === 'queued' || t.status === 'waiting') {
           links.push({ id: `call-${id}-${agentNodeId}`, source: id, target: agentNodeId, kind: 'call' });
         }
       }

@@ -37,6 +37,7 @@ export function extractText(message: unknown): string {
 export function mapStatus(s: TaskStatus): 'submitted' | 'working' | 'completed' | 'failed' {
   switch (s) {
     case 'queued':
+    case 'waiting':
       return 'submitted';
     case 'running':
       return 'working';

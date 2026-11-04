@@ -277,6 +277,11 @@ export async function sendChainSummary(sender: MessageSender): Promise<void> {
 
 /** 处理任务下发：派发给 Adapter，流式回传 + 结果回收 */
 async function handleTaskSubmit(task: TaskSubmit, sender: MessageSender): Promise<void> {
+  // 幂等投递（P1-5）：同一 operationId 已在跑则忽略重发，避免重复执行
+  const opId = task.operationId ?? task.taskId;
+  if (runningTasks.has(opId)) {
+    return;
+  }
   const agentType = task.target.agentType ?? 'grok';
   // 蜂群 persona 注入：systemPrompt 合并到 prompt 前缀（无 systemPrompt 时行为回归不变）
   const effectiveTask: TaskSubmit = task.systemPrompt
