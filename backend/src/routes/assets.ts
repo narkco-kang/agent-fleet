@@ -7,6 +7,7 @@ import {
   requestDelivery,
 } from '../services/assets/deliveryService.js';
 import { actionGuard } from '../services/actionGuard.js';
+import { staleDeliveries } from '../db/repo/assetDeliveries.js';
 
 /** multipart 部件（版本无关的最小接口） */
 type MultipartPart =
@@ -179,6 +180,11 @@ export function registerAssetRoutes(app: FastifyInstance): void {
       deviceId: req.query.deviceId,
     });
     return { ok: true, data: deliveries };
+  });
+
+  /** 陈旧工作区检测：设备已分发资产版本落后于最新基线的清单（提示重新分发）。 */
+  app.get('/api/assets/stale', async () => {
+    return { ok: true, data: staleDeliveries() };
   });
 }
 

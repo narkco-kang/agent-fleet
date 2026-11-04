@@ -1,9 +1,21 @@
 import { getDb } from '../database.js';
 import type { AssetDelivery, DeliveryStatus } from '@agentfleet/shared';
+import { getAsset } from './assets.js';
 
 /**
  * 资产分发记录表（asset_deliveries）CRUD。
  */
+
+/** 陈旧工作区项（设备已分发资产版本落后于最新基线）。 */
+export interface StaleDelivery {
+  assetId: string;
+  assetName: string;
+  /** 资产当前最新版本（基线）。 */
+  assetVersion: number;
+  deviceId: string;
+  /** 设备已收到的版本（落后于基线即陈旧）。 */
+  deliveredVersion: number;
+}
 
 export interface AssetDeliveryRow {
   delivery_id: string;
@@ -110,4 +122,35 @@ export function listPendingDeliveries(limit = 500): AssetDelivery[] {
     )
     .all(limit) as AssetDeliveryRow[];
   return rows.map(rowToDelivery);
+}
+
+/**
+ * 陈旧工作区检测（stale-base，能力地图 3.3）：找出「设备已分发资产版本 < 资产最新基线」的项，
+ * 提示用户重新分发。资产每次更新 version 递增，设备未重新分发即落后 → 陈旧。
+ */
+export function staleDeliveries(): StaleDelivery[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT device_id, asset_id, MAX(asset_version) AS delivered_version
+       FROM asset_deliveries
+       WHERE status = 'delivered'
+       GROUP BY device_id, asset_id`,
+    )
+    .all() as Array<{ device_id: string; asset_id: string; delivered_version: number }>;
+
+  const out: StaleDelivery[] = [];
+  for (const r of rows) {
+    const asset = getAsset(r.asset_id);
+    if (!asset) continue; // 资产已删除
+    if (r.delivered_version < asset.version) {
+      out.push({
+        assetId: r.asset_id,
+        assetName: asset.name,
+        assetVersion: asset.version,
+        deviceId: r.device_id,
+        deliveredVersion: r.delivered_version,
+      });
+    }
+  }
+  return out.sort((a, b) => a.assetName.localeCompare(b.assetName) || a.deviceId.localeCompare(b.deviceId));
 }
