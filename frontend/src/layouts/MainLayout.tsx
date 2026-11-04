@@ -35,6 +35,7 @@ const NAV = [
   { to: '/routing', labelKey: 'nav.routing', icon: <RouteIcon /> },
   { to: '/swarm', labelKey: 'nav.swarm', icon: <GroupsIcon /> },
   { to: '/loops', labelKey: 'nav.loop', icon: <AccountTreeIcon /> },
+  { to: '/mcp', labelKey: 'nav.mcp', icon: <ExtensionIcon /> },
   { to: '/settings', labelKey: 'nav.settings', icon: <SettingsIcon /> },
 ];
 
