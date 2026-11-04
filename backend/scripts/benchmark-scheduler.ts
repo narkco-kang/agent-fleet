@@ -15,8 +15,8 @@ import type { AgentType } from '@agentfleet/shared';
  *
  * 度量跨设备蜂群调度的核心指标：
  *   1. 吞吐：N 设备 × K agent 下，M 任务的完成吞吐（tasks/s）
- *   2. 调度延迟：enqueue → running 的 P50/P95
- *   3. 端到端延迟：enqueue → completed 的 P50/P95
+ *   2. 调度延迟：enqueue → running 的 P50/P90/P95/P99
+ *   3. 端到端延迟：enqueue → completed 的 P50/P90/P95/P99
  *   4. 认领限流：峰值并发 ≤ 总 agent 数（每 agent max_concurrency=1）
  *   5. 故障转移：--fail-at 后让 dev-0 掉线，验证剩余任务仍全部完成（不丢任务）
  *
@@ -180,12 +180,16 @@ async function main(): Promise<void> {
     limit_ok: peakRunning <= totalAgents,
     sched_latency_ms: {
       p50: percentile(sched, 0.5),
+      p90: percentile(sched, 0.9),
       p95: percentile(sched, 0.95),
+      p99: percentile(sched, 0.99),
       max: sched[sched.length - 1] ?? 0,
     },
     e2e_latency_ms: {
       p50: percentile(e2e, 0.5),
+      p90: percentile(e2e, 0.9),
       p95: percentile(e2e, 0.95),
+      p99: percentile(e2e, 0.99),
       max: e2e[e2e.length - 1] ?? 0,
     },
     completed,
