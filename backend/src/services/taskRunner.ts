@@ -41,6 +41,18 @@ function nextSeq(taskId: string): number {
 /** 默认任务超时 */
 const DEFAULT_TIMEOUT_MS = Number(process.env.TASK_TIMEOUT_MS ?? 600_000);
 
+/** 任务终态集合：这些状态不可再流转（防乱序/重复事件污染时间线）。 */
+const TERMINAL_STATUSES: ReadonlySet<TaskStatus> = new Set<TaskStatus>([
+  'completed',
+  'failed',
+  'cancelled',
+]);
+
+/** 是否终态 */
+function isTerminal(status: TaskStatus): boolean {
+  return TERMINAL_STATUSES.has(status);
+}
+
 /** 初始化：把调度器 hooks 指向本 runner */
 export function initTaskRunner(): void {
   setSchedulerHooks({
@@ -154,6 +166,9 @@ export function completeGatewayTask(taskId: string, result: GatewayTaskResult): 
 /** 设备上报 task.event：落库 + 广播 */
 export function onDeviceTaskEvent(event: TaskEvent): void {
   if (!event?.taskId) return;
+  // 幂等（对抗性故障注入）：任务已是终态则忽略后续事件（防乱序/重复污染时间线）
+  const existing = getTask(event.taskId);
+  if (existing && isTerminal(existing.status)) return;
   // 协调服务为权威序号来源：保证同一 task 内 seq 严格递增
   const seq = nextSeq(event.taskId);
   const normEvent: TaskEvent = { ...event, seq };
@@ -190,6 +205,9 @@ export function onDeviceTaskEvent(event: TaskEvent): void {
 /** 设备上报 task.result：最终结果落库 + 释放 + 广播 */
 export function onDeviceTaskResult(result: TaskResult): void {
   if (!result?.taskId) return;
+  // 幂等（对抗性故障注入）：任务已是终态则忽略重复 result（防重复释放/记账/广播）
+  const existing = getTask(result.taskId);
+  if (existing && isTerminal(existing.status)) return;
   const status: TaskStatus = result.status === 'interrupted' ? 'interrupted' : result.status;
 
   setTaskResult(result.taskId, {
