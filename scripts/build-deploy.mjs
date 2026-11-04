@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * 打包「可部署单文件产物」：device-agent 守护 + relay 中继。
+ * 打包「可部署单文件产物」：device-agent 守护 + relay 中继 + modelgateway 网关。
  *
- * 目标：让 device-agent / relay 脱离 monorepo 源码，作为单个 .cjs 文件部署到
- * 真实服务器（真实设备测试）。所有纯 JS 依赖（shared/memory/ws/dotenv/
- * bonjour-service/multicast-dns）打进单文件；无原生模块（better-sqlite3 等），
- * 因此远程只需一个 Node.js 运行时即可启动。
+ * 目标：让三者脱离 monorepo 源码，作为单个 .cjs 文件部署到真实服务器。所有纯 JS
+ * 依赖（shared/memory/ws/dotenv/bonjour-service/multicast-dns）打进单文件；
+ * 无原生模块（better-sqlite3 等），因此远程只需一个 Node.js 运行时即可启动。
  *
- * 用法：npm run build:deploy   （产物 dist/device-agent.cjs + dist/relay.cjs）
+ * modelgateway 随 device-agent 部署：设备本地起一个带 /v1/responses（responses→chat）
+ * 与 /v1/messages（anthropic→chat）转换的网关，让 codex/claude 免登录直连免费源。
+ *
+ * 用法：npm run build:deploy   （产物 dist/{device-agent,relay,modelgateway}.cjs）
  */
 import { build } from 'esbuild';
 import { mkdirSync } from 'node:fs';
@@ -45,7 +47,12 @@ async function main() {
     entryPoints: ['backend/src/relayEntry.ts'],
     outfile: 'dist/relay.cjs',
   });
-  console.log('\n✅ 打包完成：dist/device-agent.cjs + dist/relay.cjs');
+  await build({
+    ...base,
+    entryPoints: ['modelgateway/src/index.ts'],
+    outfile: 'dist/modelgateway.cjs',
+  });
+  console.log('\n✅ 打包完成：dist/device-agent.cjs + dist/relay.cjs + dist/modelgateway.cjs');
 }
 
 main().catch((err) => {

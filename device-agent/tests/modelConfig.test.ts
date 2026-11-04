@@ -41,13 +41,15 @@ describe('一键配置模型（configureModel）', () => {
     expect(content).toContain('env_key = "AGENTFLEET_MODEL_KEY"');
   });
 
-  it('claude：写入 settings.json 含 ANTHROPIC_BASE_URL', () => {
+  it('claude：写入 settings.json，ANTHROPIC_BASE_URL 指向本地 modelgateway（anthropic 转换）', () => {
     const r = configureClaudeModel({ agentType: 'claude', ...CFG });
     expect(r.ok).toBe(true);
     const content = JSON.parse(fs.readFileSync(path.join(tmpHome, '.claude', 'settings.json'), 'utf-8')) as {
       env: Record<string, string>;
     };
-    expect(content.env.ANTHROPIC_BASE_URL).toBe('https://api.kilo.ai/api/gateway');
+    // claude 连设备本地 modelgateway（做 anthropic→chat 转换），模型用免费源模型
+    expect(content.env.ANTHROPIC_BASE_URL).toBe('http://127.0.0.1:18765');
+    expect(content.env.ANTHROPIC_MODEL).toBe('kilo-auto/free');
   });
 
   it('不支持的平台返回 ok=false', () => {

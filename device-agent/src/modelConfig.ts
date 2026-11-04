@@ -35,6 +35,11 @@ export function defaultFreeSourceBaseUrl(): string {
   return (process.env.FREE_SOURCE_BASE_URL ?? 'https://api.kilo.ai/api/gateway/v1').replace(/\/$/, '');
 }
 
+/** 设备本地 modelgateway 地址（随 device-agent 部署，提供 /v1/messages anthropic→chat 与 /v1/responses 转换） */
+export function defaultGatewayBaseUrl(): string {
+  return (process.env.MODELGATEWAY_BASE_URL ?? 'http://127.0.0.1:18765').replace(/\/$/, '');
+}
+
 /** 写 codex 的 ~/.codex/config.toml（model_providers 指向免费源，免 key 免登录） */
 export function configureCodexModel(input: ModelConfigInput): ModelConfigResult {
   const dir = path.join(os.homedir(), '.codex');
@@ -64,7 +69,7 @@ export function configureCodexModel(input: ModelConfigInput): ModelConfigResult 
   }
 }
 
-/** 写 claude 的 ~/.claude/settings.json（env 注入自定义 base_url + key） */
+/** 写 claude 的 ~/.claude/settings.json（env 注入：连本地 modelgateway 做 anthropic→chat 转换，走免费源） */
 export function configureClaudeModel(input: ModelConfigInput): ModelConfigResult {
   const dir = path.join(os.homedir(), '.claude');
   const file = path.join(dir, 'settings.json');
@@ -76,16 +81,19 @@ export function configureClaudeModel(input: ModelConfigInput): ModelConfigResult
     } catch {
       /* 无旧配置 */
     }
+    // claude 需要 anthropic-messages 协议，免费源是 openai-chat → 走设备本地 modelgateway 的
+    // /v1/messages（anthropic→chat 转换）转发到免费源。
     const next = {
       ...prev,
       env: {
         ...((prev.env as Record<string, unknown>) ?? {}),
-        ANTHROPIC_BASE_URL: `${input.baseUrl.replace(/\/v1$/, '')}`,
-        ANTHROPIC_AUTH_TOKEN: input.apiKey,
+        ANTHROPIC_BASE_URL: defaultGatewayBaseUrl(),
+        ANTHROPIC_MODEL: input.model,
+        ANTHROPIC_AUTH_TOKEN: input.apiKey || 'sk-free',
       },
     };
     fs.writeFileSync(file, JSON.stringify(next, null, 2), 'utf-8');
-    return { ok: true, agentType: 'claude', path: file, message: '已写入 claude settings.json，免登录使用自定义模型' };
+    return { ok: true, agentType: 'claude', path: file, message: '已写入 claude settings.json，经本地网关免登录使用免费源' };
   } catch (err) {
     return { ok: false, agentType: 'claude', path: file, message: `写入失败: ${(err as Error).message}` };
   }

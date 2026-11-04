@@ -3,9 +3,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// modelgateway/src -> modelgateway -> monorepo 根
-const rootDir = path.resolve(__dirname, '..', '..');
+// cjs 打包产物里有模块级 __dirname；源码 tsx 运行则用 import.meta.url。二者取其一，避免 TDZ。
+const dirName = typeof __dirname === 'string' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+// modelgateway/src -> modelgateway -> monorepo 根（打包后该路径可能不存在，readFile 会容错返回 []）
+const rootDir = path.resolve(dirName, '..', '..');
 const providerConfigPath = path.join(rootDir, '.workbuddy-ai', 'modelgateway-providers.json');
 
 dotenv.config({ path: path.join(rootDir, '.env') });

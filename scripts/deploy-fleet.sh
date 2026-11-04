@@ -72,8 +72,19 @@ case "${1:-}" in
     scp_ubuntu "$ROOT/dist/relay.cjs" "$UBUNTU_USER@$UBUNTU_HOST:relay.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
     ssh_ubuntu "pkill -f relay.cjs 2>/dev/null; sleep 1; export PATH=\$HOME/.local/bin:\$PATH; setsid env RELAY_PORT=4174 node ~/relay.cjs > ~/relay.log 2>&1 < /dev/null & sleep 2; ss -tlnp 2>/dev/null | grep 4174 && echo relay-ok" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"
     ;;
+  modelgateway)
+    echo "[fleet] 打包 modelgateway..."
+    (cd "$ROOT" && npm run build:deploy)
+    echo "[fleet] 部署 modelgateway 到三台..."
+    scp_ubuntu "$ROOT/dist/modelgateway.cjs" "$UBUNTU_USER@$UBUNTU_HOST:modelgateway.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+    scp_win120 "$ROOT/dist/modelgateway.cjs" "$WIN120_USER@$WIN120_HOST:modelgateway.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+    scp_win165 "$ROOT/dist/modelgateway.cjs" "$WIN165_USER@$WIN165_HOST:modelgateway.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+    echo "[fleet] 启动 Ubuntu modelgateway（设备本地 responses/anthropic 转换网关）..."
+    ssh_ubuntu "pkill -f modelgateway.cjs 2>/dev/null; sleep 1; export PATH=\$HOME/.local/bin:\$PATH; setsid env MODELGATEWAY_PORT=18765 node ~/modelgateway.cjs > ~/modelgateway.log 2>&1 < /dev/null & sleep 2; ss -tlnp 2>/dev/null | grep 18765 && echo mg-ok" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"
+    echo "[fleet] Windows 设备 modelgateway 需手动启动（node ~/modelgateway.cjs），或后续补 schtasks 常驻"
+    ;;
   *)
-    echo "用法: bash scripts/deploy-fleet.sh {restart|status|deploy|relay}"
+    echo "用法: bash scripts/deploy-fleet.sh {restart|status|deploy|relay|modelgateway}"
     exit 1
     ;;
 esac
