@@ -6,7 +6,6 @@ import { buildBlock, GENESIS } from '../src/core/block';
 import { generateKeyPair, sign, TrustStore } from '../src/crypto/ed25519';
 import { LedgerStore } from '../src/storage/ledger';
 import { catchUp } from '../src/sync/catchup';
-import { GossipNode } from '../src/sync/gossip';
 import {
   encodeBlockBroadcast,
   encodeBlockReject,
@@ -61,21 +60,6 @@ describe('sync messages', () => {
     for (const message of messages) {
       expect(parseEnvelope(serializeEnvelope(message))).toEqual(message);
     }
-  });
-});
-
-describe('gossip', () => {
-  it('dedups relay by block.hash', async () => {
-    const relayed: string[] = [];
-    const node = new GossipNode(async (to) => {
-      relayed.push(to);
-    }, 'leader');
-
-    const block = buildBlock([makeChange('c1', 1)], GENESIS, 'leader', 1000);
-    await node.broadcastBlock(block, ['d1', 'd2', 'leader']);
-    await node.broadcastBlock(block, ['d1', 'd2', 'leader']); // 同一块不重复转发。
-
-    expect(relayed).toEqual(['d1', 'd2']);
   });
 });
 

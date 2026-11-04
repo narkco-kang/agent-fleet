@@ -27,10 +27,8 @@ import { generateKeyPair, sign, TrustStore } from '../src/crypto/ed25519';
 import { LedgerStore } from '../src/storage/ledger';
 import { Mempool } from '../src/consensus/mempool';
 import { BlockProducer } from '../src/consensus/producer';
-import { selectFork } from '../src/consensus/fork';
-import { GossipNode } from '../src/sync/gossip';
 import { catchUp } from '../src/sync/catchup';
-import { parseEnvelope } from '../src/sync/messages';
+import { encodeBlockBroadcast, parseEnvelope } from '../src/sync/messages';
 import { detectTamper } from '../src/validation/tamper';
 import { verifyBlock, verifyChain } from '../src/validation/verifier';
 import { toChange, toSemantic } from '../src/adapters/amg-mapper';
@@ -258,24 +256,8 @@ describe('P0-4 跨设备同步', () => {
     // 设备 B 账本：仅 genesis（落后）。
     const follower = new LedgerStore(await tempDir(), 'team-a');
 
-    // —— gossip 广播：leader 把 block_broadcast 经中继发给 follower ——
-    const received: Envelope<unknown>[] = [];
-    const relayToFollower = async (to: string, message: Envelope<unknown>): Promise<void> => {
-      received.push(message);
-    };
-    const gossip = new GossipNode(relayToFollower, 'leader');
-
-    const forwarded = await gossip.broadcastBlock(
-      chain[1]!,
-      ['follower', 'leader'],
-    );
-    expect(forwarded).toEqual(['follower']);
-    // 同一块重复广播被去重（去重键 block.hash）。
-    expect(await gossip.broadcastBlock(chain[1]!, ['follower'])).toEqual([]);
-
-    // follower 收到广播，验证后追加本地副本。
-    expect(received).toHaveLength(1);
-    const envelope = received[0]!;
+    // —— 中心广播：coordinator 用 encodeBlockBroadcast 把块发给 follower（与 backend memorySync 一致）——
+    const envelope = encodeBlockBroadcast(chain[1]!, 'coordinator', 'follower');
     expect(envelope.type).toBe('memory.block_broadcast');
     const { payload } = parseEnvelope(JSON.stringify(envelope)) as Envelope<BlockBroadcastPayload>;
     const broadcastBlock = payload.block;
@@ -479,30 +461,5 @@ describe('边界 / 错误路径', () => {
     const forged = { ...good, signature: sign(attacker.privateKey, good.hash) };
 
     expect(verifyBlock(forged, GENESIS, store).code).toBe('E_BAD_SIG');
-  });
-
-  it('分叉孤儿保留（selectFork 返回 orphan，不删除数据）', () => {
-    const kp = generateKeyPair();
-    const base = [structuredClone(GENESIS)];
-    const b1 = signedBlock([makeChange('c1', 1)], base[0]!, 'leader', kp, 1001);
-    base.push(b1);
-
-    // 同一 index=2 的两条分叉（不同内容 → 不同 hash）。
-    const forkA = signedBlock([makeChange('c2a', 2)], b1, 'leader', kp, 1002);
-    const forkB = signedBlock([makeChange('c2b', 2)], b1, 'leader', kp, 1002);
-    expect(forkA.hash).not.toBe(forkB.hash);
-
-    const chainA = [...base, forkA];
-    const chainB = [...base, forkB];
-    const { main, orphans } = selectFork([chainA, chainB]);
-
-    // 长度相同 → 字典序取小者为 main。
-    const expectedMain = forkA.hash < forkB.hash ? chainA : chainB;
-    expect(main.map((b) => b.hash)).toEqual(expectedMain.map((b) => b.hash));
-    // 丢分支进 orphan 池：保留、不删除。
-    expect(orphans).toHaveLength(1);
-    expect(orphans[0]![2]!.hash).toBe(
-      (expectedMain[2]!.hash === forkA.hash ? forkB : forkA).hash,
-    );
   });
 });

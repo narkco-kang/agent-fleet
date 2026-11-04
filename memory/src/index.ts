@@ -32,11 +32,9 @@ export * from './validation/tamper';
 // 共识
 export * from './consensus/mempool';
 export * from './consensus/producer';
-export * from './consensus/fork';
 
-// 同步
+// 同步（中心广播 + 补同步；多 leader 共识的 fork/gossip 已移除——backend 固定单 leader 出块）
 export * from './sync/messages';
-export * from './sync/gossip';
 export * from './sync/catchup';
 
 // amg 适配
