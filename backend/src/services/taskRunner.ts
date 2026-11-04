@@ -78,6 +78,12 @@ export function completeGatewayTask(taskId: string, result: GatewayTaskResult): 
     error: result.error ?? (status === 'failed' ? '任务执行失败' : null),
   });
 
+  // 网关任务为非流式调用，无 text 流式事件；把最终结果显式补一条 text 事件，
+  // 否则详情页时间线只见「任务完成」、看不到输出内容。
+  if (status === 'completed' && result.resultText) {
+    emitEvent(taskId, 'text', status, { text: result.resultText });
+  }
+
   appendMessage(
     taskId,
     nextSeq(taskId),
