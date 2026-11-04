@@ -239,7 +239,7 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
     },
   );
 
-  /** 一键配置模型（免登录激活）：向设备下发自定义模型配置（默认 modelgateway + 免费源），
+  /** 一键配置模型（免登录激活）：向设备下发免费源模型配置（默认 kilo，原生 Responses API 免 key），
    *  设备写入 codex/claude 配置文件，免登录走免费源跑任务。 */
   app.post<{
     Params: { id: string; agentType: string };
@@ -251,10 +251,10 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
     if (!deviceRegistry.isOnline(id)) {
       return reply.code(409).send({ ok: false, error: 'device_offline' });
     }
-    // 默认：内置 modelgateway（responses 转换层）+ 等级优免费源 kilo
-    const baseUrl = req.body?.baseUrl ?? 'http://127.0.0.1:18765/v1';
+    // 默认：kilo 免费源（原生 Responses API、免 key），codex 直连即可免登录
+    const baseUrl = req.body?.baseUrl ?? 'https://api.kilo.ai/api/gateway/v1';
     const model = req.body?.model ?? 'kilo-auto/free';
-    const apiKey = req.body?.apiKey ?? 'sk-free';
+    const apiKey = req.body?.apiKey ?? '';
     const sent = sendToDevice(id, {
       v: 1,
       type: MESSAGE_TYPES.DEVICE_MODEL_CONFIG,

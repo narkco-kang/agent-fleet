@@ -5,20 +5,21 @@ import type { AgentType } from '@agentfleet/shared';
 
 /**
  * 一键配置模型（免登录激活）：给设备上的 codex / claude 写自定义模型配置，
- * 指向 OpenAI/Anthropic 兼容网关（默认内置 modelgateway，其 /v1/responses 已做
- * responses → chat.completions 转换，转发到等级优的免费源 kilo）。
+ * 直接指向「原生支持 Responses API 的免费源」（默认 kilo：api.kilo.ai，免 key）。
  *
- * 这样 codex/claude 无需登录 OpenAI/Anthropic 账号，直接走免费源跑任务。
+ * 关键事实（实机验证）：新版 codex 只支持 Responses API（wire_api="responses"），
+ * 而 kilo 免费源原生提供 /responses 端点且无需 key —— 所以 codex 直接配 kilo 即可
+ * 免登录跑任务，无需任何中间网关/转换层、无需打包 modelgateway 到设备。
  */
 
 /** 模型配置输入 */
 export interface ModelConfigInput {
   agentType: AgentType;
-  /** OpenAI/Anthropic 兼容 base_url（含 /v1） */
+  /** Responses API 兼容 base_url（含 /v1） */
   baseUrl: string;
   /** 模型名（如 kilo-auto/free） */
   model: string;
-  /** API key（免费源可为占位非空值，如 "sk-free"） */
+  /** API key（免费源无需 key 时传空字符串；付费源才需要） */
   apiKey: string;
 }
 
@@ -29,31 +30,35 @@ export interface ModelConfigResult {
   message: string;
 }
 
-/** 默认 modelgateway 地址（设备本地；后续可经部署在设备上运行） */
-export function defaultGatewayBaseUrl(): string {
-  return (process.env.MODELGATEWAY_BASE_URL ?? 'http://127.0.0.1:18765/v1').replace(/\/$/, '');
+/** 默认免费源地址（kilo，原生 Responses API、免 key；可用 env 覆盖） */
+export function defaultFreeSourceBaseUrl(): string {
+  return (process.env.FREE_SOURCE_BASE_URL ?? 'https://api.kilo.ai/api/gateway/v1').replace(/\/$/, '');
 }
 
-/** 写 codex 的 ~/.codex/config.toml（model_providers 指向自定义网关） */
+/** 写 codex 的 ~/.codex/config.toml（model_providers 指向免费源，免 key 免登录） */
 export function configureCodexModel(input: ModelConfigInput): ModelConfigResult {
   const dir = path.join(os.homedir(), '.codex');
   const file = path.join(dir, 'config.toml');
   try {
     fs.mkdirSync(dir, { recursive: true });
-    // codex 0.18+ 只支持 wire_api = "responses"（chat 已废弃）
-    const content = [
+    // codex 0.18+ 只支持 wire_api = "responses"（chat 已废弃）。
+    // 免费源免 key：不写 env_key（写了反而会让 codex 带假 Authorization → 上游 401）。
+    const lines = [
       `model = "${input.model}"`,
       `model_provider = "agentfleet"`,
       '',
       `[model_providers.agentfleet]`,
-      `name = "AgentFleet Gateway"`,
+      `name = "AgentFleet Free Source"`,
       `base_url = "${input.baseUrl}"`,
-      `env_key = "AGENTFLEET_MODEL_KEY"`,
       `wire_api = "responses"`,
-      '',
-    ].join('\n');
-    fs.writeFileSync(file, content, 'utf-8');
-    return { ok: true, agentType: 'codex', path: file, message: '已写入 codex config.toml，免登录使用自定义模型' };
+    ];
+    // 仅付费源（有 apiKey）才写 env_key
+    if (input.apiKey) {
+      lines.push(`env_key = "AGENTFLEET_MODEL_KEY"`);
+    }
+    lines.push('');
+    fs.writeFileSync(file, lines.join('\n'), 'utf-8');
+    return { ok: true, agentType: 'codex', path: file, message: '已写入 codex config.toml，免登录使用免费源' };
   } catch (err) {
     return { ok: false, agentType: 'codex', path: file, message: `写入失败: ${(err as Error).message}` };
   }
