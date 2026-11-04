@@ -622,6 +622,8 @@ async function executePlatformGatewayTask(
       });
       if (model !== binding.activeModel) {
         platformModelService.switchModel(deviceId, agentType, model);
+        // 兜底模型命中：如实告知看板实际生效模型（此前只显示初始 activeModel，易误判）
+        hooks?.onEvent(task.task_id, 'status', 'running', { message: `主模型不可用，已切换至 ${model}` });
       }
       return {
         completed: {
@@ -633,7 +635,15 @@ async function executePlatformGatewayTask(
         },
       };
     } catch (err) {
-      platformModelService.markModelFailed(deviceId, agentType, model);
+      const r = platformModelService.markModelFailed(deviceId, agentType, model);
+      // 切换/降级如实上报，任务时间线可见故障切换过程
+      hooks?.onEvent(task.task_id, 'status', 'running', {
+        message: r.switchedTo
+          ? `模型 ${model} 不可用，自动切换至 ${r.switchedTo}`
+          : r.degraded
+            ? `模型 ${model} 不可用，降级本地执行`
+            : `模型 ${model} 不可用`,
+      });
     }
   }
 

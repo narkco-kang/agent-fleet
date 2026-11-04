@@ -12,13 +12,18 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import type { Asset } from '@agentfleet/shared';
 import { assetsApi, type GithubPromptRepo, type RepoPrompt } from '../../api/assets';
-import { useT } from '../../i18n';
+import { useT, useLanguageStore } from '../../i18n';
 
 /** 数字格式化：295289 → 295.3k */
 function fmtStars(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
+}
+
+/** 描述/名称按语言取：中文优先 descriptionZh（缺省回退原文） */
+function zhOf(d: { descriptionZh: string }, original: string, language: 'zh' | 'en'): string {
+  return language === 'zh' ? d.descriptionZh || original : original;
 }
 
 /**
@@ -35,6 +40,7 @@ export function PromptCatalogDialog({
   onImported: () => void;
 }): JSX.Element {
   const t = useT();
+  const language = useLanguageStore((s) => s.language);
   const [query, setQuery] = useState('');
   const [repos, setRepos] = useState<GithubPromptRepo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -200,7 +206,7 @@ export function PromptCatalogDialog({
                           </span>
                         </div>
                         {r.description && (
-                          <div className="mt-0.5 line-clamp-2 text-xs text-[#64748B]">{r.description}</div>
+                          <div className="mt-0.5 line-clamp-2 text-xs text-[#64748B]">{zhOf(r, r.description, language)}</div>
                         )}
                       </div>
                       <button
@@ -233,7 +239,7 @@ export function PromptCatalogDialog({
                                   sx={{ padding: '2px' }}
                                 />
                                 <div className="min-w-0 flex-1">
-                                  <div className="text-xs font-medium text-[#0F172A]">{p.name}</div>
+                                  <div className="text-xs font-medium text-[#0F172A]">{zhOf(p, p.name, language)}</div>
                                   <div className="line-clamp-2 text-[11px] text-[#64748B]">{p.content}</div>
                                 </div>
                               </label>

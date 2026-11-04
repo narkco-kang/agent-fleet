@@ -15,6 +15,8 @@ export interface GithubPromptRepo {
   fullName: string;
   name: string;
   description: string;
+  /** 描述的中文翻译（实时中英切换用；无 key 时留空，前端回退英文） */
+  descriptionZh: string;
   stars: number;
   url: string;
 }
@@ -23,6 +25,8 @@ export interface GithubPromptRepo {
 export interface RepoPrompt {
   /** 提示词名称/角色（如 "Linux Terminal"） */
   name: string;
+  /** 名称的中文翻译（实时中英切换用；无 key 时留空，前端回退英文） */
+  descriptionZh: string;
   /** 提示词内容 */
   content: string;
 }
@@ -83,6 +87,7 @@ export async function searchGithubPromptRepos(
           fullName: it.full_name,
           name: it.name,
           description: it.description ?? '',
+          descriptionZh: '',
           stars: it.stargazers_count ?? 0,
           url: it.html_url,
         });
@@ -91,6 +96,13 @@ export async function searchGithubPromptRepos(
       /* 单个 query 失败不阻断整体 */
     }
   }
+
+  // 批量翻译描述为中文（抓取对话框实时中英切换）
+  const zh = await translateBatchToZh(out.map((r) => r.description));
+  out.forEach((r, i) => {
+    r.descriptionZh = zh[i] ?? '';
+  });
+
   return out.sort((a, b) => b.stars - a.stars);
 }
 
@@ -154,7 +166,7 @@ function parsePromptsFromMarkdown(text: string): RepoPrompt[] {
     const name = m[1]!.trim();
     const content = m[2]!.trim();
     if (name && content && content.length > 15) {
-      out.push({ name, content });
+      out.push({ name, descriptionZh: '', content });
     }
   }
   if (out.length > 0) return out.slice(0, 300);
@@ -177,9 +189,18 @@ function parsePromptsFromMarkdown(text: string): RepoPrompt[] {
     const cleanTitle = s.title.replace(/^Act as (an? )?/i, '').trim();
     const body = s.body.trim().slice(0, 2000);
     if (!body || !/prompt|you|act|i want|respond|behave/i.test(cleanTitle + ' ' + body)) continue;
-    out.push({ name: cleanTitle || s.title, content: body });
+    out.push({ name: cleanTitle || s.title, descriptionZh: '', content: body });
   }
   return out.slice(0, 300);
+}
+
+/** 批量翻译提示词名称 → 中文（供抓取对话框实时中英切换） */
+async function translatePrompts(prompts: RepoPrompt[]): Promise<RepoPrompt[]> {
+  const zh = await translateBatchToZh(prompts.map((p) => p.name));
+  prompts.forEach((p, i) => {
+    p.descriptionZh = zh[i] ?? '';
+  });
+  return prompts;
 }
 
 /** 抓取仓库内具体提示词（优先 prompts.csv，fallback README.md） */
@@ -227,24 +248,24 @@ export async function listRepoPrompts(owner: string, repo: string): Promise<Repo
       const act = row[0]?.trim() ?? '';
       const content = row[1]?.trim() ?? '';
       if (act && content && act.toLowerCase() !== 'act') {
-        prompts.push({ name: act, content });
+        prompts.push({ name: act, descriptionZh: '', content });
       }
     }
-    if (prompts.length > 0) return prompts.slice(0, 300);
+    if (prompts.length > 0) return (await translatePrompts(prompts)).slice(0, 300);
   }
 
   // 2. PROMPTS.md（f/prompts.chat 新格式：<details> + ```md 内容 ```）
   const promptsMd = await fetchFile('PROMPTS.md');
   if (promptsMd) {
     const prompts = parsePromptsFromMarkdown(promptsMd);
-    if (prompts.length > 0) return prompts.slice(0, 300);
+    if (prompts.length > 0) return (await translatePrompts(prompts)).slice(0, 300);
   }
 
   // 3. fallback README.md / prompts.md（markdown 解析）
   const readme = (await fetchFile('README.md')) ?? (await fetchFile('prompts.md'));
   if (readme) {
     const prompts = parsePromptsFromMarkdown(readme);
-    if (prompts.length > 0) return prompts.slice(0, 300);
+    if (prompts.length > 0) return (await translatePrompts(prompts)).slice(0, 300);
   }
 
   return [];

@@ -14,6 +14,8 @@ export interface GithubSkillRepo {
   fullName: string;
   name: string;
   description: string;
+  /** 描述的中文翻译（实时中英切换用；无 key 时留空，前端回退英文） */
+  descriptionZh: string;
   stars: number;
   url: string;
   language: string;
@@ -96,6 +98,7 @@ export async function searchGithubSkills(query?: string, limit = 20): Promise<Gi
           fullName: it.full_name,
           name: it.name,
           description: it.description ?? '',
+          descriptionZh: '',
           stars: it.stargazers_count ?? 0,
           url: it.html_url,
           language: it.language ?? '',
@@ -106,6 +109,12 @@ export async function searchGithubSkills(query?: string, limit = 20): Promise<Gi
       /* 单个 query 失败不阻断整体 */
     }
   }
+
+  // 批量翻译描述为中文（供抓取对话框实时中英切换；无 key 时留空回退英文）
+  const zh = await translateBatchToZh(out.map((r) => r.description));
+  out.forEach((r, i) => {
+    r.descriptionZh = zh[i] ?? '';
+  });
 
   return out.sort((a, b) => b.stars - a.stars);
 }
@@ -199,6 +208,8 @@ export async function importGithubSkills(
 export interface RepoSkill {
   name: string;
   description: string;
+  /** 描述的中文翻译（实时中英切换用；无 key 时留空，前端回退英文） */
+  descriptionZh: string;
   path: string;
 }
 
@@ -280,12 +291,18 @@ export async function listRepoSkills(owner: string, repo: string): Promise<RepoS
       const content = Buffer.from(skillData.content, 'base64').toString('utf-8');
       const { name, description } = parseSkillFrontmatter(content);
       if (name || description) {
-        skills.push({ name: name || dirPath.split('/').pop() || dirPath, description, path: dirPath });
+        skills.push({ name: name || dirPath.split('/').pop() || dirPath, description, descriptionZh: '', path: dirPath });
       }
     } catch {
       /* 单个 SKILL.md 抓取失败跳过 */
     }
   }
+
+  // 批量翻译描述为中文（抓取对话框实时中英切换）
+  const zh = await translateBatchToZh(skills.map((s) => s.description));
+  skills.forEach((s, i) => {
+    s.descriptionZh = zh[i] ?? '';
+  });
 
   return skills;
 }

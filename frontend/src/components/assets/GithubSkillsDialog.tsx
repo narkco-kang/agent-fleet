@@ -12,13 +12,18 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import type { Asset } from '@agentfleet/shared';
 import { assetsApi, type GithubSkillRepo, type RepoSkill } from '../../api/assets';
-import { useT } from '../../i18n';
+import { useT, useLanguageStore } from '../../i18n';
 
 /** 数字格式化：295289 → 295.3k */
 function fmtStars(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
+}
+
+/** 描述按语言取：中文优先 descriptionZh（缺省回退英文） */
+function descOf(d: { description: string; descriptionZh: string }, language: 'zh' | 'en'): string {
+  return language === 'zh' ? d.descriptionZh || d.description : d.description;
 }
 
 /**
@@ -35,6 +40,7 @@ export function GithubSkillsDialog({
   onImported: () => void;
 }): JSX.Element {
   const t = useT();
+  const language = useLanguageStore((s) => s.language);
   const [query, setQuery] = useState('');
   const [repos, setRepos] = useState<GithubSkillRepo[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -239,7 +245,7 @@ export function GithubSkillsDialog({
                           )}
                         </div>
                         {r.description && (
-                          <div className="mt-0.5 line-clamp-2 text-xs text-[#64748B]">{r.description}</div>
+                          <div className="mt-0.5 line-clamp-2 text-xs text-[#64748B]">{descOf(r, language)}</div>
                         )}
                         <div className="mt-0.5 text-[11px] text-[#94A3B8]">
                           ★ {fmtStars(r.stars)}
@@ -281,7 +287,7 @@ export function GithubSkillsDialog({
                                 <div className="min-w-0 flex-1">
                                   <div className="text-xs font-medium text-[#0F172A]">{s.name}</div>
                                   {s.description && (
-                                    <div className="line-clamp-1 text-[11px] text-[#64748B]">{s.description}</div>
+                                    <div className="line-clamp-1 text-[11px] text-[#64748B]">{descOf(s, language)}</div>
                                   )}
                                 </div>
                                 <span className="shrink-0 text-[10px] text-[#94A3B8]">{s.path}</span>

@@ -26,6 +26,7 @@ export interface GithubSkillRepo {
   fullName: string;
   name: string;
   description: string;
+  descriptionZh: string;
   stars: number;
   url: string;
   language: string;
@@ -36,6 +37,7 @@ export interface GithubSkillRepo {
 export interface RepoSkill {
   name: string;
   description: string;
+  descriptionZh: string;
   path: string;
 }
 
@@ -44,6 +46,7 @@ export interface GithubPromptRepo {
   fullName: string;
   name: string;
   description: string;
+  descriptionZh: string;
   stars: number;
   url: string;
 }
@@ -51,6 +54,7 @@ export interface GithubPromptRepo {
 /** 仓库内具体提示词条目 */
 export interface RepoPrompt {
   name: string;
+  descriptionZh: string;
   content: string;
 }
 
