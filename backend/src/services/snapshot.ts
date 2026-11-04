@@ -34,13 +34,15 @@ export function roleTeamNameOf(roleTeamId: string | null): string | null {
 export function buildSnapshot(): DashboardSnapshot {
   const devices: DeviceSnapshot[] = listDevices().map((row) => {
     const entry = deviceRegistry.get(row.device_id);
-    return toDeviceSnapshot(
+    const snapshot = toDeviceSnapshot(
       row,
       entry?.load ?? { cpu: 0, mem: 0 },
       entry?.busyAgents ?? getBusyCount(row.device_id),
       teamNameOf(row.team_id),
       roleTeamNameOf(row.role_team_id),
     );
+    // 与 REST /api/devices 一致：status 以内存注册表在线态为准（DB 静态列可能残留 relay 断线未清的 online）
+    return { ...snapshot, status: deviceRegistry.isOnline(row.device_id) ? snapshot.status : 'offline' };
   });
 
   const agents: AgentSnapshot[] = listAgents().map(toAgentSnapshot);
@@ -76,7 +78,8 @@ export function buildDevicePatch(deviceId: string): DashboardPatch {
     teamNameOf(row.team_id),
     roleTeamNameOf(row.role_team_id),
   );
-  return makePatch({ devices: [snapshot] });
+  const device = { ...snapshot, status: deviceRegistry.isOnline(deviceId) ? snapshot.status : 'offline' };
+  return makePatch({ devices: [device] });
 }
 
 /**

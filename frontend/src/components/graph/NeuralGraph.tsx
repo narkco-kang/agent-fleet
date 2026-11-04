@@ -1,365 +1,379 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useGraphData, type GraphNode, type GraphLink } from '../../hooks/useGraphData';
+import { useMemo, useState, type ReactNode, Children } from 'react';
+import { useGraphData, type GraphNode, type GraphAgentNode, type GraphDeviceNode, type GraphTaskNode } from '../../hooks/useGraphData';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import { GraphLegend } from './GraphLegend';
-import { GraphLinks, ArrowMarkers, layoutLinks } from './GraphLink';
-import { FlowParticles } from './FlowParticle';
-import { NodeShape } from './GraphNode';
-import { computeFlowLayout } from './flowLayout';
 import type { NodeLens } from './GraphToolbar';
 import type { DetailTarget } from '../drawer/DetailDrawer';
 
 /**
- * 智能体流程图（确定性三层泳道布局，替代 d3-force 力导向）。
+ * 智能体舰队总览（Mission Control 三栏布局，替代 SVG 三层泳道图）。
  *
- * 三层泳道：设备(左) → agent(中) → 任务(右)。
- * 位置完全确定：数据刷新不抖动、连线不交叉乱窜，一眼看清「任务流向哪个 agent、哪些在处理、哪里有问题」。
+ * 为什么重构：旧泳道图三列固定坐标、每行 72px、节点卡片 10-12px 小字，
+ * 节点少时容器大片空白、无法一眼看清所有设备/agent/任务。
  *
- * 动画：脉冲（在线设备/运行中任务）、流动粒子（call 橙=下发 / stream 青=回流）、聚焦高亮。
- * 交互：缩放 0.2×–2×、平移、悬停 Tooltip、点击聚焦+邻接高亮、空白复位、图例、透镜、路径漫游。
- * 流程图模式下禁用节点拖拽（保持确定性布局）。
+ * 新布局：顶部 KPI 大数字概览 + 设备/Agent/任务三栏高密度卡片，用 CSS grid
+ * 填满容器。状态色语义化（在线绿/运行橙/失败红/离线灰），等宽字体标 ID/版本/数字。
+ * 点击联动：选设备→高亮其 agent 与任务；选 agent→高亮其任务；选任务→高亮其 agent。
  */
 
-export type SimNode = GraphNode & {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+/** 状态 → CSS 变量色（跟随主题） */
+const STATUS_VAR: Record<string, string> = {
+  online: 'var(--success)',
+  busy: 'var(--warning)',
+  offline: 'var(--offline)',
+  idle: 'var(--agent)',
+  error: 'var(--danger)',
+  needs_login: 'var(--offline)',
+  queued: 'var(--offline)',
+  running: 'var(--warning)',
+  completed: 'var(--success)',
+  failed: 'var(--danger)',
+  cancelled: 'var(--danger)',
+  interrupted: 'var(--danger)',
 };
 
-export type SimLink = Omit<GraphLink, 'source' | 'target'> & {
-  source: string | SimNode;
-  target: string | SimNode;
+const STATUS_LABEL: Record<string, string> = {
+  online: '在线',
+  busy: '忙碌',
+  offline: '离线',
+  idle: '空闲',
+  error: '异常',
+  needs_login: '待登录',
+  queued: '排队',
+  running: '运行中',
+  completed: '完成',
+  failed: '失败',
+  cancelled: '已取消',
+  interrupted: '中断',
 };
+
+function truncate(s: string, n: number): string {
+  return s && s.length > n ? `${s.slice(0, n - 1)}…` : s ?? '';
+}
+
+function agentInitial(agentType: string): string {
+  const map: Record<string, string> = {
+    codex: 'C', claude: 'Cℓ', dsh: 'D', grok: 'G', cursor: 'Cu', aider: 'A',
+    gemini: 'Ge', cody: 'Co', qwen: 'Q', doubao: '豆', kimi: 'K',
+    opencode: 'Op', windsurf: 'W', workbuddy: 'Wb',
+  };
+  return map[agentType] ?? '?';
+}
 
 export function NeuralGraph({
   onSelect,
   lens = 'all',
-  walk = false,
 }: {
   onSelect?: (target: DetailTarget | null) => void;
   lens?: NodeLens;
-  walk?: boolean;
 }): JSX.Element {
   const data = useGraphData();
   const { isMobile } = useBreakpoint();
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [nodes, setNodes] = useState<SimNode[]>([]);
-  const [links, setLinks] = useState<SimLink[]>([]);
-  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
-  const [hover, setHover] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
-  const [walkPath, setWalkPath] = useState<SimLink[]>([]);
-  const [walkHop, setWalkHop] = useState(0);
 
-  const panRef = useRef<{ x: number; y: number; k: number; startX: number; startY: number } | null>(null);
-  // 结构签名缓存：节点/连线 id 集合，判断是否需要重新布局
-  const structureKeyRef = useRef<string>('');
-  // 初始视角已适配标记：首次布局后居中+缩放一次，之后交给用户
-  const viewFittedRef = useRef(false);
+  const devices = useMemo(() => data.nodes.filter((n): n is GraphDeviceNode => n.type === 'device'), [data]);
+  const agents = useMemo(() => data.nodes.filter((n): n is GraphAgentNode => n.type === 'agent'), [data]);
+  const tasks = useMemo(() => data.nodes.filter((n): n is GraphTaskNode => n.type === 'task'), [data]);
 
-  // 确定性流程图布局。
-  // 结构（节点/连线 id 集合）未变时只同步节点属性，不重新布局 → 彻底消除跳动。
-  useEffect(() => {
-    const w = containerRef.current?.clientWidth ?? 800;
-    const h = containerRef.current?.clientHeight ?? 600;
-
-    const nodeIds = data.nodes.map((n) => n.id).sort().join('\u0001');
-    const linkIds = data.links.map((l) => l.id).sort().join('\u0001');
-    const structureKey = nodeIds + '\u0002' + linkIds;
-
-    // 结构未变：仅同步节点 data 属性（状态/负载等），保留坐标
-    if (structureKeyRef.current === structureKey && structureKeyRef.current !== '') {
-      const fresh = new Map<string, GraphNode>(data.nodes.map((n) => [n.id, n]));
-      setNodes((prev) =>
-        prev.map((sn) => {
-          const f = fresh.get(sn.id);
-          if (!f) return sn;
-          return { ...f, x: sn.x, y: sn.y, vx: 0, vy: 0 } as SimNode;
-        }),
-      );
-      setLinks(data.links.map((l) => ({ ...l })));
-      return;
-    }
-    structureKeyRef.current = structureKey;
-
-    // 结构变化：重新计算确定性布局
-    const layout = computeFlowLayout(data.nodes);
-    const simNodes: SimNode[] = data.nodes.map((n) => {
-      const p = layout.positions.get(n.id) ?? { x: w / 2, y: h / 2 };
-      return { ...n, x: p.x, y: p.y, vx: 0, vy: 0 };
-    });
-    const simLinks: SimLink[] = data.links.map((l) => ({ ...l }));
-
-    setNodes(simNodes);
-    setLinks(simLinks);
-
-    // 首次布局后：内容居中 + 缩放适配，之后交给用户手动缩放
-    if (!viewFittedRef.current) {
-      viewFittedRef.current = true;
-      const margin = 48;
-      // 延迟一帧：h-full 容器首次渲染可能尚未测量到真实尺寸
-      requestAnimationFrame(() => {
-        const cw = containerRef.current?.clientWidth ?? w;
-        const ch = containerRef.current?.clientHeight ?? h;
-        const raw = Math.min(1, (cw - margin * 2) / layout.width, (ch - margin * 2) / layout.height);
-        const k = Math.max(0.25, Math.min(1, raw));
-        setTransform({ x: (cw - layout.width * k) / 2, y: (ch - layout.height * k) / 2, k });
-      });
-    }
-  }, [data]);
-
-  // 节点坐标索引
-  const nodeMap = useMemo(() => {
-    const m = new Map<string, SimNode>();
-    for (const n of nodes) m.set(n.id, n);
+  // 归属索引：agentId → deviceId；task 的 agentId
+  const agentDevice = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of agents) m.set(a.id, a.deviceId);
     return m;
-  }, [nodes]);
+  }, [agents]);
+  const taskAgent = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of tasks) {
+      if (t.data.targetDeviceId && t.data.targetAgentType) {
+        m.set(t.id, `agent-${t.data.targetDeviceId}:${t.data.targetAgentType}`);
+      }
+    }
+    return m;
+  }, [tasks]);
 
-  // 邻接集合（聚焦高亮）
-  const adjacent = useMemo(() => {
+  // 联动高亮集合
+  const related = useMemo(() => {
     if (!focus) return null;
     const set = new Set<string>([focus]);
-    for (const l of links) {
-      const s = typeof l.source === 'string' ? l.source : l.source.id;
-      const t = typeof l.target === 'string' ? l.target : l.target.id;
-      if (s === focus) set.add(t);
-      if (t === focus) set.add(s);
+    if (focus.startsWith('agent-')) {
+      for (const t of tasks) if (taskAgent.get(t.id) === focus) set.add(t.id);
+      const dev = agentDevice.get(focus);
+      if (dev) set.add(dev);
+    } else if (devices.some((d) => d.id === focus)) {
+      for (const a of agents) if (a.deviceId === focus) set.add(a.id);
+      for (const t of tasks) if (t.data.targetDeviceId === focus) set.add(t.id);
+    } else if (tasks.some((t) => t.id === focus)) {
+      const ag = taskAgent.get(focus);
+      if (ag) set.add(ag);
     }
     return set;
-  }, [focus, links]);
+  }, [focus, tasks, agents, devices, taskAgent, agentDevice]);
 
-  // 路径漫游：当前 hop 的连线 id
-  const walkActiveId = walk && walkPath.length > 0 ? walkPath[walkHop % walkPath.length]?.id ?? null : null;
+  const dim = (id: string): boolean => (related ? !related.has(id) : false);
 
-  // 路径漫游节点集（弱化无关节点）
-  const walkNodeIds = useMemo(() => {
-    if (!walk || walkPath.length === 0) return null;
-    const set = new Set<string>(focus ? [focus] : []);
-    for (const l of walkPath) {
-      const s = typeof l.source === 'string' ? l.source : l.source.id;
-      const t = typeof l.target === 'string' ? l.target : l.target.id;
-      set.add(s);
-      set.add(t);
-    }
-    return set;
-  }, [walk, walkPath, focus]);
+  // KPI
+  const onlineDevices = devices.filter((d) => d.data.status === 'online' || d.data.status === 'busy').length;
+  const busyAgents = agents.filter((a) => a.data.status === 'busy').length;
+  const runningTasks = tasks.filter((t) => t.data.status === 'running').length;
+  const alerts = tasks.filter((t) => t.data.status === 'failed' || t.data.status === 'interrupted' || t.data.status === 'cancelled').length;
 
-  // 路径漫游逐跳推进
-  useEffect(() => {
-    if (!walk || walkPath.length === 0) return;
-    const timer = setInterval(() => setWalkHop((h) => h + 1), 900);
-    return () => clearInterval(timer);
-  }, [walk, walkPath.length]);
-
-  const isDimmed = (n: GraphNode): boolean => {
-    if (adjacent && !adjacent.has(n.id)) return true;
-    if (lens !== 'all' && n.type !== lens) return true;
-    if (walkNodeIds && !walkNodeIds.has(n.id)) return true;
-    return false;
-  };
-
-  // 缩放
-  const onWheel = (e: React.WheelEvent): void => {
-    const next = Math.max(0.2, Math.min(2, transform.k * (e.deltaY < 0 ? 1.1 : 0.9)));
-    setTransform({ ...transform, k: next });
-  };
-
-  // 空白拖拽平移
-  const onPointerDown = (e: React.PointerEvent): void => {
-    if ((e.target as Element).closest('[data-node]')) return;
-    panRef.current = { ...transform, startX: e.clientX, startY: e.clientY };
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-  };
-  const onPointerMove = (e: React.PointerEvent): void => {
-    if (panRef.current) {
-      const dx = e.clientX - panRef.current.startX;
-      const dy = e.clientY - panRef.current.startY;
-      setTransform({ ...panRef.current, x: panRef.current.x + dx, y: panRef.current.y + dy });
-    }
-  };
-  const onPointerUp = (): void => {
-    panRef.current = null;
-  };
-
-  // 悬停 tooltip
-  const showTooltip = (e: React.MouseEvent, node: GraphNode): void => {
-    setTooltip({ x: e.clientX, y: e.clientY, node });
-  };
-
-  // 点击聚焦 / 路径漫游起点
-  const clickNode = (node: GraphNode): void => {
-    if (walk && node.type === 'task') {
-      setFocus(node.id);
-      setWalkPath(computeWalkPath(node.id, links));
-      setWalkHop(0);
-      return;
-    }
+  const click = (node: GraphNode, target: DetailTarget): void => {
     if (focus === node.id) {
       setFocus(null);
       onSelect?.(null);
     } else {
       setFocus(node.id);
-      onSelect?.(toDetail(node));
+      onSelect?.(target);
     }
   };
 
-  const blankClick = (): void => {
+  const blank = (): void => {
     setFocus(null);
-    setWalkPath([]);
     onSelect?.(null);
   };
 
+  const lensDim = (type: string): boolean => lens !== 'all' && lens !== type;
+
   return (
-    <div ref={containerRef} className="graph-canvas relative h-full w-full overflow-hidden">
-      <svg
-        className="h-full w-full"
-        onWheel={onWheel}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerUp}
-        onClick={blankClick}
+    <div className="flex h-full w-full flex-col overflow-hidden" onClick={blank}>
+      {/* 顶部 KPI 概览 + 状态色图例 */}
+      <div className="flex shrink-0 items-center gap-6 border-b border-[var(--border)] px-5 pr-[340px]" style={{ background: 'var(--bg)' }}>
+        <Kpi value={onlineDevices} total={devices.length} label="在线设备" color="var(--success)" />
+        <Kpi value={agents.length} label="Agent" sub={`${busyAgents} 处理中`} color="var(--agent)" />
+        <Kpi value={runningTasks} total={tasks.length} label="运行中任务" color="var(--warning)" />
+        <Kpi value={alerts} label="告警" color={alerts > 0 ? 'var(--danger)' : 'var(--offline)'} />
+      </div>
+
+      {/* 三栏：设备 | Agent | 任务 */}
+      <div
+        className={`flex-1 overflow-hidden ${isMobile ? 'overflow-y-auto' : ''}`}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'minmax(220px, 300px) minmax(220px, 280px) 1fr',
+          gap: 12,
+          padding: 16,
+          background: 'var(--bg-subtle)',
+        }}
       >
-        <ArrowMarkers />
-        <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
-          {/* 连线 */}
-          <LinkLayer links={links} nodeMap={nodeMap} focus={focus} adjacent={adjacent} walkActiveId={walkActiveId} />
-          {/* 节点 */}
-          {nodes.map((n) => (
-            <NodeShape
-              key={n.id}
-              node={n}
-              dimmed={isDimmed(n)}
-              focused={focus === n.id}
-              lensActive={lens !== 'all' && n.type === lens}
-              onMouseEnter={(e) => {
-                setHover(n.id);
-                showTooltip(e, n);
-              }}
-              onMouseLeave={() => {
-                setHover(null);
-                setTooltip(null);
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                clickNode(n);
-              }}
-              onPointerDown={() => {
-                /* 流程图确定性布局：禁用节点拖拽 */
-                if (isMobile) return;
-              }}
-            />
-          ))}
-        </g>
-      </svg>
+        {/* 设备栏 */}
+        <Column title="设备" count={devices.length} empty="暂无设备接入">
+          {devices.map((d) => {
+            const devAgents = agents.filter((a) => a.deviceId === d.id);
+            const color = STATUS_VAR[d.data.status] ?? 'var(--offline)';
+            const online = d.data.status === 'online' || d.data.status === 'busy';
+            const active = focus === d.id;
+            return (
+              <DeviceCard
+                key={d.id}
+                name={d.data.name}
+                agentCount={devAgents.length}
+                load={d.data.load?.cpu ?? 0}
+                color={color}
+                online={online}
+                active={active}
+                dimmed={dim(d.id) || lensDim('device')}
+                onClick={(e) => { e.stopPropagation(); click(d, { kind: 'device', id: d.data.deviceId, title: d.data.name }); }}
+              />
+            );
+          })}
+        </Column>
 
-      {/* 图例 */}
-      <GraphLegend />
+        {/* Agent 栏 */}
+        <Column title="Agent" count={agents.length} empty="设备接入后此处显示 agent 平台">
+          {agents.map((a) => {
+            const color = agentColor(a.data);
+            const busy = a.data.status === 'busy';
+            const active = focus === a.id;
+            return (
+              <AgentCard
+                key={a.id}
+                initial={agentInitial(a.data.agentType)}
+                name={a.data.displayName}
+                version={a.data.version}
+                label={agentLabel(a.data)}
+                busy={busy}
+                busyCount={a.data.busyCount}
+                maxConcurrency={a.data.maxConcurrency}
+                color={color}
+                active={active}
+                dimmed={dim(a.id) || lensDim('agent')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  click(a, { kind: 'agent', id: a.id, title: a.data.displayName, deviceId: a.deviceId, agentType: a.data.agentType });
+                }}
+              />
+            );
+          })}
+        </Column>
 
-      {/* Tooltip */}
-      {tooltip && (
-        <div
-          className="pointer-events-none fixed z-30 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs shadow-lg"
-          style={{ left: tooltip.x + 14, top: tooltip.y + 14, maxWidth: 240 }}
-        >
-          <NodeTooltip node={tooltip.node} />
-        </div>
-      )}
-
-      {/* hover 状态提示（辅助） */}
-      {hover && !tooltip && <span className="hidden">{hover}</span>}
+        {/* 任务栏 */}
+        <Column title="任务" count={tasks.length} empty="暂无任务，点右上角「新建任务」下发">
+          {tasks.map((t) => {
+            const st = t.data.status;
+            const color = STATUS_VAR[st] ?? 'var(--offline)';
+            const running = st === 'running';
+            const agentId = taskAgent.get(t.id);
+            const agentName = agents.find((a) => a.id === agentId)?.data.displayName;
+            const active = focus === t.id;
+            return (
+              <TaskCard
+                key={t.id}
+                prompt={t.data.prompt}
+                label={STATUS_LABEL[st] ?? st}
+                target={agentName ? `${agentName}` : (t.data.targetAgentType ?? '未分配')}
+                color={color}
+                running={running}
+                active={active}
+                dimmed={dim(t.id) || lensDim('task')}
+                onClick={(e) => { e.stopPropagation(); click(t, { kind: 'task', id: t.data.taskId, title: t.data.prompt.slice(0, 40) }); }}
+              />
+            );
+          })}
+        </Column>
+      </div>
     </div>
   );
 }
 
-/** 计算任务节点的漫游路径：先 call（task→agent），再 stream（agent→task） */
-function computeWalkPath(taskId: string, links: SimLink[]): SimLink[] {
-  const calls = links.filter((l) => {
-    const s = typeof l.source === 'string' ? l.source : l.source.id;
-    return s === taskId && l.kind === 'call';
-  });
-  const streams = links.filter((l) => {
-    const t = typeof l.target === 'string' ? l.target : l.target.id;
-    return t === taskId && l.kind === 'stream';
-  });
-  return [...calls, ...streams];
-}
-
-/** 连线层：实线/虚线/箭头 + stream 流动光点 + 漫游 trace */
-function LinkLayer({
-  links,
-  nodeMap,
-  adjacent,
-  focus,
-  walkActiveId,
-}: {
-  links: SimLink[];
-  nodeMap: Map<string, SimNode>;
-  adjacent: Set<string> | null;
-  focus: string | null;
-  walkActiveId: string | null;
-}): JSX.Element {
-  const positioned = layoutLinks(links, nodeMap, adjacent, focus, walkActiveId);
+/** KPI 单指标（大数字 + 标签，等宽字体） */
+function Kpi({ value, total, label, sub, color }: { value: number; total?: number; label: string; sub?: string; color: string }): JSX.Element {
   return (
-    <g>
-      <GraphLinks links={positioned} />
-      <FlowParticles links={positioned} traceLinks={positioned.filter((l) => l.trace)} />
-    </g>
+    <div className="flex items-baseline gap-2 py-3">
+      <span className="font-mono text-2xl font-semibold leading-none" style={{ color }}>
+        {value}
+        {total !== undefined && <span className="text-sm font-normal text-[var(--text-muted)]">/{total}</span>}
+      </span>
+      <div className="flex flex-col">
+        <span className="text-xs font-medium text-[var(--text)]">{label}</span>
+        {sub && <span className="text-[11px] text-[var(--text-muted)]">{sub}</span>}
+      </div>
+    </div>
   );
 }
 
-/** 把节点转换为抽屉详情目标 */
-function toDetail(node: GraphNode): DetailTarget {
-  if (node.type === 'device') {
-    return { kind: 'device', id: node.data.deviceId, title: node.data.name };
-  }
-  if (node.type === 'agent') {
-    return { kind: 'agent', id: node.id, title: node.data.displayName, deviceId: node.deviceId, agentType: node.data.agentType };
-  }
-  if (node.type === 'task') {
-    return { kind: 'task', id: node.data.taskId, title: node.data.prompt.slice(0, 40) };
-  }
-  return { kind: 'message', id: node.id, title: `消息 #${node.seq}` };
+/** 栏容器（标题 + 计数 + 可滚动卡片列表） */
+function Column({ title, count, empty, children }: { title: string; count: number; empty: string; children: ReactNode }): JSX.Element {
+  return (
+    <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-[var(--border)]" style={{ background: 'var(--surface)' }}>
+      <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-3 py-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text)]">{title}</span>
+        <span className="rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-muted)]">{count}</span>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2.5">
+        {children}
+        {Children.count(children) === 0 && (
+          <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-xs text-[var(--text-muted)]">{empty}</div>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function NodeTooltip({ node }: { node: GraphNode }): JSX.Element {
-  switch (node.type) {
-    case 'device':
-      return (
-        <div>
-          <div className="font-semibold text-[#0F172A]">{node.data.name}</div>
-          <div className="text-[#64748B]">{node.data.deviceId}</div>
-          <div className="mt-1 text-[#334155]">
-            状态：{node.data.status} · 负载 {Math.round(node.data.load.cpu * 100)}%
-          </div>
+/** 状态点（在线/运行中带 ping 扩散） */
+function StatusDot({ color, ping }: { color: string; ping?: boolean }): JSX.Element {
+  return (
+    <span className="relative flex h-2 w-2 shrink-0">
+      {ping && <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: color }} />}
+      <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: color }} />
+    </span>
+  );
+}
+
+function DeviceCard({ name, agentCount, load, color, online, active, dimmed, onClick }: {
+  name: string; agentCount: number; load: number; color: string; online: boolean; active: boolean; dimmed: boolean; onClick: (e: React.MouseEvent) => void;
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      className="group w-full rounded-md border bg-[var(--surface)] px-3 py-2.5 text-left transition-all hover:shadow-sm"
+      style={{
+        borderColor: active ? 'var(--brand)' : 'var(--border)',
+        boxShadow: active ? '0 0 0 1px var(--brand)' : undefined,
+        opacity: dimmed ? 0.35 : 1,
+        borderLeft: `3px solid ${color}`,
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <StatusDot color={color} ping={online} />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-strong)]">{truncate(name, 20)}</span>
+        <span className="rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">{agentCount} agent</span>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--bg-subtle)]">
+          <div className="h-full rounded-full" style={{ width: `${Math.round(load * 100)}%`, background: color }} />
         </div>
-      );
-    case 'agent':
-      return (
-        <div>
-          <div className="font-semibold text-[#0F172A]">{node.data.displayName}</div>
-          <div className="text-[#64748B]">v{node.data.version}</div>
-          <div className="mt-1 text-[#334155]">
-            状态：{node.data.status} · 占用 {node.data.busyCount}/{node.data.maxConcurrency}
-          </div>
+        <span className="font-mono text-[10px] text-[var(--text-muted)]">{Math.round(load * 100)}%</span>
+      </div>
+    </button>
+  );
+}
+
+function AgentCard({ initial, name, version, label, busy, busyCount, maxConcurrency, color, active, dimmed, onClick }: {
+  initial: string; name: string; version: string; label: string; busy: boolean; busyCount: number; maxConcurrency: number; color: string; active: boolean; dimmed: boolean; onClick: (e: React.MouseEvent) => void;
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      className="group w-full rounded-md border bg-[var(--surface)] px-3 py-2.5 text-left transition-all hover:shadow-sm"
+      style={{
+        borderColor: active ? 'var(--brand)' : 'var(--border)',
+        boxShadow: active ? '0 0 0 1px var(--brand)' : undefined,
+        opacity: dimmed ? 0.35 : 1,
+        borderLeft: `3px solid ${color}`,
+      }}
+    >
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white" style={{ background: color }}>
+          {initial}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold text-[var(--text-strong)]">{truncate(name, 18)}</div>
+          <div className="font-mono text-[10px] text-[var(--text-muted)]">v{version}</div>
         </div>
-      );
-    case 'task':
-      return (
-        <div>
-          <div className="font-semibold text-[#0F172A]">{node.data.prompt.slice(0, 30)}</div>
-          <div className="mt-1 text-[#334155]">状态：{node.data.status}</div>
-        </div>
-      );
-    case 'message':
-      return (
-        <div>
-          <div className="font-semibold text-[#0F172A]">消息流 #{node.seq}</div>
-          <div className="text-[#64748B]">{node.eventType}</div>
-        </div>
-      );
-  }
+        <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ color, background: 'var(--bg-subtle)' }}>
+          {label}{busy ? ` ${busyCount}/${maxConcurrency}` : ''}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function TaskCard({ prompt, label, target, color, running, active, dimmed, onClick }: {
+  prompt: string; label: string; target: string; color: string; running: boolean; active: boolean; dimmed: boolean; onClick: (e: React.MouseEvent) => void;
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      className="group w-full rounded-md border bg-[var(--surface)] px-3 py-2.5 text-left transition-all hover:shadow-sm"
+      style={{
+        borderColor: active ? 'var(--brand)' : 'var(--border)',
+        boxShadow: active ? '0 0 0 1px var(--brand)' : undefined,
+        opacity: dimmed ? 0.35 : 1,
+        borderLeft: `3px solid ${color}`,
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <StatusDot color={color} ping={running} />
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">{truncate(prompt, 42)}</span>
+      </div>
+      <div className="mt-1.5 flex items-center justify-between">
+        <span className="font-mono text-[10px] text-[var(--text-muted)]">{truncate(target, 20)}</span>
+        <span className="text-[10px] font-semibold" style={{ color }}>{label}</span>
+      </div>
+    </button>
+  );
+}
+
+/** agent 状态色（busy 橙 / error 红 / 待登录灰 / 空闲紫） */
+function agentColor(a: GraphAgentNode['data']): string {
+  if (a.status === 'busy') return 'var(--warning)';
+  if (a.status === 'error') return 'var(--danger)';
+  if (a.status === 'needs_login' || !(a.activated as boolean | undefined)) return 'var(--offline)';
+  return 'var(--agent)';
+}
+
+function agentLabel(a: GraphAgentNode['data']): string {
+  if (a.status === 'busy') return '处理中';
+  if (a.status === 'error') return '异常';
+  if (a.status === 'needs_login' || !(a.activated as boolean | undefined)) return '待登录';
+  return '空闲';
 }
