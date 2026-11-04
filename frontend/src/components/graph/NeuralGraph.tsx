@@ -70,9 +70,25 @@ export function NeuralGraph({
   const { isMobile } = useBreakpoint();
   const [focus, setFocus] = useState<string | null>(null);
 
-  const devices = useMemo(() => data.nodes.filter((n): n is GraphDeviceNode => n.type === 'device'), [data]);
+  const devices = useMemo(
+    () =>
+      data.nodes
+        .filter((n): n is GraphDeviceNode => n.type === 'device')
+        .sort((a, b) => {
+          const ao = a.data.status === 'online' || a.data.status === 'busy' ? 1 : 0;
+          const bo = b.data.status === 'online' || b.data.status === 'busy' ? 1 : 0;
+          return bo - ao; // 在线设备排前面，offline 历史沉底
+        }),
+    [data],
+  );
   const agents = useMemo(() => data.nodes.filter((n): n is GraphAgentNode => n.type === 'agent'), [data]);
-  const tasks = useMemo(() => data.nodes.filter((n): n is GraphTaskNode => n.type === 'task'), [data]);
+  const tasks = useMemo(
+    () =>
+      data.nodes
+        .filter((n): n is GraphTaskNode => n.type === 'task')
+        .sort((a, b) => (b.data.createdAt ?? 0) - (a.data.createdAt ?? 0)),
+    [data],
+  );
 
   // 归属索引：agentId → deviceId；task 的 agentId
   const agentDevice = useMemo(() => {
