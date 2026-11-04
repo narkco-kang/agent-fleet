@@ -35,6 +35,57 @@ export interface CliRunHandle {
   cancel(): void;
 }
 
+/**
+ * 从 stream-json 事件提取文本，兼容多种平台格式：
+ * - 顶层 `text`（codex 等）
+ * - claude assistant 事件的 `message.content` 数组里的 text blocks
+ * - claude result 事件的 `result` 字段（最终纯文本）
+ */
+export function extractStreamText(j: {
+  type?: string;
+  text?: string;
+  result?: string;
+  message?: { content?: unknown } | string;
+}): string {
+  // 顶层 text
+  if (typeof j.text === 'string' && j.text.trim()) return j.text;
+  // claude assistant：message.content 是 blocks 数组，提取 text block
+  const msg = j.message;
+  if (msg && typeof msg === 'object') {
+    const content = msg.content;
+    if (Array.isArray(content)) {
+      const parts = content
+        .filter((c): c is { type?: string; text?: string } => {
+          return !!c && (c as { type?: string }).type === 'text';
+        })
+        .map((c) => (c as { text?: string }).text ?? '');
+      if (parts.length) return parts.join('');
+    }
+  }
+  // claude result：result 字段是最终纯文本（不再是 tool_call）
+  if (j.type === 'result' && typeof j.result === 'string' && j.result.trim()) return j.result;
+  return '';
+}
+
+/** 检测 tool 事件（claude assistant 的 tool_use block，或顶层 tool_use） */
+export function detectToolUse(j: {
+  type?: string;
+  message?: { content?: unknown } | string;
+}): { name: string; input: unknown } | null {
+  const msg = j.message;
+  if (msg && typeof msg === 'object' && Array.isArray(msg.content)) {
+    const tu = msg.content.find((c) => !!c && (c as { type?: string }).type === 'tool_use') as
+      | { name?: string; input?: unknown }
+      | undefined;
+    if (tu?.name) return { name: tu.name, input: tu.input ?? {} };
+  }
+  if (j.type === 'tool_use') {
+    const anyJ = j as unknown as { name?: string; input?: unknown };
+    return { name: anyJ.name ?? 'tool', input: anyJ.input ?? {} };
+  }
+  return null;
+}
+
 export function runCli(opts: CliRunOptions): CliRunHandle {
   // 沙箱包裹（P0-2）：readonly/isolated 时用 sandbox-exec/bwrap 包裹命令
   const { cmd, args } = buildSandboxCommand(opts.sandbox ?? 'none', opts.cmd, opts.args);
@@ -76,13 +127,26 @@ export function runCli(opts: CliRunOptions): CliRunHandle {
   rl.on('line', (line) => {
     if (opts.streamJson) {
       try {
-        const j = JSON.parse(line) as { type?: string; text?: string; message?: string; content?: unknown };
-        if (j.text) {
-          emit({ eventType: 'text', data: { text: j.text }, ts: Date.now() });
-        } else if (j.type === 'result' || j.type === 'tool_use') {
-          emit({ eventType: 'tool_call', data: { toolName: j.type, toolInput: j as unknown as Record<string, unknown> }, ts: Date.now() });
-        } else if (j.message) {
-          emit({ eventType: 'status', data: { message: j.message }, ts: Date.now() });
+        const j = JSON.parse(line) as {
+          type?: string;
+          text?: string;
+          result?: string;
+          message?: { content?: unknown } | string;
+        };
+        const text = extractStreamText(j);
+        if (text) {
+          emit({ eventType: 'text', data: { text }, ts: Date.now() });
+        } else {
+          const tool = detectToolUse(j);
+          if (tool) {
+            emit({
+              eventType: 'tool_call',
+              data: { toolName: tool.name, toolInput: tool.input as Record<string, unknown> },
+              ts: Date.now(),
+            });
+          } else if (typeof j.message === 'string' && j.message.trim()) {
+            emit({ eventType: 'status', data: { message: j.message }, ts: Date.now() });
+          }
         }
       } catch {
         emit({ eventType: 'text', data: { text: line }, ts: Date.now() });
