@@ -110,6 +110,11 @@ export type LoopTrigger = 'manual' | 'schedule' | 'event';
 /** 对外动作类型（一律过 actionGuard） */
 export type ActionKind = 'deploy' | 'uninstall' | 'asset_deliver' | 'loop_start';
 
+/** 权限目录三档（P2-3）：allow 自动放行 / ask 需人工确认 / deny 自动拒绝 */
+export type PolicyTier = 'allow' | 'ask' | 'deny';
+
+export const ACTION_POLICY_TIERS: readonly PolicyTier[] = ['allow', 'ask', 'deny'] as const;
+
 /** 人工确认记录状态 */
 export type ActionStatus =
   | 'pending_confirmation'

@@ -1,6 +1,7 @@
 import type { ActionConfirmation, ActionKind } from '@agentfleet/shared';
 import { randomId } from '../security/auth.js';
 import { config } from '../config.js';
+import { tieredPolicy } from './tieredPolicy.js';
 import {
   createConfirmation,
   getByKindRef,
@@ -36,7 +37,7 @@ class ActionGuard {
     this.executors.set(kind, executor);
   }
 
-  /** 请求执行一个对外动作：生成待确认记录（开关关闭时自动放行） */
+  /** 请求执行一个对外动作：按权限目录三档（allow/ask/deny）生成确认记录 */
   request(kind: ActionKind, refId: string, payloadSummary: string): ActionConfirmation {
     const confirmation = createConfirmation({
       confirmationId: randomId('confirm'),
@@ -45,9 +46,16 @@ class ActionGuard {
       payloadSummary,
     });
 
-    // 开关关闭 → 自动确认并触发执行
-    if (!this.isEnabled()) {
-      this.confirm(confirmation.id, 'auto');
+    const tier = tieredPolicy.getTier(kind);
+    // deny：自动拒绝，直接拦截（不执行）
+    if (tier === 'deny') {
+      updateConfirmationStatus(confirmation.id, 'rejected', 'policy:deny');
+      return getConfirmation(confirmation.id) as ActionConfirmation;
+    }
+
+    // allow：自动放行；ask + 开关关闭：自动放行（仍留审计记录）
+    if (tier === 'allow' || !this.isEnabled()) {
+      this.confirm(confirmation.id, tier === 'allow' ? 'policy:allow' : 'auto');
     }
 
     return getConfirmation(confirmation.id) as ActionConfirmation;
