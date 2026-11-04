@@ -38,7 +38,7 @@ export function MobileTabBar(): JSX.Element {
   const overflow = TABS.slice(PRIMARY_COUNT);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 flex h-14 border-t border-[#E2E8F0] bg-white">
+    <nav className="fixed inset-x-0 bottom-0 z-20 flex h-14 border-t border-[var(--border)] bg-[var(--surface)]">
       {primary.map((tab) => (
         <NavLink
           key={tab.to}
@@ -46,7 +46,7 @@ export function MobileTabBar(): JSX.Element {
           end={tab.to === '/'}
           className={({ isActive }) =>
             `flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] ${
-              isActive ? 'text-[#4F46E5]' : 'text-[#64748B]'
+              isActive ? 'text-[#4F46E5]' : 'text-[var(--text-muted)]'
             }`
           }
         >
@@ -56,16 +56,16 @@ export function MobileTabBar(): JSX.Element {
       ))}
 
       {/* 更多 */}
-      <div className="relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] text-[#64748B]">
+      <div className="relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] text-[var(--text-muted)]">
         <button
           onClick={() => setMoreOpen((v) => !v)}
-          className="flex flex-col items-center justify-center gap-0.5 text-[10px] text-[#64748B]"
+          className="flex flex-col items-center justify-center gap-0.5 text-[10px] text-[var(--text-muted)]"
         >
           <MoreHorizIcon />
           <span>{t('nav.more')}</span>
         </button>
         {moreOpen && (
-          <div className="absolute bottom-14 right-0 z-30 flex w-36 flex-col rounded-lg border border-[#E2E8F0] bg-white p-1 shadow-card">
+          <div className="absolute bottom-14 right-0 z-30 flex w-36 flex-col rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 shadow-card">
             {overflow.map((tab) => (
               <NavLink
                 key={tab.to}
@@ -73,7 +73,7 @@ export function MobileTabBar(): JSX.Element {
                 onClick={() => setMoreOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-2 rounded-md px-3 py-2 text-xs ${
-                    isActive ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'text-[#334155]'
+                    isActive ? 'bg-[var(--brand-soft)] text-[#4F46E5]' : 'text-[var(--text)]'
                   }`
                 }
               >

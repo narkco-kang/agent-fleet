@@ -98,24 +98,24 @@ export function PaidProviderTab(): JSX.Element {
       <Card className="p-4">
         <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
           <div>
-            <div className="text-sm font-semibold text-[#0F172A]">付费 Provider 批量配置</div>
-            <div className="mt-1 text-xs leading-5 text-[#64748B]">
+            <div className="text-sm font-semibold text-[var(--text-strong)]">付费 Provider 批量配置</div>
+            <div className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
               采用 EchoBird「Model Nexus」思路：先把 OpenAI/DeepSeek/Anthropic/自建 Router 等模型源集中登记，
               再在「平台模型」页为不同设备和 agent 平台绑定模型。API Key 仅写入本机已忽略目录，前端只脱敏回显。
             </div>
           </div>
-          <div className="shrink-0 text-xs text-[#64748B]">
+          <div className="shrink-0 text-xs text-[var(--text-muted)]">
             已配置 {providerCount} 个 · 预览 {parsedPreview ?? 'JSON 错误'} 个
           </div>
         </div>
-        <div className="mt-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-xs text-[#64748B]">
+        <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-xs text-[var(--text-muted)]">
           保存路径：<code>{configPath}</code>。保存后需要重启 modelgateway；环境变量 MG_PAID_PROVIDERS 的同 id 配置优先级更高。
         </div>
       </Card>
 
       <Card className="p-4">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-semibold text-[#0F172A]">Provider JSON 数组</span>
+          <span className="text-sm font-semibold text-[var(--text-strong)]">Provider JSON 数组</span>
           <div className="flex gap-2">
             <Button size="small" color="inherit" onClick={load} disabled={busy}>
               重新加载
@@ -129,18 +129,18 @@ export function PaidProviderTab(): JSX.Element {
           value={json}
           onChange={(e) => setJson(e.target.value)}
           spellCheck={false}
-          className="min-h-[280px] w-full rounded-lg border border-[#CBD5E1] bg-white p-3 font-mono text-xs leading-5 text-[#0F172A] outline-none focus:border-[#4F46E5]"
+          className="min-h-[280px] w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 font-mono text-xs leading-5 text-[var(--text-strong)] outline-none focus:border-[#4F46E5]"
         />
-        {message && <div className="mt-2 rounded-md bg-[#DCFCE7] px-3 py-2 text-xs text-[#047857]">{message}</div>}
-        {error && <div className="mt-2 rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
+        {message && <div className="mt-2 rounded-md bg-[var(--success-soft)] px-3 py-2 text-xs text-[#047857]">{message}</div>}
+        {error && <div className="mt-2 rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
       </Card>
 
       <Card className="p-0">
-        <div className="border-b border-[#E2E8F0] px-4 py-3 text-sm font-semibold text-[#0F172A]">已保存 Provider</div>
+        <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-strong)]">已保存 Provider</div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
+              <tr className="bg-[var(--bg-subtle)] text-left text-xs text-[var(--text-muted)]">
                 <th className="px-3 py-2 font-medium">ID</th>
                 <th className="px-3 py-2 font-medium">名称</th>
                 <th className="px-3 py-2 font-medium">Base URL</th>
@@ -151,18 +151,18 @@ export function PaidProviderTab(): JSX.Element {
             <tbody>
               {(status?.providers ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-[#94A3B8]">
+                  <td colSpan={5} className="px-3 py-8 text-center text-[var(--text-muted)]">
                     暂无付费 Provider。可粘贴示例 JSON 后保存。
                   </td>
                 </tr>
               ) : (
                 status?.providers.map((p) => (
-                  <tr key={p.id} className="border-t border-[#E2E8F0]">
-                    <td className="px-3 py-2 font-mono text-xs text-[#334155]">{p.id}</td>
-                    <td className="px-3 py-2 text-[#334155]">{p.label}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-[#64748B]">{p.baseUrl}</td>
-                    <td className="px-3 py-2 text-[#64748B]">{p.models.join(', ')}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-[#64748B]">{p.hasApiKey ? p.maskedApiKey : '未配置'}</td>
+                  <tr key={p.id} className="border-t border-[var(--border)]">
+                    <td className="px-3 py-2 font-mono text-xs text-[var(--text)]">{p.id}</td>
+                    <td className="px-3 py-2 text-[var(--text)]">{p.label}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-[var(--text-muted)]">{p.baseUrl}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)]">{p.models.join(', ')}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-[var(--text-muted)]">{p.hasApiKey ? p.maskedApiKey : '未配置'}</td>
                   </tr>
                 ))
               )}

@@ -24,7 +24,7 @@ export default function App(): JSX.Element {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen w-screen items-center justify-center text-sm text-[#64748B]">
+        <div className="flex h-screen w-screen items-center justify-center text-sm text-[var(--text-muted)]">
           加载中…
         </div>
       }

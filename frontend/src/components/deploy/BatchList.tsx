@@ -25,13 +25,13 @@ export function BatchList({
 }): JSX.Element {
   return (
     <Card className="p-0">
-      <div className="border-b border-[#E2E8F0] px-4 py-3 text-sm font-semibold text-[#0F172A]">
+      <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-strong)]">
         部署批次（13 平台 SSH）
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
+            <tr className="bg-[var(--bg-subtle)] text-left text-xs text-[var(--text-muted)]">
               <th className="px-4 py-2 font-medium">名称</th>
               <th className="px-4 py-2 font-medium">类型</th>
               <th className="px-4 py-2 font-medium">状态</th>
@@ -42,7 +42,7 @@ export function BatchList({
           <tbody>
             {batches.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-[#94A3B8]">
+                <td colSpan={5} className="px-4 py-8 text-center text-[var(--text-muted)]">
                   暂无部署批次
                 </td>
               </tr>
@@ -51,16 +51,16 @@ export function BatchList({
                 <tr
                   key={b.id}
                   onClick={() => onOpen(b)}
-                  className="cursor-pointer border-t border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC]"
+                  className="cursor-pointer border-t border-[var(--border)] transition-colors hover:bg-[var(--bg-subtle)]"
                   style={{ height: 48 }}
                 >
-                  <td className="px-4 py-2 text-[#334155]">{b.name}</td>
-                  <td className="px-4 py-2 text-[#334155]">
+                  <td className="px-4 py-2 text-[var(--text)]">{b.name}</td>
+                  <td className="px-4 py-2 text-[var(--text)]">
                     {b.kind === 'uninstall' ? '卸载' : '部署'}
                   </td>
-                  <td className="px-4 py-2 text-[#334155]">{STATUS_LABEL[b.status] ?? b.status}</td>
-                  <td className="px-4 py-2 text-[#334155]">{b.targets?.length ?? 0}</td>
-                  <td className="px-4 py-2 text-[#64748B]">{fmtTime(b.createdAt)}</td>
+                  <td className="px-4 py-2 text-[var(--text)]">{STATUS_LABEL[b.status] ?? b.status}</td>
+                  <td className="px-4 py-2 text-[var(--text)]">{b.targets?.length ?? 0}</td>
+                  <td className="px-4 py-2 text-[var(--text-muted)]">{fmtTime(b.createdAt)}</td>
                 </tr>
               ))
             )}

@@ -120,24 +120,24 @@ export default function AssetsPage(): JSX.Element {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-[#0F172A]">{t('assets.title')}</h1>
+        <h1 className="text-xl font-semibold text-[var(--text-strong)]">{t('assets.title')}</h1>
         <div className="flex gap-2">
           <button
             onClick={() => setGithubOpen(true)}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#0891B2] bg-white px-3 py-1.5 text-sm font-medium text-[#0891B2] hover:bg-[#ECFEFF]"
+            className="inline-flex items-center gap-1 rounded-lg border border-[#0891B2] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[#0891B2] hover:bg-[#ECFEFF]"
           >
             <CloudDownloadIcon fontSize="small" /> {t('assets.fetchGithub')}
           </button>
           <button
             onClick={() => setPromptOpen(true)}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#0891B2] bg-white px-3 py-1.5 text-sm font-medium text-[#0891B2] hover:bg-[#ECFEFF]"
+            className="inline-flex items-center gap-1 rounded-lg border border-[#0891B2] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[#0891B2] hover:bg-[#ECFEFF]"
           >
             <CloudDownloadIcon fontSize="small" /> {t('assets.fetchPrompts')}
           </button>
           <button
             onClick={() => batchFileRef.current?.click()}
             disabled={uploading}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#4F46E5] bg-white px-3 py-1.5 text-sm font-medium text-[#4F46E5] hover:bg-[#EEF2FF]"
+            className="inline-flex items-center gap-1 rounded-lg border border-[#4F46E5] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[#4F46E5] hover:bg-[var(--brand-soft)]"
           >
             <UploadIcon fontSize="small" /> {uploading ? t('assets.uploading') : t('assets.batchUpload')}
           </button>
@@ -150,7 +150,7 @@ export default function AssetsPage(): JSX.Element {
           />
           <button
             onClick={() => openDeliver(null)}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#4F46E5] bg-white px-3 py-1.5 text-sm font-medium text-[#4F46E5] hover:bg-[#EEF2FF]"
+            className="inline-flex items-center gap-1 rounded-lg border border-[#4F46E5] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[#4F46E5] hover:bg-[var(--brand-soft)]"
           >
             <SendIcon fontSize="small" /> {t('assets.deliver')}
           </button>
@@ -169,7 +169,7 @@ export default function AssetsPage(): JSX.Element {
             key={v}
             onClick={() => setKind(v)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              kind === v ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'text-[#334155] hover:bg-[#F8FAFC]'
+              kind === v ? 'bg-[var(--brand-soft)] text-[#4F46E5]' : 'text-[var(--text)] hover:bg-[var(--bg-subtle)]'
             }`}
           >
             {label}
@@ -178,13 +178,13 @@ export default function AssetsPage(): JSX.Element {
       </div>
 
       <Card className="p-0">
-        <div className="border-b border-[#E2E8F0] px-4 py-3 text-sm font-semibold text-[#0F172A]">
+        <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-strong)]">
           {t('assets.list')}（{assets.length}）
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
+              <tr className="bg-[var(--bg-subtle)] text-left text-xs text-[var(--text-muted)]">
                 <th className="px-4 py-2 font-medium">{t('assets.col.name')}</th>
                 <th className="px-4 py-2 font-medium">{t('assets.col.overview')}</th>
                 <th className="px-4 py-2 font-medium">{t('assets.col.kind')}</th>
@@ -198,7 +198,7 @@ export default function AssetsPage(): JSX.Element {
             <tbody>
               {assets.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-[#94A3B8]">
+                  <td colSpan={8} className="px-4 py-8 text-center text-[var(--text-muted)]">
                     {t('assets.empty')}
                   </td>
                 </tr>
@@ -206,37 +206,37 @@ export default function AssetsPage(): JSX.Element {
                 assets.map((a) => (
                   <tr
                     key={a.id}
-                    className="border-t border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC]"
+                    className="border-t border-[var(--border)] transition-colors hover:bg-[var(--bg-subtle)]"
                     style={{ height: 48 }}
                   >
-                    <td className="px-4 py-2 text-[#334155]">{a.name}</td>
-                    <td className="max-w-[280px] truncate px-4 py-2 text-[#64748B]" title={descOf(a, language)}>
+                    <td className="px-4 py-2 text-[var(--text)]">{a.name}</td>
+                    <td className="max-w-[280px] truncate px-4 py-2 text-[var(--text-muted)]" title={descOf(a, language)}>
                       {descOf(a, language) || '—'}
                     </td>
-                    <td className="px-4 py-2 text-[#334155]">{t(KIND_KEY[a.kind])}</td>
-                    <td className="px-4 py-2 text-[#334155]">
+                    <td className="px-4 py-2 text-[var(--text)]">{t(KIND_KEY[a.kind])}</td>
+                    <td className="px-4 py-2 text-[var(--text)]">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] ${
                           a.source === 'github'
                             ? 'bg-[#ECFEFF] text-[#0891B2]'
                             : a.source === 'imported'
-                              ? 'bg-[#FEF3C7] text-[#B45309]'
-                              : 'bg-[#F1F5F9] text-[#64748B]'
+                              ? 'bg-[var(--warning-soft)] text-[#B45309]'
+                              : 'bg-[var(--bg-subtle)] text-[var(--text-muted)]'
                         }`}
                       >
                         {t(SOURCE_KEY[a.source] ?? 'assets.source.manual')}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-[#334155]">v{a.version}</td>
-                    <td className="px-4 py-2 text-[#64748B]">
+                    <td className="px-4 py-2 text-[var(--text)]">v{a.version}</td>
+                    <td className="px-4 py-2 text-[var(--text-muted)]">
                       {a.tags.length ? a.tags.map((t) => `#${t}`).join(' ') : '—'}
                     </td>
-                    <td className="px-4 py-2 text-[#64748B]">{fmtTime(a.updatedAt, language)}</td>
+                    <td className="px-4 py-2 text-[var(--text-muted)]">{fmtTime(a.updatedAt, language)}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => openEdit(a)}
-                          className="rounded px-2 py-1 text-xs text-[#4F46E5] hover:bg-[#EEF2FF]"
+                          className="rounded px-2 py-1 text-xs text-[#4F46E5] hover:bg-[var(--brand-soft)]"
                         >
                           {t('assets.edit')}
                         </button>
@@ -248,7 +248,7 @@ export default function AssetsPage(): JSX.Element {
                         </button>
                         <button
                           onClick={() => onDelete(a)}
-                          className="rounded px-2 py-1 text-xs text-[#B91C1C] hover:bg-[#FEE2E2]"
+                          className="rounded px-2 py-1 text-xs text-[#B91C1C] hover:bg-[var(--danger-soft)]"
                         >
                           {t('assets.delete')}
                         </button>

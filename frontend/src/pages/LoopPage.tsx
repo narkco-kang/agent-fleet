@@ -210,8 +210,8 @@ export default function LoopPage(): JSX.Element {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4">
-        <h1 className="text-xl font-semibold text-[#0F172A]">Loop 编排</h1>
-        <p className="mt-1 text-sm text-[#64748B]">
+        <h1 className="text-xl font-semibold text-[var(--text-strong)]">Loop 编排</h1>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
           用 DAG 依赖图编排多步任务 —— 依赖满足即并行派发，支持顺序/并行/映射/人工算子与决策门。
         </p>
       </div>
@@ -220,13 +220,13 @@ export default function LoopPage(): JSX.Element {
         {/* 左：列表 + 创建 */}
         <div className="space-y-3">
           <Card className="p-3">
-            <div className="mb-2 text-sm font-semibold text-[#0F172A]">新建 Loop</div>
+            <div className="mb-2 text-sm font-semibold text-[var(--text-strong)]">新建 Loop</div>
             <div className="flex gap-2">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Loop 名称"
-                className="min-w-0 flex-1 rounded-lg border border-[#E2E8F0] px-2 py-1.5 text-sm text-[#0F172A] outline-none focus:border-[#4F46E5]"
+                className="min-w-0 flex-1 rounded-lg border border-[var(--border)] px-2 py-1.5 text-sm text-[var(--text-strong)] outline-none focus:border-[#4F46E5]"
               />
               <button
                 onClick={() => void create()}
@@ -239,23 +239,23 @@ export default function LoopPage(): JSX.Element {
           </Card>
 
           <Card className="p-0">
-            <div className="border-b border-[#E2E8F0] px-3 py-2 text-sm font-semibold text-[#0F172A]">
+            <div className="border-b border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text-strong)]">
               Loop 列表（{loops.length}）
             </div>
             {loops.length === 0 ? (
-              <div className="px-3 py-6 text-center text-xs text-[#94A3B8]">暂无 Loop，先创建一个</div>
+              <div className="px-3 py-6 text-center text-xs text-[var(--text-muted)]">暂无 Loop，先创建一个</div>
             ) : (
               <div className="max-h-[60vh] overflow-auto">
                 {loops.map((l) => (
                   <button
                     key={l.id}
                     onClick={() => setSelected(l)}
-                    className={`block w-full border-b border-[#F1F5F9] px-3 py-2 text-left transition-colors ${
-                      selected?.id === l.id ? 'bg-[#EEF2FF]' : 'hover:bg-[#F8FAFC]'
+                    className={`block w-full border-b border-[var(--border)] px-3 py-2 text-left transition-colors ${
+                      selected?.id === l.id ? 'bg-[var(--brand-soft)]' : 'hover:bg-[var(--bg-subtle)]'
                     }`}
                   >
-                    <div className="truncate text-sm text-[#0F172A]">{l.name}</div>
-                    <div className="mt-0.5 text-xs text-[#64748B]">
+                    <div className="truncate text-sm text-[var(--text-strong)]">{l.name}</div>
+                    <div className="mt-0.5 text-xs text-[var(--text-muted)]">
                       {l.steps.length} 步 · 状态 {l.state}
                     </div>
                   </button>
@@ -268,7 +268,7 @@ export default function LoopPage(): JSX.Element {
         {/* 右：DAG 图 + 控制 */}
         <div className="space-y-3">
           {!selected ? (
-            <Card className="flex flex-col items-center justify-center p-12 text-[#94A3B8]">
+            <Card className="flex flex-col items-center justify-center p-12 text-[var(--text-muted)]">
               <AccountTreeIcon style={{ fontSize: 48 }} />
               <div className="mt-2 text-sm">选择左侧 Loop 查看编排 DAG 图</div>
             </Card>
@@ -277,8 +277,8 @@ export default function LoopPage(): JSX.Element {
               <Card className="p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <div className="text-sm font-semibold text-[#0F172A]">{selected.name}</div>
-                    <div className="mt-0.5 text-xs text-[#64748B]">
+                    <div className="text-sm font-semibold text-[var(--text-strong)]">{selected.name}</div>
+                    <div className="mt-0.5 text-xs text-[var(--text-muted)]">
                       {selected.steps.length} 步 · 第 {graph?.currentRound ?? selected.currentRound} 轮 · 状态{' '}
                       {graph?.state ?? selected.state}
                     </div>
@@ -295,7 +295,7 @@ export default function LoopPage(): JSX.Element {
                     {graph?.state === 'running' && (
                       <button
                         onClick={() => void act(() => loopApi.pause(selected.id))}
-                        className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-sm text-[#334155] hover:bg-[#F8FAFC]"
+                        className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text)] hover:bg-[var(--bg-subtle)]"
                       >
                         暂停
                       </button>
@@ -303,20 +303,20 @@ export default function LoopPage(): JSX.Element {
                     {graph?.state === 'paused' && (
                       <button
                         onClick={() => void act(() => loopApi.resume(selected.id))}
-                        className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-sm text-[#334155] hover:bg-[#F8FAFC]"
+                        className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text)] hover:bg-[var(--bg-subtle)]"
                       >
                         恢复
                       </button>
                     )}
                     <button
                       onClick={() => void act(() => loopApi.cancel(selected.id))}
-                      className="rounded-lg border border-[#EF4444] px-3 py-1.5 text-sm text-[#EF4444] hover:bg-[#FEF2F2]"
+                      className="rounded-lg border border-[#EF4444] px-3 py-1.5 text-sm text-[#EF4444] hover:bg-[var(--danger-soft)]"
                     >
                       取消
                     </button>
                     <button
                       onClick={() => void act(() => loopApi.remove(selected.id).then(() => setSelected(null)))}
-                      className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-sm text-[#64748B] hover:bg-[#F8FAFC]"
+                      className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-subtle)]"
                     >
                       删除
                     </button>
@@ -326,7 +326,7 @@ export default function LoopPage(): JSX.Element {
                 {/* 图例 */}
                 <div className="mb-2 flex flex-wrap gap-2">
                   {['queued', 'running', 'completed', 'failed', 'blocked'].map((s) => (
-                    <span key={s} className="inline-flex items-center gap-1 text-xs text-[#64748B]">
+                    <span key={s} className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)]">
                       <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: STATUS_COLOR[s] }} />
                       {STATUS_LABEL[s]}
                     </span>
@@ -343,7 +343,7 @@ export default function LoopPage(): JSX.Element {
                       .map((n) => (
                         <div
                           key={n.id}
-                          className="flex items-center justify-between rounded border border-[#BFDBFE] bg-[#EFF6FF] px-3 py-1.5 text-sm"
+                          className="flex items-center justify-between rounded border border-[var(--brand-soft)] bg-[var(--brand-soft)] px-3 py-1.5 text-sm"
                         >
                           <span className="text-[#1E40AF]">「{n.name}」等待人工决策</span>
                           <button

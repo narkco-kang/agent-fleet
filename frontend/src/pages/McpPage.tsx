@@ -87,8 +87,8 @@ export default function McpPage(): JSX.Element {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4">
-        <h1 className="text-xl font-semibold text-[#0F172A]">MCP 工具网关</h1>
-        <p className="mt-1 text-sm text-[#64748B]">
+        <h1 className="text-xl font-semibold text-[var(--text-strong)]">MCP 工具网关</h1>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
           连接外部 MCP server（stdio 子进程或 HTTP 端点），发现并调用其工具——让蜂群调度时能调用第三方能力。
         </p>
       </div>
@@ -97,12 +97,12 @@ export default function McpPage(): JSX.Element {
         {/* 左：注册 + 列表 */}
         <div className="space-y-3">
           <Card className="p-3">
-            <div className="mb-2 text-sm font-semibold text-[#0F172A]">注册 MCP server</div>
+            <div className="mb-2 text-sm font-semibold text-[var(--text-strong)]">注册 MCP server</div>
             <div className="space-y-2">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="名称（如 filesystem）" className="w-full rounded-lg border border-[#E2E8F0] px-2 py-1.5 text-sm text-[#0F172A] outline-none focus:border-[#4F46E5]" />
-              <input value={command} onChange={(e) => setCommand(e.target.value)} placeholder="stdio 命令（如 npx）" className="w-full rounded-lg border border-[#E2E8F0] px-2 py-1.5 text-sm text-[#0F172A] outline-none focus:border-[#4F46E5]" />
-              <input value={args} onChange={(e) => setArgs(e.target.value)} placeholder="参数（空格分隔，如 -y @modelcontextprotocol/server-filesystem /tmp）" className="w-full rounded-lg border border-[#E2E8F0] px-2 py-1.5 text-sm text-[#0F172A] outline-none focus:border-[#4F46E5]" />
-              <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="或 HTTP 端点（如 http://127.0.0.1:8000/mcp）" className="w-full rounded-lg border border-[#E2E8F0] px-2 py-1.5 text-sm text-[#0F172A] outline-none focus:border-[#4F46E5]" />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="名称（如 filesystem）" className="w-full rounded-lg border border-[var(--border)] px-2 py-1.5 text-sm text-[var(--text-strong)] outline-none focus:border-[#4F46E5]" />
+              <input value={command} onChange={(e) => setCommand(e.target.value)} placeholder="stdio 命令（如 npx）" className="w-full rounded-lg border border-[var(--border)] px-2 py-1.5 text-sm text-[var(--text-strong)] outline-none focus:border-[#4F46E5]" />
+              <input value={args} onChange={(e) => setArgs(e.target.value)} placeholder="参数（空格分隔，如 -y @modelcontextprotocol/server-filesystem /tmp）" className="w-full rounded-lg border border-[var(--border)] px-2 py-1.5 text-sm text-[var(--text-strong)] outline-none focus:border-[#4F46E5]" />
+              <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="或 HTTP 端点（如 http://127.0.0.1:8000/mcp）" className="w-full rounded-lg border border-[var(--border)] px-2 py-1.5 text-sm text-[var(--text-strong)] outline-none focus:border-[#4F46E5]" />
               <button onClick={() => void register()} disabled={busy} className="w-full rounded-lg bg-[#4F46E5] px-3 py-1.5 text-sm text-white hover:bg-[#4338CA] disabled:opacity-50">
                 {busy ? '连接中…' : '注册并连接'}
               </button>
@@ -110,22 +110,22 @@ export default function McpPage(): JSX.Element {
           </Card>
 
           <Card className="p-0">
-            <div className="border-b border-[#E2E8F0] px-3 py-2 text-sm font-semibold text-[#0F172A]">
+            <div className="border-b border-[var(--border)] px-3 py-2 text-sm font-semibold text-[var(--text-strong)]">
               已连接 server（{servers.length}）
             </div>
             {servers.length === 0 ? (
-              <div className="px-3 py-6 text-center text-xs text-[#94A3B8]">暂无，先注册一个</div>
+              <div className="px-3 py-6 text-center text-xs text-[var(--text-muted)]">暂无，先注册一个</div>
             ) : (
               <div className="max-h-[50vh] overflow-auto">
                 {servers.map((s) => (
-                  <button key={s.id} onClick={() => setSelected(s)} className={`block w-full border-b border-[#F1F5F9] px-3 py-2 text-left ${selected?.id === s.id ? 'bg-[#EEF2FF]' : 'hover:bg-[#F8FAFC]'}`}>
+                  <button key={s.id} onClick={() => setSelected(s)} className={`block w-full border-b border-[var(--border)] px-3 py-2 text-left ${selected?.id === s.id ? 'bg-[var(--brand-soft)]' : 'hover:bg-[var(--bg-subtle)]'}`}>
                     <div className="flex items-center justify-between">
-                      <span className="truncate text-sm text-[#0F172A]">{s.name}</span>
+                      <span className="truncate text-sm text-[var(--text-strong)]">{s.name}</span>
                       <span className={`ml-2 shrink-0 text-xs ${s.status === 'connected' ? 'text-[#059669]' : 'text-[#DC2626]'}`}>
                         {s.status === 'connected' ? '已连接' : '异常'}
                       </span>
                     </div>
-                    <div className="mt-0.5 text-xs text-[#64748B]">
+                    <div className="mt-0.5 text-xs text-[var(--text-muted)]">
                       {s.transport} · {s.toolCount} 工具
                     </div>
                   </button>
@@ -138,25 +138,25 @@ export default function McpPage(): JSX.Element {
         {/* 右：工具 + 调用 */}
         <div className="space-y-3">
           {!selected ? (
-            <Card className="flex flex-col items-center justify-center p-12 text-[#94A3B8]">
+            <Card className="flex flex-col items-center justify-center p-12 text-[var(--text-muted)]">
               <ExtensionIcon style={{ fontSize: 48 }} />
               <div className="mt-2 text-sm">选择左侧 server 查看并调用其工具</div>
             </Card>
           ) : (
             <>
               <Card className="p-0">
-                <div className="flex items-center justify-between border-b border-[#E2E8F0] px-4 py-2">
-                  <span className="text-sm font-semibold text-[#0F172A]">{selected.name} 的工具</span>
+                <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2">
+                  <span className="text-sm font-semibold text-[var(--text-strong)]">{selected.name} 的工具</span>
                   <button onClick={() => void mcpApi.remove(selected.id).then(() => { setSelected(null); load(); })} className="text-xs text-[#EF4444] hover:underline">移除</button>
                 </div>
                 {tools.length === 0 ? (
-                  <div className="px-4 py-6 text-center text-xs text-[#94A3B8]">无工具</div>
+                  <div className="px-4 py-6 text-center text-xs text-[var(--text-muted)]">无工具</div>
                 ) : (
                   <div className="grid gap-2 p-3 sm:grid-cols-2">
                     {tools.map((t) => (
-                      <button key={t.name} onClick={() => setActiveTool(t.name)} className={`rounded-lg border p-3 text-left ${activeTool === t.name ? 'border-[#4F46E5] bg-[#EEF2FF]' : 'border-[#E2E8F0] hover:bg-[#F8FAFC]'}`}>
-                        <div className="text-sm font-medium text-[#0F172A]">{t.name}</div>
-                        <div className="mt-0.5 line-clamp-2 text-xs text-[#64748B]">{t.description ?? '—'}</div>
+                      <button key={t.name} onClick={() => setActiveTool(t.name)} className={`rounded-lg border p-3 text-left ${activeTool === t.name ? 'border-[#4F46E5] bg-[var(--brand-soft)]' : 'border-[var(--border)] hover:bg-[var(--bg-subtle)]'}`}>
+                        <div className="text-sm font-medium text-[var(--text-strong)]">{t.name}</div>
+                        <div className="mt-0.5 line-clamp-2 text-xs text-[var(--text-muted)]">{t.description ?? '—'}</div>
                       </button>
                     ))}
                   </div>
@@ -165,8 +165,8 @@ export default function McpPage(): JSX.Element {
 
               {activeTool && (
                 <Card className="p-4">
-                  <div className="mb-2 text-sm font-semibold text-[#0F172A]">调用 {activeTool}</div>
-                  <textarea value={callArgs} onChange={(e) => setCallArgs(e.target.value)} spellCheck={false} placeholder='{"key": "value"}' className="min-h-[80px] w-full rounded-lg border border-[#CBD5E1] bg-white p-2 font-mono text-xs text-[#0F172A] outline-none focus:border-[#4F46E5]" />
+                  <div className="mb-2 text-sm font-semibold text-[var(--text-strong)]">调用 {activeTool}</div>
+                  <textarea value={callArgs} onChange={(e) => setCallArgs(e.target.value)} spellCheck={false} placeholder='{"key": "value"}' className="min-h-[80px] w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 font-mono text-xs text-[var(--text-strong)] outline-none focus:border-[#4F46E5]" />
                   <button onClick={() => void callTool()} disabled={busy} className="mt-2 rounded-lg bg-[#4F46E5] px-4 py-1.5 text-sm text-white hover:bg-[#4338CA] disabled:opacity-50">
                     {busy ? '调用中…' : '执行'}
                   </button>
@@ -177,7 +177,7 @@ export default function McpPage(): JSX.Element {
               )}
             </>
           )}
-          {error && <div className="rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
+          {error && <div className="rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
         </div>
       </div>
     </div>

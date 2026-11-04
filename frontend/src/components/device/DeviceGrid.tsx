@@ -10,7 +10,7 @@ export function DeviceGrid({ teams = [] }: { teams?: Team[] }): ReactNode {
   const devices = useDeviceStore((s) => s.devices);
 
   if (devices.length === 0) {
-    return <div className="py-16 text-center text-[#94A3B8]">暂无设备，请启动设备守护进程或查看演示数据</div>;
+    return <div className="py-16 text-center text-[var(--text-muted)]">暂无设备，请启动设备守护进程或查看演示数据</div>;
   }
 
   return (

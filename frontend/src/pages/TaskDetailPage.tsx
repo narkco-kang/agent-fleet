@@ -33,7 +33,7 @@ export default function TaskDetailPage(): JSX.Element {
         <button onClick={() => navigate('/tasks')} className="mb-4 flex items-center gap-1 text-sm text-[#4F46E5]">
           <ArrowBackIcon fontSize="small" /> 返回
         </button>
-        <div className="text-[#94A3B8]">任务不存在</div>
+        <div className="text-[var(--text-muted)]">任务不存在</div>
       </div>
     );
   }
@@ -45,10 +45,10 @@ export default function TaskDetailPage(): JSX.Element {
       </button>
 
       <div className="mb-1 flex items-center gap-3">
-        <h1 className="text-xl font-semibold text-[#0F172A]">{task.prompt?.slice(0, 50) ?? ''}</h1>
+        <h1 className="text-xl font-semibold text-[var(--text-strong)]">{task.prompt?.slice(0, 50) ?? ''}</h1>
         <StatusBadge status={task.status} />
       </div>
-      <div className="mb-4 text-xs text-[#64748B]">
+      <div className="mb-4 text-xs text-[var(--text-muted)]">
         目标：{task.targetDeviceId ?? 'auto'} · {task.targetAgentType ?? 'auto'} · 发起：
         {task.origin === 'dashboard' ? '看板' : task.origin === 'wechat_work' ? '企业微信' : '个人微信'}
         {task.durationMs != null && ` · 耗时 ${fmtDuration(task.durationMs)}`}
@@ -58,7 +58,7 @@ export default function TaskDetailPage(): JSX.Element {
         {(task.status === 'running' || task.status === 'queued' || task.status === 'waiting' || task.status === 'blocked') && (
           <button
             onClick={() => void http.cancelTask(task.taskId)}
-            className="rounded-lg border border-[#EF4444] px-3 py-1.5 text-sm text-[#EF4444] hover:bg-[#FEE2E2]"
+            className="rounded-lg border border-[#EF4444] px-3 py-1.5 text-sm text-[#EF4444] hover:bg-[var(--danger-soft)]"
           >
             取消任务
           </button>
@@ -73,7 +73,7 @@ export default function TaskDetailPage(): JSX.Element {
         )}
       </div>
 
-      <div className="rounded-card border border-[#E2E8F0] bg-white p-4">
+      <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-4">
         <MessageTimeline events={events} />
       </div>
     </div>

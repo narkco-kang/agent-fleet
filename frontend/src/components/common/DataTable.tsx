@@ -25,7 +25,7 @@ export function DataTable<T extends { taskId?: string; deviceId?: string }>({
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
+          <tr className="bg-[var(--bg-subtle)] text-left text-xs text-[var(--text-muted)]">
             {columns.map((c) => (
               <th key={c.key} className="px-4 py-2 font-medium" style={{ width: c.width }}>
                 {c.header}
@@ -36,7 +36,7 @@ export function DataTable<T extends { taskId?: string; deviceId?: string }>({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-8 text-center text-[#94A3B8]">
+              <td colSpan={columns.length} className="px-4 py-8 text-center text-[var(--text-muted)]">
                 暂无数据
               </td>
             </tr>
@@ -45,11 +45,11 @@ export function DataTable<T extends { taskId?: string; deviceId?: string }>({
               <tr
                 key={rowKey(row)}
                 onClick={() => onRowClick?.(row)}
-                className="cursor-pointer border-t border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC]"
+                className="cursor-pointer border-t border-[var(--border)] transition-colors hover:bg-[var(--bg-subtle)]"
                 style={{ height: 48 }}
               >
                 {columns.map((c) => (
-                  <td key={c.key} className="px-4 py-2 text-[#334155]">
+                  <td key={c.key} className="px-4 py-2 text-[var(--text)]">
                     {c.render(row)}
                   </td>
                 ))}

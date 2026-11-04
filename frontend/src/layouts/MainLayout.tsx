@@ -81,12 +81,12 @@ export default function MainLayout(): JSX.Element {
       {/* 桌面/平板侧边栏 */}
       {!isMobile && (
         <aside
-          className="shrink-0 border-r border-[#E2E8F0] bg-[#F8FAFC]"
+          className="shrink-0 border-r border-[var(--border)] bg-[var(--bg-subtle)]"
           style={{ width: sidebarW }}
         >
           <div className="flex h-14 items-center gap-2 px-4">
             <HubIcon className="text-[#4F46E5]" />
-            {!isTablet && <span className="font-semibold text-[#0F172A]">AgentFleet</span>}
+            {!isTablet && <span className="font-semibold text-[var(--text-strong)]">AgentFleet</span>}
           </div>
           <nav className="flex flex-col gap-1 px-2">
             {NAV.map((item) => (
@@ -97,8 +97,8 @@ export default function MainLayout(): JSX.Element {
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
                     isActive
-                      ? 'bg-[#EEF2FF] text-[#4F46E5]'
-                      : 'text-[#334155] hover:bg-[#EEF2FF]'
+                      ? 'bg-[var(--brand-soft)] text-[#4F46E5]'
+                      : 'text-[var(--text)] hover:bg-[var(--brand-soft)]'
                   }`
                 }
                 title={t(item.labelKey)}
@@ -115,12 +115,12 @@ export default function MainLayout(): JSX.Element {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* 顶栏 */}
         <header
-          className="flex h-14 shrink-0 items-center justify-between border-b border-[#E2E8F0] bg-white px-4"
+          className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4"
           style={{ height: 56 }}
         >
           <div className="flex items-center gap-2">
             {isMobile && <HubIcon className="text-[#4F46E5]" />}
-            <span className="text-sm font-medium text-[#0F172A]">
+            <span className="text-sm font-medium text-[var(--text-strong)]">
               {t('layout.connection')}：
               {backendOnline
                 ? relayOnline
@@ -135,13 +135,13 @@ export default function MainLayout(): JSX.Element {
             <button
               onClick={toggleLanguage}
               title="中文 / English"
-              className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#334155] hover:bg-[#F8FAFC]"
+              className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--text)] hover:bg-[var(--bg-subtle)]"
             >
               <span>{language === 'zh' ? 'EN' : '中文'}</span>
             </button>
             <button
               onClick={onboarding.show}
-              className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#334155] hover:bg-[#F8FAFC]"
+              className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--text)] hover:bg-[var(--bg-subtle)]"
             >
               <HelpOutlineIcon fontSize="small" />
               {!isTablet && <span>{t('layout.onboarding')}</span>}
@@ -159,25 +159,25 @@ export default function MainLayout(): JSX.Element {
         {/* 待处理摘要条（有非零项才显示，健康态折叠） */}
         {attention &&
           (attention.needsLogin > 0 || attention.pendingActions > 0 || attention.alerts > 0) && (
-            <div className="flex shrink-0 items-center gap-3 border-b border-[#E2E8F0] bg-[#FFFBEB] px-4 py-1.5 text-xs text-[#334155]">
-              <span className="font-medium text-[#0F172A]">{t('layout.pending')}</span>
+            <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--warning-soft)] px-4 py-1.5 text-xs text-[var(--text)]">
+              <span className="font-medium text-[var(--text-strong)]">{t('layout.pending')}</span>
               {attention.needsLogin > 0 && (
                 <button
                   onClick={() => navigate('/devices')}
-                  className="rounded bg-[#FEF3C7] px-2 py-0.5 text-[#B45309] hover:bg-[#FDE68A]"
+                  className="rounded bg-[var(--warning-soft)] px-2 py-0.5 text-[#B45309] hover:bg-[#FDE68A]"
                 >
                   {t('layout.activatePlatforms')} {attention.needsLogin}
                 </button>
               )}
               {attention.pendingActions > 0 && (
-                <span className="rounded bg-[#FEF3C7] px-2 py-0.5 text-[#B45309]">
+                <span className="rounded bg-[var(--warning-soft)] px-2 py-0.5 text-[#B45309]">
                   {t('layout.confirmActions')} {attention.pendingActions}
                 </span>
               )}
               {attention.alerts > 0 && (
                 <button
                   onClick={() => navigate('/tasks')}
-                  className="rounded bg-[#FEE2E2] px-2 py-0.5 text-[#B91C1C] hover:bg-[#FECACA]"
+                  className="rounded bg-[var(--danger-soft)] px-2 py-0.5 text-[#B91C1C] hover:bg-[#FECACA]"
                 >
                   {t('layout.alerts')} {attention.alerts}
                 </button>
@@ -193,7 +193,7 @@ export default function MainLayout(): JSX.Element {
         {/* 底部状态条 */}
         {!isMobile && (
           <footer
-            className="flex h-8 shrink-0 items-center justify-between border-t border-[#E2E8F0] bg-white px-4 text-xs text-[#64748B]"
+            className="flex h-8 shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-4 text-xs text-[var(--text-muted)]"
             style={{ height: 32 }}
           >
             <span>

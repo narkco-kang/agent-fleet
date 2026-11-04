@@ -145,7 +145,7 @@ export function PromptCatalogDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle className="text-[#0F172A]">提示词库 · GitHub 抓取</DialogTitle>
+      <DialogTitle className="text-[var(--text-strong)]">提示词库 · GitHub 抓取</DialogTitle>
       <DialogContent>
         <div className="mt-1 flex flex-col gap-3">
           <div className="flex gap-2">
@@ -172,7 +172,7 @@ export function PromptCatalogDialog({
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[#64748B]">
+            <span className="text-xs text-[var(--text-muted)]">
               {expandedRepo ? `已选 ${selected.size} / ${repoPrompts.length} 条提示词` : `${repos.length} 个仓库 · 点击展开查看提示词`}
             </span>
             {expandedRepo && (
@@ -187,50 +187,50 @@ export function PromptCatalogDialog({
             )}
           </div>
 
-          <div className="max-h-96 overflow-auto rounded-md border border-[#E2E8F0]">
+          <div className="max-h-96 overflow-auto rounded-md border border-[var(--border)]">
             {loading ? (
-              <div className="px-3 py-8 text-center text-sm text-[#94A3B8]">{t('github.fetching')}</div>
+              <div className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">{t('github.fetching')}</div>
             ) : repos.length === 0 ? (
-              <div className="px-3 py-8 text-center text-sm text-[#94A3B8]">{t('github.noResult')}</div>
+              <div className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">{t('github.noResult')}</div>
             ) : (
               repos.map((r) => {
                 const expanded = expandedRepo === r.fullName;
                 return (
-                  <div key={r.fullName} className="border-b border-[#E2E8F0] last:border-b-0">
-                    <label className="flex cursor-pointer items-start gap-2 px-2 py-2 hover:bg-[#F8FAFC]">
+                  <div key={r.fullName} className="border-b border-[var(--border)] last:border-b-0">
+                    <label className="flex cursor-pointer items-start gap-2 px-2 py-2 hover:bg-[var(--bg-subtle)]">
                       <div className="min-w-0 flex-1" onClick={() => void toggleRepo(r.fullName)}>
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium text-[#0F172A]">{r.fullName}</span>
-                          <span className="shrink-0 rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[10px] text-[#94A3B8]">
+                          <span className="truncate text-sm font-medium text-[var(--text-strong)]">{r.fullName}</span>
+                          <span className="shrink-0 rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
                             ★ {fmtStars(r.stars)}
                           </span>
                         </div>
                         {r.description && (
-                          <div className="mt-0.5 line-clamp-2 text-xs text-[#64748B]">{zhOf(r, r.description, language)}</div>
+                          <div className="mt-0.5 line-clamp-2 text-xs text-[var(--text-muted)]">{zhOf(r, r.description, language)}</div>
                         )}
                       </div>
                       <button
                         type="button"
                         onClick={() => void toggleRepo(r.fullName)}
-                        className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-[#4F46E5] hover:bg-[#EEF2FF]"
+                        className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-[#4F46E5] hover:bg-[var(--brand-soft)]"
                       >
                         {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                       </button>
                     </label>
 
                     {expanded && (
-                      <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-2 py-1">
+                      <div className="border-t border-[var(--border)] bg-[var(--bg-subtle)] px-2 py-1">
                         {loadingPrompts ? (
-                          <div className="px-2 py-2 text-xs text-[#94A3B8]">{t('github.fetching')}</div>
+                          <div className="px-2 py-2 text-xs text-[var(--text-muted)]">{t('github.fetching')}</div>
                         ) : repoPrompts.length === 0 ? (
-                          <div className="px-2 py-2 text-xs text-[#94A3B8]">{t('github.noResult')}</div>
+                          <div className="px-2 py-2 text-xs text-[var(--text-muted)]">{t('github.noResult')}</div>
                         ) : (
                           repoPrompts.map((p) => {
                             const checked = selected.has(p.name);
                             return (
                               <label
                                 key={p.name}
-                                className={`flex cursor-pointer items-start gap-2 rounded px-1 py-1.5 ${checked ? 'bg-[#EEF2FF]' : ''}`}
+                                className={`flex cursor-pointer items-start gap-2 rounded px-1 py-1.5 ${checked ? 'bg-[var(--brand-soft)]' : ''}`}
                               >
                                 <Checkbox
                                   size="small"
@@ -239,8 +239,8 @@ export function PromptCatalogDialog({
                                   sx={{ padding: '2px' }}
                                 />
                                 <div className="min-w-0 flex-1">
-                                  <div className="text-xs font-medium text-[#0F172A]">{zhOf(p, p.name, language)}</div>
-                                  <div className="line-clamp-2 text-[11px] text-[#64748B]">{p.content}</div>
+                                  <div className="text-xs font-medium text-[var(--text-strong)]">{zhOf(p, p.name, language)}</div>
+                                  <div className="line-clamp-2 text-[11px] text-[var(--text-muted)]">{p.content}</div>
                                 </div>
                               </label>
                             );
@@ -255,13 +255,13 @@ export function PromptCatalogDialog({
           </div>
 
           {importResult && (
-            <div className="rounded-md border border-[#D1FAE5] bg-[#ECFDF5] px-3 py-2 text-xs text-[#047857]">
+            <div className="rounded-md border border-[#D1FAE5] bg-[var(--success-soft)] px-3 py-2 text-xs text-[#047857]">
               {t('github.importDone')} {importResult.created.length} 条提示词
               {importResult.skipped.length > 0 && `，跳过 ${importResult.skipped.length} 条（已存在）`}
             </div>
           )}
 
-          {error && <div className="rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
+          {error && <div className="rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
         </div>
       </DialogContent>
       <DialogActions>

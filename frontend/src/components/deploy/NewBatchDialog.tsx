@@ -205,7 +205,7 @@ export function NewBatchDialog({
   const platformGrid = (
     <div>
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-xs text-[#64748B]">选择平台</span>
+        <span className="text-xs text-[var(--text-muted)]">选择平台</span>
         <div className="flex gap-2">
           <button type="button" onClick={selectAll} className="text-xs text-[#4F46E5] hover:underline">
             全选
@@ -232,7 +232,7 @@ export function NewBatchDialog({
             <label
               key={p.platform}
               className={`flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 ${
-                checked ? 'border-[#4F46E5] bg-[#EEF2FF]' : 'border-[#E2E8F0] bg-white'
+                checked ? 'border-[#4F46E5] bg-[var(--brand-soft)]' : 'border-[var(--border)] bg-[var(--surface)]'
               }`}
             >
               <Checkbox
@@ -241,9 +241,9 @@ export function NewBatchDialog({
                 onChange={() => togglePlatform(p.platform)}
                 sx={{ padding: '2px' }}
               />
-              <span className="truncate text-sm text-[#0F172A]">{p.displayName}</span>
+              <span className="truncate text-sm text-[var(--text-strong)]">{p.displayName}</span>
               {isInstalled && (
-                <span className="ml-auto rounded bg-[#DCFCE7] px-1.5 py-0.5 text-[10px] leading-4 text-[#15803D]">
+                <span className="ml-auto rounded bg-[var(--success-soft)] px-1.5 py-0.5 text-[10px] leading-4 text-[#15803D]">
                   已装
                 </span>
               )}
@@ -256,10 +256,10 @@ export function NewBatchDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle className="text-[#0F172A]">新建部署批次</DialogTitle>
+      <DialogTitle className="text-[var(--text-strong)]">新建部署批次</DialogTitle>
       <DialogContent>
         <div className="mt-1 flex flex-col gap-3">
-          <div className="flex gap-1 rounded-lg bg-[#F1F5F9] p-1">
+          <div className="flex gap-1 rounded-lg bg-[var(--bg-subtle)] p-1">
             {(Object.keys(MODE_LABELS) as CreateMode[]).map((m) => (
               <button
                 key={m}
@@ -267,8 +267,8 @@ export function NewBatchDialog({
                 onClick={() => setMode(m)}
                 className={`flex-1 rounded-md px-2 py-1 text-sm ${
                   mode === m
-                    ? 'bg-white text-[#4F46E5] shadow-sm'
-                    : 'text-[#64748B] hover:text-[#334155]'
+                    ? 'bg-[var(--surface)] text-[#4F46E5] shadow-sm'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
               >
                 {MODE_LABELS[m]}
@@ -334,13 +334,13 @@ export function NewBatchDialog({
                   {probing ? '识别中…' : '自动识别已装平台'}
                 </Button>
                 {probeResult && (
-                  <span className="text-xs text-[#64748B]">
+                  <span className="text-xs text-[var(--text-muted)]">
                     目标 OS：{probeResult.os} · 已装 {probeResult.installed.length} 个
                   </span>
                 )}
               </div>
               {probeError && (
-                <div className="rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">
+                <div className="rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">
                   {probeError}
                 </div>
               )}
@@ -351,7 +351,7 @@ export function NewBatchDialog({
 
           {mode === 'excel' && (
             <div>
-              <div className="mb-1 text-xs text-[#64748B]">上传 Excel（.xlsx / .xls / .csv）</div>
+              <div className="mb-1 text-xs text-[var(--text-muted)]">上传 Excel（.xlsx / .xls / .csv）</div>
               <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="text-sm" />
             </div>
           )}
@@ -359,7 +359,7 @@ export function NewBatchDialog({
           {mode === 'json' && (
             <>
               <div>
-                <div className="mb-1 text-xs text-[#64748B]">
+                <div className="mb-1 text-xs text-[var(--text-muted)]">
                   粘贴 JSON targets（单个 target 未填 platforms 时，将用下方勾选的平台兜底）
                 </div>
                 <TextField
@@ -377,7 +377,7 @@ export function NewBatchDialog({
           )}
 
           {error && (
-            <div className="rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>
+            <div className="rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>
           )}
         </div>
       </DialogContent>

@@ -21,7 +21,7 @@ export function TaskTable(): JSX.Element {
     {
       key: 'prompt',
       header: '任务',
-      render: (t) => <span className="max-w-[260px] truncate font-medium text-[#0F172A]">{t.prompt}</span>,
+      render: (t) => <span className="max-w-[260px] truncate font-medium text-[var(--text-strong)]">{t.prompt}</span>,
     },
     { key: 'status', header: '状态', render: (t) => <StatusBadge status={t.status} /> },
     {
@@ -34,7 +34,7 @@ export function TaskTable(): JSX.Element {
             <span className="text-xs">{t.targetDeviceId?.slice(0, 10) ?? 'auto'}</span>
           </span>
         ) : (
-          <span className="text-xs text-[#94A3B8]">auto</span>
+          <span className="text-xs text-[var(--text-muted)]">auto</span>
         ),
     },
     {
@@ -92,7 +92,7 @@ export function TaskTable(): JSX.Element {
             key={s}
             onClick={() => setFilter(s)}
             className={`rounded-full px-3 py-1 text-xs ${
-              filter === s ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'bg-[#F1F5F9] text-[#475569]'
+              filter === s ? 'bg-[var(--brand-soft)] text-[#4F46E5]' : 'bg-[var(--bg-subtle)] text-[var(--text-muted)]'
             }`}
           >
             {s === 'all' ? '全部' : s}

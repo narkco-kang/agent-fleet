@@ -15,7 +15,7 @@ export default function RoutingGatewayPage(): JSX.Element {
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="mb-4 text-xl font-semibold text-[#0F172A]">路由网关</h1>
+      <h1 className="mb-4 text-xl font-semibold text-[var(--text-strong)]">路由网关</h1>
       <Tabs
         value={tab}
         onChange={(_, v: number) => setTab(v)}

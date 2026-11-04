@@ -42,18 +42,18 @@ export function DeviceCard({
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ background: device.status === 'online' ? '#10B981' : device.status === 'busy' ? '#F59E0B' : '#94A3B8' }}
           />
-          <span className="font-semibold text-[#0F172A]">{device.name}</span>
+          <span className="font-semibold text-[var(--text-strong)]">{device.name}</span>
         </div>
         <StatusBadge status={device.status} />
       </div>
 
-      <div className="mt-2 truncate text-xs text-[#64748B]">ID: {device.deviceId}</div>
+      <div className="mt-2 truncate text-xs text-[var(--text-muted)]">ID: {device.deviceId}</div>
 
       <div className="mt-2 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-        <span className="shrink-0 text-xs text-[#64748B]">团队</span>
+        <span className="shrink-0 text-xs text-[var(--text-muted)]">团队</span>
         {teams.length > 0 ? (
           <select
-            className="min-w-0 flex-1 truncate rounded border border-[#E2E8F0] bg-white px-1.5 py-0.5 text-xs text-[#0F172A]"
+            className="min-w-0 flex-1 truncate rounded border border-[var(--border)] bg-[var(--surface)] px-1.5 py-0.5 text-xs text-[var(--text-strong)]"
             value={device.teamId ?? ''}
             onChange={(e) => void bindTeam(e.target.value)}
           >
@@ -65,13 +65,13 @@ export function DeviceCard({
             ))}
           </select>
         ) : (
-          <span className="truncate text-xs text-[#94A3B8]">{device.teamName ?? '未绑定'}</span>
+          <span className="truncate text-xs text-[var(--text-muted)]">{device.teamName ?? '未绑定'}</span>
         )}
       </div>
 
       <div className="mt-3 flex gap-1.5">
         {device.agents.length === 0 ? (
-          <span className="text-xs text-[#94A3B8]">暂无 agent</span>
+          <span className="text-xs text-[var(--text-muted)]">暂无 agent</span>
         ) : (
           device.agents.map((a) => (
             <span
@@ -93,11 +93,11 @@ export function DeviceCard({
       </div>
 
       <div className="mt-3">
-        <div className="mb-1 flex justify-between text-xs text-[#64748B]">
+        <div className="mb-1 flex justify-between text-xs text-[var(--text-muted)]">
           <span>负载</span>
           <span>{device.status === 'offline' ? '— 离线' : `${load}%`}</span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-subtle)]">
           <div
             className="h-full rounded-full"
             style={{

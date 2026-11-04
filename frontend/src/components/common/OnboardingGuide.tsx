@@ -48,13 +48,13 @@ export function OnboardingGuide({ open, onClose }: { open: boolean; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4">
-      <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
-        <div className="border-b border-[#E2E8F0] px-6 py-4">
+      <div className="w-full max-w-xl rounded-2xl bg-[var(--surface)] shadow-2xl">
+        <div className="border-b border-[var(--border)] px-6 py-4">
           <div className="text-xs font-medium uppercase tracking-wide text-[#4F46E5]">AgentFleet 新手引导</div>
-          <h2 className="mt-1 text-xl font-semibold text-[#0F172A]">{current.title}</h2>
+          <h2 className="mt-1 text-xl font-semibold text-[var(--text-strong)]">{current.title}</h2>
         </div>
         <div className="px-6 py-5">
-          <p className="text-sm leading-7 text-[#334155]">{current.body}</p>
+          <p className="text-sm leading-7 text-[var(--text)]">{current.body}</p>
           <div className="mt-5 grid grid-cols-5 gap-2">
             {STEPS.map((s, idx) => (
               <button
@@ -66,7 +66,7 @@ export function OnboardingGuide({ open, onClose }: { open: boolean; onClose: () 
             ))}
           </div>
         </div>
-        <div className="flex items-center justify-between border-t border-[#E2E8F0] px-6 py-4">
+        <div className="flex items-center justify-between border-t border-[var(--border)] px-6 py-4">
           <Button size="small" color="inherit" onClick={close}>
             不再自动显示
           </Button>

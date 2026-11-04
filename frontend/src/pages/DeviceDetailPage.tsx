@@ -18,7 +18,7 @@ export default function DeviceDetailPage(): JSX.Element {
         <button onClick={() => navigate('/devices')} className="mb-4 flex items-center gap-1 text-sm text-[#4F46E5]">
           <ArrowBackIcon fontSize="small" /> 返回
         </button>
-        <div className="text-[#94A3B8]">设备不存在</div>
+        <div className="text-[var(--text-muted)]">设备不存在</div>
       </div>
     );
   }
@@ -30,13 +30,13 @@ export default function DeviceDetailPage(): JSX.Element {
       </button>
 
       <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-xl font-semibold text-[#0F172A]">{device.name}</h1>
+        <h1 className="text-xl font-semibold text-[var(--text-strong)]">{device.name}</h1>
         <StatusBadge status={device.status} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-card border border-[#E2E8F0] bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-[#0F172A]">设备信息</h2>
+        <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-4">
+          <h2 className="mb-3 text-sm font-semibold text-[var(--text-strong)]">设备信息</h2>
           <Meta label="设备 ID" value={device.deviceId} />
           <Meta label="主机名" value={device.hostname} />
           <Meta label="系统" value={`${device.osPlatform} / ${device.osArch}`} />
@@ -49,19 +49,19 @@ export default function DeviceDetailPage(): JSX.Element {
           />
         </div>
 
-        <div className="rounded-card border border-[#E2E8F0] bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-[#0F172A]">已装 agent</h2>
+        <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-4">
+          <h2 className="mb-3 text-sm font-semibold text-[var(--text-strong)]">已装 agent</h2>
           {device.agents.length === 0 ? (
-            <div className="text-sm text-[#94A3B8]">暂无 agent</div>
+            <div className="text-sm text-[var(--text-muted)]">暂无 agent</div>
           ) : (
             <div className="space-y-2">
               {device.agents.map((a) => (
-                <div key={a.agentType} className="flex items-center justify-between rounded-md border border-[#E2E8F0] px-3 py-2">
+                <div key={a.agentType} className="flex items-center justify-between rounded-md border border-[var(--border)] px-3 py-2">
                   <div className="flex items-center gap-2">
                     <AgentIcon agentType={a.agentType} />
                     <div>
-                      <div className="text-sm font-medium text-[#0F172A]">{a.displayName}</div>
-                      <div className="text-xs text-[#64748B]">v{a.version} · {a.capabilities.join(', ')}</div>
+                      <div className="text-sm font-medium text-[var(--text-strong)]">{a.displayName}</div>
+                      <div className="text-xs text-[var(--text-muted)]">v{a.version} · {a.capabilities.join(', ')}</div>
                     </div>
                   </div>
                   <StatusBadge status={a.status} />
@@ -77,9 +77,9 @@ export default function DeviceDetailPage(): JSX.Element {
 
 function Meta({ label, value }: { label: string; value: string }): JSX.Element {
   return (
-    <div className="flex justify-between border-b border-[#F1F5F9] py-2 text-sm">
-      <span className="text-[#64748B]">{label}</span>
-      <span className="break-all text-[#334155]">{value}</span>
+    <div className="flex justify-between border-b border-[var(--border)] py-2 text-sm">
+      <span className="text-[var(--text-muted)]">{label}</span>
+      <span className="break-all text-[var(--text)]">{value}</span>
     </div>
   );
 }

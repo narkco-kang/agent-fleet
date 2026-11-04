@@ -52,14 +52,14 @@ export function BatchDetailDrawer({
     >
       {batch && (
         <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b border-[#E2E8F0] px-4 py-3">
+          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
             <div>
-              <div className="text-sm font-semibold text-[#0F172A]">{batch.name}</div>
-              <div className="text-xs text-[#64748B]">
+              <div className="text-sm font-semibold text-[var(--text-strong)]">{batch.name}</div>
+              <div className="text-xs text-[var(--text-muted)]">
                 {batch.kind === 'uninstall' ? '一键卸载' : '一键部署'} · {batch.id}
               </div>
             </div>
-            <button onClick={onClose} className="text-[#64748B] hover:text-[#0F172A]">
+            <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-strong)]">
               <CloseIcon fontSize="small" />
             </button>
           </div>
@@ -83,13 +83,13 @@ export function BatchDetailDrawer({
                 取消批次
               </Button>
             </div>
-            {error && <div className="mb-3 rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
+            {error && <div className="mb-3 rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
 
-            <div className="mb-2 text-xs font-semibold text-[#0F172A]">目标机（{batch.targets?.length ?? 0}）</div>
+            <div className="mb-2 text-xs font-semibold text-[var(--text-strong)]">目标机（{batch.targets?.length ?? 0}）</div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
+                  <tr className="bg-[var(--bg-subtle)] text-left text-xs text-[var(--text-muted)]">
                     <th className="px-3 py-2 font-medium">IP</th>
                     <th className="px-3 py-2 font-medium">用户</th>
                     <th className="px-3 py-2 font-medium">OS</th>
@@ -100,17 +100,17 @@ export function BatchDetailDrawer({
                 <tbody>
                   {batch.targets?.length ? (
                     batch.targets.map((t) => (
-                      <tr key={t.id} className="border-t border-[#E2E8F0]">
-                        <td className="px-3 py-2 text-[#334155]">{t.ip}:{t.port ?? 22}</td>
-                        <td className="px-3 py-2 text-[#334155]">{t.user}</td>
-                        <td className="px-3 py-2 text-[#334155]">{t.os ?? '—'}</td>
-                        <td className="px-3 py-2 text-[#334155]">{(t.platforms ?? []).join(', ')}</td>
-                        <td className="px-3 py-2 text-[#334155]">{TARGET_STATUS_LABEL[t.status] ?? t.status}</td>
+                      <tr key={t.id} className="border-t border-[var(--border)]">
+                        <td className="px-3 py-2 text-[var(--text)]">{t.ip}:{t.port ?? 22}</td>
+                        <td className="px-3 py-2 text-[var(--text)]">{t.user}</td>
+                        <td className="px-3 py-2 text-[var(--text)]">{t.os ?? '—'}</td>
+                        <td className="px-3 py-2 text-[var(--text)]">{(t.platforms ?? []).join(', ')}</td>
+                        <td className="px-3 py-2 text-[var(--text)]">{TARGET_STATUS_LABEL[t.status] ?? t.status}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-3 py-6 text-center text-[#94A3B8]">
+                      <td colSpan={5} className="px-3 py-6 text-center text-[var(--text-muted)]">
                         无目标
                       </td>
                     </tr>

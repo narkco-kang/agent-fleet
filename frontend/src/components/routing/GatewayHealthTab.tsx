@@ -33,7 +33,7 @@ export function GatewayHealthTab(): JSX.Element {
     <div className="flex flex-col gap-4">
       <Card className="p-4">
         <div className="mb-3 flex items-center gap-2">
-          <span className="text-sm font-semibold text-[#0F172A]">modelgateway 健康</span>
+          <span className="text-sm font-semibold text-[var(--text-strong)]">modelgateway 健康</span>
           <span
             className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
             style={{
@@ -53,13 +53,13 @@ export function GatewayHealthTab(): JSX.Element {
       </Card>
 
       <Card className="p-0">
-        <div className="border-b border-[#E2E8F0] px-4 py-3 text-sm font-semibold text-[#0F172A]">
+        <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-strong)]">
           平台模型绑定（{bindings.length}）
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
+              <tr className="bg-[var(--bg-subtle)] text-left text-xs text-[var(--text-muted)]">
                 <th className="px-3 py-2 font-medium">设备</th>
                 <th className="px-3 py-2 font-medium">平台</th>
                 <th className="px-3 py-2 font-medium">主模型</th>
@@ -71,19 +71,19 @@ export function GatewayHealthTab(): JSX.Element {
             <tbody>
               {bindings.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-[#94A3B8]">
+                  <td colSpan={6} className="px-3 py-8 text-center text-[var(--text-muted)]">
                     暂无绑定
                   </td>
                 </tr>
               ) : (
                 bindings.map((b) => (
-                  <tr key={`${b.deviceId}:${b.agentType}`} className="border-t border-[#E2E8F0]">
-                    <td className="px-3 py-2 text-[#334155]">{b.deviceId}</td>
-                    <td className="px-3 py-2 text-[#334155]">{b.agentType}</td>
-                    <td className="px-3 py-2 text-[#334155]">{b.model}</td>
-                    <td className="px-3 py-2 text-[#64748B]">{b.fallbacks.join(', ') || '—'}</td>
-                    <td className="px-3 py-2 text-[#334155]">{b.activeModel}</td>
-                    <td className="px-3 py-2 text-[#334155]">
+                  <tr key={`${b.deviceId}:${b.agentType}`} className="border-t border-[var(--border)]">
+                    <td className="px-3 py-2 text-[var(--text)]">{b.deviceId}</td>
+                    <td className="px-3 py-2 text-[var(--text)]">{b.agentType}</td>
+                    <td className="px-3 py-2 text-[var(--text)]">{b.model}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)]">{b.fallbacks.join(', ') || '—'}</td>
+                    <td className="px-3 py-2 text-[var(--text)]">{b.activeModel}</td>
+                    <td className="px-3 py-2 text-[var(--text)]">
                       <span className={b.state === 'ok' ? 'text-[#10B981]' : 'text-[#EF4444]'}>
                         {b.state === 'ok' ? '健康' : '已降级'}
                       </span>
@@ -102,8 +102,8 @@ export function GatewayHealthTab(): JSX.Element {
 function Info({ label, value }: { label: string; value: string }): JSX.Element {
   return (
     <div>
-      <div className="text-xs text-[#94A3B8]">{label}</div>
-      <div className="mt-0.5 text-[#334155]">{value}</div>
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div className="mt-0.5 text-[var(--text)]">{value}</div>
     </div>
   );
 }

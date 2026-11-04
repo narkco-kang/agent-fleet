@@ -170,7 +170,7 @@ export default function SwarmTeamsPage(): JSX.Element {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-[#0F172A]">蜂群角色团队</h1>
+        <h1 className="text-xl font-semibold text-[var(--text-strong)]">蜂群角色团队</h1>
         <Button
           size="small"
           variant="contained"
@@ -181,27 +181,27 @@ export default function SwarmTeamsPage(): JSX.Element {
         </Button>
       </div>
 
-      {error && <div className="mb-3 rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
+      {error && <div className="mb-3 rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-4">
-          <div className="mb-2 text-sm font-semibold text-[#0F172A]">角色团队（{teams.length}）</div>
+          <div className="mb-2 text-sm font-semibold text-[var(--text-strong)]">角色团队（{teams.length}）</div>
           <div className="space-y-2">
             {teams.length === 0 && (
-              <div className="py-8 text-center text-sm text-[#94A3B8]">暂无角色团队，点击右上角新建</div>
+              <div className="py-8 text-center text-sm text-[var(--text-muted)]">暂无角色团队，点击右上角新建</div>
             )}
             {teams.map((t) => (
               <div
                 key={t.roleTeamId}
-                className={`rounded-lg border p-3 ${detail?.roleTeamId === t.roleTeamId ? 'border-[#4F46E5] bg-[#EEF2FF]' : 'border-[#E2E8F0]'}`}
+                className={`rounded-lg border p-3 ${detail?.roleTeamId === t.roleTeamId ? 'border-[#4F46E5] bg-[var(--brand-soft)]' : 'border-[var(--border)]'}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <button className="min-w-0 flex-1 text-left" onClick={() => openDetail(t.roleTeamId)}>
                     <div className="flex items-center gap-2">
-                      <span className="truncate font-medium text-[#0F172A]">{t.name}</span>
+                      <span className="truncate font-medium text-[var(--text-strong)]">{t.name}</span>
                       {t.isPreset && <Chip label="预设" size="small" />}
                     </div>
-                    <div className="truncate text-xs text-[#64748B]">
+                    <div className="truncate text-xs text-[var(--text-muted)]">
                       {t.slug} · {t.purpose} · {t.subRoleIds.length} 个子角色
                     </div>
                   </button>
@@ -217,7 +217,7 @@ export default function SwarmTeamsPage(): JSX.Element {
                     </button>
                   </div>
                 </div>
-                {t.description && <div className="mt-1 text-xs text-[#64748B]">{t.description}</div>}
+                {t.description && <div className="mt-1 text-xs text-[var(--text-muted)]">{t.description}</div>}
               </div>
             ))}
           </div>
@@ -225,7 +225,7 @@ export default function SwarmTeamsPage(): JSX.Element {
 
         <Card className="p-4">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-semibold text-[#0F172A]">
+            <span className="text-sm font-semibold text-[var(--text-strong)]">
               {detail ? `子角色（${detail.name}）` : '子角色'}
             </span>
             {detail && (
@@ -240,21 +240,21 @@ export default function SwarmTeamsPage(): JSX.Element {
             )}
           </div>
           {!detail ? (
-            <div className="py-8 text-center text-sm text-[#94A3B8]">选择左侧团队查看子角色</div>
+            <div className="py-8 text-center text-sm text-[var(--text-muted)]">选择左侧团队查看子角色</div>
           ) : (
             <div className="space-y-2">
               {detail.subRoles.length === 0 && (
-                <div className="py-8 text-center text-sm text-[#94A3B8]">暂无子角色</div>
+                <div className="py-8 text-center text-sm text-[var(--text-muted)]">暂无子角色</div>
               )}
               {detail.subRoles.map((s) => (
-                <div key={s.subRoleId} className="rounded-lg border border-[#E2E8F0] p-3">
+                <div key={s.subRoleId} className="rounded-lg border border-[var(--border)] p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 font-medium text-[#0F172A]">
+                      <div className="flex items-center gap-2 font-medium text-[var(--text-strong)]">
                         {s.name}
                         {detail.leaderSlug === s.slug && <Chip label="Leader" size="small" color="primary" />}
                       </div>
-                      <div className="truncate text-xs text-[#64748B]">
+                      <div className="truncate text-xs text-[var(--text-muted)]">
                         {s.slug}
                         {s.preferredAgentType ? ` · 偏好 ${s.preferredAgentType}` : ''}
                       </div>
@@ -275,14 +275,14 @@ export default function SwarmTeamsPage(): JSX.Element {
                       </button>
                     </div>
                   </div>
-                  {s.description && <div className="mt-1 text-xs text-[#64748B]">{s.description}</div>}
+                  {s.description && <div className="mt-1 text-xs text-[var(--text-muted)]">{s.description}</div>}
                   <div className="mt-2 flex flex-wrap gap-1">
                     {s.capabilities.map((c) => (
                       <Chip key={c} label={c} size="small" variant="outlined" />
                     ))}
                   </div>
                   {s.persona?.identity && (
-                    <div className="mt-2 line-clamp-2 text-xs text-[#334155]">{s.persona.identity}</div>
+                    <div className="mt-2 line-clamp-2 text-xs text-[var(--text)]">{s.persona.identity}</div>
                   )}
                 </div>
               ))}
@@ -671,24 +671,24 @@ function BindDevicesDialog({
       <DialogContent>
         <div className="mt-1 space-y-2">
           {devices.length === 0 && (
-            <div className="py-6 text-center text-sm text-[#94A3B8]">暂无可绑定的设备</div>
+            <div className="py-6 text-center text-sm text-[var(--text-muted)]">暂无可绑定的设备</div>
           )}
           {devices.map((d) => {
             const selected = bound.has(d.deviceId);
             const types = deviceAgentTypes.get(d.deviceId) ?? [];
             return (
-              <div key={d.deviceId} className={`rounded-lg border p-3 ${selected ? 'border-[#4F46E5] bg-[#EEF2FF]' : 'border-[#E2E8F0]'}`}>
+              <div key={d.deviceId} className={`rounded-lg border p-3 ${selected ? 'border-[#4F46E5] bg-[var(--brand-soft)]' : 'border-[var(--border)]'}`}>
                 <label className="flex cursor-pointer items-center gap-2">
                   <input type="checkbox" checked={selected} onChange={() => toggle(d.deviceId)} />
-                  <span className="font-medium text-[#0F172A]">{d.name}</span>
-                  <span className="text-xs text-[#64748B]">{d.deviceId}</span>
-                  <span className="text-xs text-[#64748B]">{d.status}</span>
+                  <span className="font-medium text-[var(--text-strong)]">{d.name}</span>
+                  <span className="text-xs text-[var(--text-muted)]">{d.deviceId}</span>
+                  <span className="text-xs text-[var(--text-muted)]">{d.status}</span>
                 </label>
                 {selected && subRoles.length > 0 && (
                   <div className="mt-2 grid gap-2 md:grid-cols-2">
                     {subRoles.map((sr) => (
                       <div key={sr.slug} className="flex items-center gap-2">
-                        <span className="w-24 shrink-0 text-xs text-[#334155]">{sr.name}</span>
+                        <span className="w-24 shrink-0 text-xs text-[var(--text)]">{sr.name}</span>
                         <TextField
                           size="small"
                           select

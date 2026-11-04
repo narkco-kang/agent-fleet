@@ -175,7 +175,7 @@ export function GithubSkillsDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle className="text-[#0F172A]">{t('github.title')}</DialogTitle>
+      <DialogTitle className="text-[var(--text-strong)]">{t('github.title')}</DialogTitle>
       <DialogContent>
         <div className="mt-1 flex flex-col gap-3">
           <div className="flex gap-2">
@@ -202,7 +202,7 @@ export function GithubSkillsDialog({
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[#64748B]">
+            <span className="text-xs text-[var(--text-muted)]">
               {t('github.selected')} {selected.size + selectedSub.size} / {repos.length} {t('github.repos')}
             </span>
             <div className="flex gap-2">
@@ -215,19 +215,19 @@ export function GithubSkillsDialog({
             </div>
           </div>
 
-          <div className="max-h-80 overflow-auto rounded-md border border-[#E2E8F0]">
+          <div className="max-h-80 overflow-auto rounded-md border border-[var(--border)]">
             {loading ? (
-              <div className="px-3 py-8 text-center text-sm text-[#94A3B8]">{t('github.fetching')}</div>
+              <div className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">{t('github.fetching')}</div>
             ) : repos.length === 0 ? (
-              <div className="px-3 py-8 text-center text-sm text-[#94A3B8]">{t('github.noResult')}</div>
+              <div className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">{t('github.noResult')}</div>
             ) : (
               repos.map((r) => {
                 const checked = selected.has(r.fullName);
                 const expanded = expandedRepo === r.fullName;
                 return (
-                  <div key={r.fullName} className="border-b border-[#E2E8F0] last:border-b-0">
+                  <div key={r.fullName} className="border-b border-[var(--border)] last:border-b-0">
                     <label
-                      className={`flex cursor-pointer items-start gap-2 px-2 py-2 ${checked ? 'bg-[#EEF2FF]' : 'bg-white'}`}
+                      className={`flex cursor-pointer items-start gap-2 px-2 py-2 ${checked ? 'bg-[var(--brand-soft)]' : 'bg-[var(--surface)]'}`}
                     >
                       <Checkbox
                         size="small"
@@ -237,17 +237,17 @@ export function GithubSkillsDialog({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium text-[#0F172A]">{r.fullName}</span>
+                          <span className="truncate text-sm font-medium text-[var(--text-strong)]">{r.fullName}</span>
                           {r.language && (
-                            <span className="shrink-0 rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[10px] text-[#64748B]">
+                            <span className="shrink-0 rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
                               {r.language}
                             </span>
                           )}
                         </div>
                         {r.description && (
-                          <div className="mt-0.5 line-clamp-2 text-xs text-[#64748B]">{descOf(r, language)}</div>
+                          <div className="mt-0.5 line-clamp-2 text-xs text-[var(--text-muted)]">{descOf(r, language)}</div>
                         )}
-                        <div className="mt-0.5 text-[11px] text-[#94A3B8]">
+                        <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">
                           ★ {fmtStars(r.stars)}
                           {r.topics.length > 0 && ` · ${r.topics.slice(0, 4).map((t) => `#${t}`).join(' ')}`}
                         </div>
@@ -258,25 +258,25 @@ export function GithubSkillsDialog({
                           e.preventDefault();
                           void toggleRepo(r.fullName);
                         }}
-                        className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-[#4F46E5] hover:bg-[#EEF2FF]"
+                        className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-[#4F46E5] hover:bg-[var(--brand-soft)]"
                       >
                         {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                       </button>
                     </label>
 
                     {expanded && (
-                      <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-2 py-1">
+                      <div className="border-t border-[var(--border)] bg-[var(--bg-subtle)] px-2 py-1">
                         {loadingSub ? (
-                          <div className="px-2 py-2 text-xs text-[#94A3B8]">{t('github.fetching')}</div>
+                          <div className="px-2 py-2 text-xs text-[var(--text-muted)]">{t('github.fetching')}</div>
                         ) : repoSkills.length === 0 ? (
-                          <div className="px-2 py-2 text-xs text-[#94A3B8]">{t('github.noResult')}</div>
+                          <div className="px-2 py-2 text-xs text-[var(--text-muted)]">{t('github.noResult')}</div>
                         ) : (
                           repoSkills.map((s) => {
                             const subChecked = selectedSub.has(s.path);
                             return (
                               <label
                                 key={s.path}
-                                className={`flex cursor-pointer items-start gap-2 rounded px-1 py-1 ${subChecked ? 'bg-[#EEF2FF]' : ''}`}
+                                className={`flex cursor-pointer items-start gap-2 rounded px-1 py-1 ${subChecked ? 'bg-[var(--brand-soft)]' : ''}`}
                               >
                                 <Checkbox
                                   size="small"
@@ -285,12 +285,12 @@ export function GithubSkillsDialog({
                                   sx={{ padding: '2px' }}
                                 />
                                 <div className="min-w-0 flex-1">
-                                  <div className="text-xs font-medium text-[#0F172A]">{s.name}</div>
+                                  <div className="text-xs font-medium text-[var(--text-strong)]">{s.name}</div>
                                   {s.description && (
-                                    <div className="line-clamp-1 text-[11px] text-[#64748B]">{descOf(s, language)}</div>
+                                    <div className="line-clamp-1 text-[11px] text-[var(--text-muted)]">{descOf(s, language)}</div>
                                   )}
                                 </div>
-                                <span className="shrink-0 text-[10px] text-[#94A3B8]">{s.path}</span>
+                                <span className="shrink-0 text-[10px] text-[var(--text-muted)]">{s.path}</span>
                               </label>
                             );
                           })
@@ -304,14 +304,14 @@ export function GithubSkillsDialog({
           </div>
 
           {importResult && (
-            <div className="rounded-md border border-[#D1FAE5] bg-[#ECFDF5] px-3 py-2 text-xs text-[#047857]">
+            <div className="rounded-md border border-[#D1FAE5] bg-[var(--success-soft)] px-3 py-2 text-xs text-[#047857]">
               {t('github.importDone')} {importResult.created.length} {t('assets.kind.skill')}
               {importResult.skipped.length > 0 && `${t('github.importDoneSkipped')} ${importResult.skipped.length} ${t('assets.batchImportedSuffix')}`}
             </div>
           )}
 
           {error && (
-            <div className="rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>
+            <div className="rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>
           )}
         </div>
       </DialogContent>

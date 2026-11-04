@@ -7,20 +7,20 @@ import type { TaskStatus, DeviceStatus, AgentStatus } from '@agentfleet/shared';
 export type BadgeStatus = TaskStatus | DeviceStatus | AgentStatus | 'success' | 'error';
 
 const STATUS_META: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
-  online: { bg: '#D1FAE5', fg: '#047857', dot: '#10B981', label: '在线' },
-  completed: { bg: '#D1FAE5', fg: '#047857', dot: '#10B981', label: '完成' },
-  success: { bg: '#D1FAE5', fg: '#047857', dot: '#10B981', label: '成功' },
-  available: { bg: '#D1FAE5', fg: '#047857', dot: '#10B981', label: '空闲' },
-  running: { bg: '#FEF3C7', fg: '#B45309', dot: '#F59E0B', label: '运行中' },
-  busy: { bg: '#FEF3C7', fg: '#B45309', dot: '#F59E0B', label: '忙碌' },
-  queued: { bg: '#F1F5F9', fg: '#475569', dot: '#94A3B8', label: '排队' },
-  waiting: { bg: '#F1F5F9', fg: '#475569', dot: '#94A3B8', label: '等待' },
-  blocked: { bg: '#F1F5F9', fg: '#475569', dot: '#94A3B8', label: '待决策' },
-  offline: { bg: '#F1F5F9', fg: '#475569', dot: '#94A3B8', label: '离线' },
-  failed: { bg: '#FEE2E2', fg: '#B91C1C', dot: '#EF4444', label: '失败' },
-  error: { bg: '#FEE2E2', fg: '#B91C1C', dot: '#EF4444', label: '异常' },
-  interrupted: { bg: '#FEE2E2', fg: '#B91C1C', dot: '#EF4444', label: '中断' },
-  cancelled: { bg: '#FEE2E2', fg: '#B91C1C', dot: '#EF4444', label: '已取消' },
+  online: { bg: 'var(--success-soft)', fg: 'var(--success-fg)', dot: 'var(--success)', label: '在线' },
+  completed: { bg: 'var(--success-soft)', fg: 'var(--success-fg)', dot: 'var(--success)', label: '完成' },
+  success: { bg: 'var(--success-soft)', fg: 'var(--success-fg)', dot: 'var(--success)', label: '成功' },
+  available: { bg: 'var(--success-soft)', fg: 'var(--success-fg)', dot: 'var(--success)', label: '空闲' },
+  running: { bg: 'var(--warning-soft)', fg: 'var(--warning-fg)', dot: 'var(--warning)', label: '运行中' },
+  busy: { bg: 'var(--warning-soft)', fg: 'var(--warning-fg)', dot: 'var(--warning)', label: '忙碌' },
+  queued: { bg: 'var(--bg-subtle)', fg: 'var(--text-muted)', dot: 'var(--offline)', label: '排队' },
+  waiting: { bg: 'var(--bg-subtle)', fg: 'var(--text-muted)', dot: 'var(--offline)', label: '等待' },
+  blocked: { bg: 'var(--bg-subtle)', fg: 'var(--text-muted)', dot: 'var(--offline)', label: '待决策' },
+  offline: { bg: 'var(--bg-subtle)', fg: 'var(--text-muted)', dot: 'var(--offline)', label: '离线' },
+  failed: { bg: 'var(--danger-soft)', fg: 'var(--danger-fg)', dot: 'var(--danger)', label: '失败' },
+  error: { bg: 'var(--danger-soft)', fg: 'var(--danger-fg)', dot: 'var(--danger)', label: '异常' },
+  interrupted: { bg: 'var(--danger-soft)', fg: 'var(--danger-fg)', dot: 'var(--danger)', label: '中断' },
+  cancelled: { bg: 'var(--danger-soft)', fg: 'var(--danger-fg)', dot: 'var(--danger)', label: '已取消' },
 };
 
 export function StatusBadge({ status }: { status: BadgeStatus }): ReactNode {

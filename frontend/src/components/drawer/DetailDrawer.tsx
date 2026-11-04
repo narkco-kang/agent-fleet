@@ -39,12 +39,12 @@ export function DetailDrawer({
 function DetailContent({ target, onClose }: { target: DetailTarget; onClose: () => void }): ReactNode {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-[#E2E8F0] px-4 py-3">
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
         <div>
-          <div className="text-sm font-semibold text-[#0F172A]">{target.title}</div>
-          <div className="text-xs text-[#64748B]">{target.kind}</div>
+          <div className="text-sm font-semibold text-[var(--text-strong)]">{target.title}</div>
+          <div className="text-xs text-[var(--text-muted)]">{target.kind}</div>
         </div>
-        <button onClick={onClose} className="text-[#64748B] hover:text-[#0F172A]">
+        <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-strong)]">
           <CloseIcon fontSize="small" />
         </button>
       </div>
@@ -53,7 +53,7 @@ function DetailContent({ target, onClose }: { target: DetailTarget; onClose: () 
         {target.kind === 'task' && <TaskDetail taskId={target.id} />}
         {target.kind === 'agent' && <AgentDetail target={target} />}
         {target.kind === 'message' && (
-          <div className="text-sm text-[#334155]">消息流节点：{target.title}</div>
+          <div className="text-sm text-[var(--text)]">消息流节点：{target.title}</div>
         )}
       </div>
     </div>
@@ -62,7 +62,7 @@ function DetailContent({ target, onClose }: { target: DetailTarget; onClose: () 
 
 function DeviceDetail({ deviceId }: { deviceId: string }): ReactNode {
   const device = useDeviceStore((s) => s.devices.find((d) => d.deviceId === deviceId));
-  if (!device) return <div className="text-sm text-[#94A3B8]">设备不存在</div>;
+  if (!device) return <div className="text-sm text-[var(--text-muted)]">设备不存在</div>;
   return (
     <div className="space-y-3">
       <StatusBadge status={device.status} />
@@ -71,9 +71,9 @@ function DeviceDetail({ deviceId }: { deviceId: string }): ReactNode {
       <InfoRow label="系统" value={`${device.osPlatform}/${device.osArch}`} />
       <InfoRow label="CPU 负载" value={`${Math.round(device.load.cpu * 100)}%`} />
       <InfoRow label="内存负载" value={`${Math.round(device.load.mem * 100)}%`} />
-      <div className="text-xs font-semibold text-[#0F172A]">已装 agent</div>
+      <div className="text-xs font-semibold text-[var(--text-strong)]">已装 agent</div>
       {device.agents.map((a) => (
-        <div key={a.agentType} className="flex items-center justify-between rounded-md border border-[#E2E8F0] px-3 py-2">
+        <div key={a.agentType} className="flex items-center justify-between rounded-md border border-[var(--border)] px-3 py-2">
           <span className="text-sm">{a.displayName}</span>
           <StatusBadge status={a.status} />
         </div>
@@ -84,7 +84,7 @@ function DeviceDetail({ deviceId }: { deviceId: string }): ReactNode {
 
 function TaskDetail({ taskId }: { taskId: string }): ReactNode {
   const task = useTaskStore((s) => s.tasks.find((t) => t.taskId === taskId));
-  if (!task) return <div className="text-sm text-[#94A3B8]">任务不存在</div>;
+  if (!task) return <div className="text-sm text-[var(--text-muted)]">任务不存在</div>;
   return (
     <div className="space-y-3">
       <StatusBadge status={task.status} />
@@ -116,7 +116,7 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
     }
   };
 
-  if (!agent) return <div className="text-sm text-[#94A3B8]">Agent 不存在</div>;
+  if (!agent) return <div className="text-sm text-[var(--text-muted)]">Agent 不存在</div>;
   const activated = agent.activated;
   return (
     <div className="space-y-3">
@@ -124,7 +124,7 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
         <StatusBadge status={agent.status} />
         <span
           className={`rounded px-2 py-0.5 text-xs font-medium ${
-            activated ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-[#FEF3C7] text-[#B45309]'
+            activated ? 'bg-[var(--success-soft)] text-[#15803D]' : 'bg-[var(--warning-soft)] text-[#B45309]'
           }`}
         >
           {activated ? '已激活' : '待激活（需登录）'}
@@ -142,8 +142,8 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
       )}
       <InfoRow label="并发" value={`${agent.busyCount}/${agent.maxConcurrency}`} />
 
-      <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3">
-        <div className="text-xs text-[#64748B]">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] p-3">
+        <div className="text-xs text-[var(--text-muted)]">
           {!deviceOnline
             ? '设备当前离线，无法打开平台应用。请先让该设备上线（运行 device-agent 并连接协调服务）后再试。'
             : activated
@@ -163,7 +163,7 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
         {openMsg && (
           <div
             className={`mt-2 rounded-md px-2 py-1.5 text-xs ${
-              openMsg.ok ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-[#FEE2E2] text-[#B91C1C]'
+              openMsg.ok ? 'bg-[var(--success-soft)] text-[#15803D]' : 'bg-[var(--danger-soft)] text-[#B91C1C]'
             }`}
           >
             {openMsg.text}
@@ -177,8 +177,8 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
 function InfoRow({ label, value }: { label: string; value: string }): ReactNode {
   return (
     <div>
-      <div className="text-xs text-[#94A3B8]">{label}</div>
-      <div className="break-all text-sm text-[#334155]">{value}</div>
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div className="break-all text-sm text-[var(--text)]">{value}</div>
     </div>
   );
 }

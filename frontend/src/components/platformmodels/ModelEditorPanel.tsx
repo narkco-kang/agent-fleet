@@ -36,7 +36,7 @@ export function ModelEditorPanel({
 
   if (!selected) {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-sm text-[#94A3B8]">
+      <div className="flex h-full items-center justify-center p-6 text-sm text-[var(--text-muted)]">
         请在左侧选择「设备 + 平台」
       </div>
     );
@@ -92,12 +92,12 @@ export function ModelEditorPanel({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <div className="text-xs text-[#94A3B8]">绑定对象</div>
-        <div className="text-sm font-semibold text-[#0F172A]">
+        <div className="text-xs text-[var(--text-muted)]">绑定对象</div>
+        <div className="text-sm font-semibold text-[var(--text-strong)]">
           {selected.deviceId} / {selected.agentType}
         </div>
         {binding && (
-          <div className="mt-1 text-xs text-[#64748B]">
+          <div className="mt-1 text-xs text-[var(--text-muted)]">
             当前生效：{binding.activeModel} · 状态：{binding.state === 'ok' ? '健康' : '已降级'}
           </div>
         )}
@@ -136,11 +136,11 @@ export function ModelEditorPanel({
 
       {known.length > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-[#64748B]">手动切换：</span>
+          <span className="text-xs text-[var(--text-muted)]">手动切换：</span>
           <select
             value={switchTarget}
             onChange={(e) => setSwitchTarget(e.target.value)}
-            className="rounded-md border border-[#E2E8F0] px-2 py-1 text-sm text-[#334155]"
+            className="rounded-md border border-[var(--border)] px-2 py-1 text-sm text-[var(--text)]"
           >
             {known.map((m) => (
               <option key={m} value={m}>
@@ -159,7 +159,7 @@ export function ModelEditorPanel({
         </div>
       )}
 
-      {error && <div className="rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
+      {error && <div className="rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
     </div>
   );
 }

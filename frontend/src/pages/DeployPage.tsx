@@ -32,7 +32,7 @@ export default function DeployPage(): JSX.Element {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-[#0F172A]">部署管理</h1>
+        <h1 className="text-xl font-semibold text-[var(--text-strong)]">部署管理</h1>
         <button
           onClick={() => setNewOpen(true)}
           className="inline-flex items-center gap-1 rounded-lg bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#4338CA]"
@@ -58,8 +58,8 @@ export default function DeployPage(): JSX.Element {
             onClick={() => setKind(v)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
               kind === v
-                ? 'bg-[#EEF2FF] text-[#4F46E5]'
-                : 'text-[#334155] hover:bg-[#F8FAFC]'
+                ? 'bg-[var(--brand-soft)] text-[#4F46E5]'
+                : 'text-[var(--text)] hover:bg-[var(--bg-subtle)]'
             }`}
           >
             {label}

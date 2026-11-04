@@ -12,7 +12,7 @@ export function MessageTimeline({ events }: { events: TaskEvent[] }): JSX.Elemen
   }, [events.length]);
 
   if (events.length === 0) {
-    return <div className="py-12 text-center text-[#94A3B8]">暂无消息流</div>;
+    return <div className="py-12 text-center text-[var(--text-muted)]">暂无消息流</div>;
   }
 
   return (
@@ -43,12 +43,12 @@ function Bubble({ event }: { event: TaskEvent }): JSX.Element {
         className="max-w-[80%] rounded-lg border px-3 py-2 text-sm"
         style={{ background: bg, borderColor: border }}
       >
-        <div className="mb-1 flex items-center gap-1.5 text-xs text-[#64748B]">
+        <div className="mb-1 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
           <span>{icon}</span>
           <span>{bubbleTitle(event)}</span>
           <span>{new Date(event.ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
-        <div className="whitespace-pre-wrap break-words text-[#334155]">{bubbleText(event)}</div>
+        <div className="whitespace-pre-wrap break-words text-[var(--text)]">{bubbleText(event)}</div>
       </div>
     </div>
   );

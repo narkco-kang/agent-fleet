@@ -92,7 +92,7 @@ export function RoleRouteTab(): JSX.Element {
   return (
     <Card className="p-4">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-semibold text-[#0F172A]">角色路由（{routes.length}）</span>
+        <span className="text-sm font-semibold text-[var(--text-strong)]">角色路由（{routes.length}）</span>
         <div className="flex gap-2">
           <Button size="small" variant="outlined" onClick={() => setEditing({ ...EMPTY })}>
             新增
@@ -114,12 +114,12 @@ export function RoleRouteTab(): JSX.Element {
         className="mb-3"
       />
 
-      {error && <div className="mb-2 rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
+      {error && <div className="mb-2 rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
 
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
+            <tr className="bg-[var(--bg-subtle)] text-left text-xs text-[var(--text-muted)]">
               <th className="px-3 py-2 font-medium">角色</th>
               <th className="px-3 py-2 font-medium">主路由</th>
               <th className="px-3 py-2 font-medium">兜底</th>
@@ -132,19 +132,19 @@ export function RoleRouteTab(): JSX.Element {
           <tbody>
             {routes.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-[#94A3B8]">
+                <td colSpan={7} className="px-3 py-8 text-center text-[var(--text-muted)]">
                   暂无角色路由
                 </td>
               </tr>
             ) : (
               routes.map((r) => (
-                <tr key={r.role} className="border-t border-[#E2E8F0]">
-                  <td className="px-3 py-2 text-[#334155]">{r.role}</td>
-                  <td className="px-3 py-2 text-[#334155]">{r.primary}</td>
-                  <td className="px-3 py-2 text-[#64748B]">{r.fallback?.join(', ') || '—'}</td>
-                  <td className="px-3 py-2 text-[#334155]">{r.capability}</td>
-                  <td className="px-3 py-2 text-[#334155]">{r.model ?? '—'}</td>
-                  <td className="px-3 py-2 text-[#334155]">{r.enabled ? '是' : '否'}</td>
+                <tr key={r.role} className="border-t border-[var(--border)]">
+                  <td className="px-3 py-2 text-[var(--text)]">{r.role}</td>
+                  <td className="px-3 py-2 text-[var(--text)]">{r.primary}</td>
+                  <td className="px-3 py-2 text-[var(--text-muted)]">{r.fallback?.join(', ') || '—'}</td>
+                  <td className="px-3 py-2 text-[var(--text)]">{r.capability}</td>
+                  <td className="px-3 py-2 text-[var(--text)]">{r.model ?? '—'}</td>
+                  <td className="px-3 py-2 text-[var(--text)]">{r.enabled ? '是' : '否'}</td>
                   <td className="px-3 py-2">
                     <div className="flex gap-1">
                       <button onClick={() => setEditing({ ...r, fallback: [...(r.fallback ?? [])] })} className="text-[#4F46E5]">
@@ -163,7 +163,7 @@ export function RoleRouteTab(): JSX.Element {
       </div>
 
       <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="sm" fullWidth>
-        <DialogTitle className="text-[#0F172A]">{editing && routes.some((r) => r.role === editing.role) ? '编辑角色路由' : '新增角色路由'}</DialogTitle>
+        <DialogTitle className="text-[var(--text-strong)]">{editing && routes.some((r) => r.role === editing.role) ? '编辑角色路由' : '新增角色路由'}</DialogTitle>
         <DialogContent>
           {editing && (
             <div className="mt-1 flex flex-col gap-3">
@@ -212,7 +212,7 @@ export function RoleRouteTab(): JSX.Element {
                 fullWidth
               />
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[#334155]">启用</span>
+                <span className="text-sm text-[var(--text)]">启用</span>
                 <Switch
                   checked={editing.enabled}
                   onChange={(e) => setEditing({ ...editing, enabled: e.target.checked })}

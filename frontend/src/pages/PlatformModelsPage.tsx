@@ -35,16 +35,16 @@ export default function PlatformModelsPage(): JSX.Element {
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="mb-4 text-xl font-semibold text-[#0F172A]">平台模型绑定</h1>
+      <h1 className="mb-4 text-xl font-semibold text-[var(--text-strong)]">平台模型绑定</h1>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-0">
-          <div className="border-b border-[#E2E8F0] px-4 py-3 text-sm font-semibold text-[#0F172A]">
+          <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-strong)]">
             设备与 agent 平台
           </div>
           <DevicePlatformList devices={devices} selected={selected} onSelect={setSelected} />
         </Card>
         <Card className="p-4">
-          <div className="mb-3 text-sm font-semibold text-[#0F172A]">模型绑定编辑</div>
+          <div className="mb-3 text-sm font-semibold text-[var(--text-strong)]">模型绑定编辑</div>
           <ModelEditorPanel selected={selected} bindings={bindings} onChanged={loadBindings} />
         </Card>
       </div>

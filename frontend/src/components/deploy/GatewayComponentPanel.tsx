@@ -56,7 +56,7 @@ export function GatewayComponentPanel(): JSX.Element {
     <Card className="p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-[#0F172A]">协调器组件（内置 modelgateway）</span>
+          <span className="text-sm font-semibold text-[var(--text-strong)]">协调器组件（内置 modelgateway）</span>
           <span
             className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
             style={{ background: `${meta.color}1A`, color: meta.color }}
@@ -69,7 +69,7 @@ export function GatewayComponentPanel(): JSX.Element {
           <button
             onClick={() => act(() => gatewayApi.build())}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-2.5 py-1.5 text-xs font-medium text-[#334155] hover:bg-[#F8FAFC] disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--text)] hover:bg-[var(--bg-subtle)] disabled:opacity-50"
           >
             <BuildIcon fontSize="small" /> 编译
           </button>
@@ -90,7 +90,7 @@ export function GatewayComponentPanel(): JSX.Element {
           <button
             onClick={() => act(() => gatewayApi.health())}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-2.5 py-1.5 text-xs font-medium text-[#334155] hover:bg-[#F8FAFC] disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--text)] hover:bg-[var(--bg-subtle)] disabled:opacity-50"
           >
             <HealthAndSafetyIcon fontSize="small" /> 健康
           </button>
@@ -106,12 +106,12 @@ export function GatewayComponentPanel(): JSX.Element {
       </div>
 
       {status?.lastError && (
-        <div className="mt-2 rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">
+        <div className="mt-2 rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">
           {status.lastError}
         </div>
       )}
       {error && (
-        <div className="mt-2 rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>
+        <div className="mt-2 rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>
       )}
     </Card>
   );
@@ -120,8 +120,8 @@ export function GatewayComponentPanel(): JSX.Element {
 function Info({ label, value }: { label: string; value: string }): JSX.Element {
   return (
     <div>
-      <div className="text-xs text-[#94A3B8]">{label}</div>
-      <div className="mt-0.5 text-[#334155]">{value}</div>
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div className="mt-0.5 text-[var(--text)]">{value}</div>
     </div>
   );
 }

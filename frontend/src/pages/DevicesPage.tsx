@@ -19,8 +19,8 @@ export default function DevicesPage(): JSX.Element {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-[#0F172A]">设备管理</h1>
-        <span className="text-xs text-[#64748B]">每台设备可绑定不同团队（如 A=软件开发、B=内容专家）</span>
+        <h1 className="text-xl font-semibold text-[var(--text-strong)]">设备管理</h1>
+        <span className="text-xs text-[var(--text-muted)]">每台设备可绑定不同团队（如 A=软件开发、B=内容专家）</span>
       </div>
       <DeviceGrid teams={teams} />
     </div>

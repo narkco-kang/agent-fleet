@@ -70,42 +70,42 @@ export function FreeSourceTab(): JSX.Element {
           手动签到
         </Button>
       </div>
-      {error && <div className="rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
+      {error && <div className="rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>}
 
       <Card className="p-4">
-        <div className="mb-2 text-sm font-semibold text-[#0F172A]">自动签到源</div>
+        <div className="mb-2 text-sm font-semibold text-[var(--text-strong)]">自动签到源</div>
         <div className="grid gap-2 md:grid-cols-2">
           {checkinStatus.map((s) => (
-            <div key={s.id} className="rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm">
+            <div key={s.id} className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-[#334155]">{s.name}</span>
-                <span className={s.enabled ? 'text-[#10B981]' : 'text-[#94A3B8]'}>{s.enabled ? '启用' : '未配置'}</span>
+                <span className="font-medium text-[var(--text)]">{s.name}</span>
+                <span className={s.enabled ? 'text-[#10B981]' : 'text-[var(--text-muted)]'}>{s.enabled ? '启用' : '未配置'}</span>
               </div>
-              <div className="mt-1 text-xs text-[#64748B]">{s.note}</div>
-              <div className="mt-1 text-xs text-[#64748B]">
+              <div className="mt-1 text-xs text-[var(--text-muted)]">{s.note}</div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
                 最近：{s.last ? `${s.last.status} · ${s.last.detail ?? ''}` : '暂无记录'}
               </div>
             </div>
           ))}
-          {checkinStatus.length === 0 && <div className="text-sm text-[#94A3B8]">暂无签到源状态</div>}
+          {checkinStatus.length === 0 && <div className="text-sm text-[var(--text-muted)]">暂无签到源状态</div>}
         </div>
       </Card>
 
       {report && (
         <Card className="p-4">
-          <div className="mb-2 text-sm font-semibold text-[#0F172A]">
+          <div className="mb-2 text-sm font-semibold text-[var(--text-strong)]">
             可用源（仅优/中，优在前）· 共 {report.usable.length} 条可用
           </div>
           {report.ranked.length === 0 ? (
-            <div className="text-sm text-[#94A3B8]">暂无可保留（优/中）的免费源</div>
+            <div className="text-sm text-[var(--text-muted)]">暂无可保留（优/中）的免费源</div>
           ) : (
             <div className="flex flex-col gap-2">
               {report.ranked.map((r) => (
-                <div key={r.key} className="flex items-center gap-2 rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm">
+                <div key={r.key} className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
                   <span className="inline-block h-2 w-2 rounded-full" style={{ background: RATING_COLOR[r.rating] }} />
-                  <span className="text-[#334155]">{r.label}</span>
-                  <span className="text-xs text-[#64748B]">({r.kind})</span>
-                  <span className="text-xs text-[#64748B]">{r.latencyMs}ms</span>
+                  <span className="text-[var(--text)]">{r.label}</span>
+                  <span className="text-xs text-[var(--text-muted)]">({r.kind})</span>
+                  <span className="text-xs text-[var(--text-muted)]">{r.latencyMs}ms</span>
                   <span className="ml-auto text-xs font-medium" style={{ color: RATING_COLOR[r.rating] }}>
                     {r.ratingLabel}
                   </span>
@@ -117,21 +117,21 @@ export function FreeSourceTab(): JSX.Element {
       )}
 
       <Card className="p-4">
-        <div className="mb-2 text-sm font-semibold text-[#0F172A]">直连免费源目录</div>
+        <div className="mb-2 text-sm font-semibold text-[var(--text-strong)]">直连免费源目录</div>
         <div className="flex flex-col gap-3">
           {catalog.map((s) => (
-            <div key={s.id} className="rounded-lg border border-[#E2E8F0] px-3 py-2">
+            <div key={s.id} className="rounded-lg border border-[var(--border)] px-3 py-2">
               <div className="flex items-center gap-2 text-sm">
-                <span className="font-semibold text-[#0F172A]">{s.label}</span>
-                <span className="text-xs text-[#64748B]">{s.id}</span>
-                <span className="ml-auto text-xs text-[#64748B]">
+                <span className="font-semibold text-[var(--text-strong)]">{s.label}</span>
+                <span className="text-xs text-[var(--text-muted)]">{s.id}</span>
+                <span className="ml-auto text-xs text-[var(--text-muted)]">
                   {s.auth === 'bearer-public' ? 'Bearer public' : '免 Key'}
                 </span>
               </div>
-              <div className="mt-1 text-xs text-[#64748B]">
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
                 模型：{s.models.join(', ')} · 基础地址：{s.baseUrl}
               </div>
-              <div className="mt-1 text-xs text-[#64748B]">{s.note}</div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">{s.note}</div>
             </div>
           ))}
         </div>
@@ -139,10 +139,10 @@ export function FreeSourceTab(): JSX.Element {
 
       {checkin && (
         <Card className="p-4">
-          <div className="mb-2 text-sm font-semibold text-[#0F172A]">签到结果</div>
+          <div className="mb-2 text-sm font-semibold text-[var(--text-strong)]">签到结果</div>
           {checkin.map((c) => (
             <div key={c.sourceId} className="flex items-center justify-between py-1 text-sm">
-              <span className="text-[#334155]">{c.name}</span>
+              <span className="text-[var(--text)]">{c.name}</span>
               <span className={c.ok ? 'text-[#10B981]' : 'text-[#EF4444]'}>
                 {c.ok ? '✅' : '❌'} {c.detail}
               </span>

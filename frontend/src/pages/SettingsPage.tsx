@@ -29,7 +29,7 @@ export default function SettingsPage(): JSX.Element {
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="mb-4 text-xl font-semibold text-[#0F172A]">设置</h1>
+      <h1 className="mb-4 text-xl font-semibold text-[var(--text-strong)]">设置</h1>
 
       <div className="grid max-w-3xl grid-cols-1 gap-4">
         <Section title="通信">
@@ -77,8 +77,8 @@ export default function SettingsPage(): JSX.Element {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }): JSX.Element {
   return (
-    <div className="rounded-card border border-[#E2E8F0] bg-white p-4">
-      <h2 className="mb-2 text-sm font-semibold text-[#0F172A]">{title}</h2>
+    <div className="rounded-card border border-[var(--border)] bg-[var(--surface)] p-4">
+      <h2 className="mb-2 text-sm font-semibold text-[var(--text-strong)]">{title}</h2>
       <div className="divide-y divide-[#F1F5F9]">{children}</div>
     </div>
   );
@@ -87,8 +87,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, value }: { label: string; value: string }): JSX.Element {
   return (
     <div className="flex justify-between py-2 text-sm">
-      <span className="text-[#64748B]">{label}</span>
-      <span className="text-[#334155]">{value}</span>
+      <span className="text-[var(--text-muted)]">{label}</span>
+      <span className="text-[var(--text)]">{value}</span>
     </div>
   );
 }

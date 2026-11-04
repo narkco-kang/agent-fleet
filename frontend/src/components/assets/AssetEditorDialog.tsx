@@ -143,7 +143,7 @@ export function AssetEditorDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle className="text-[#0F172A]">{asset ? t('editor.editAsset') : t('editor.newAsset')}</DialogTitle>
+      <DialogTitle className="text-[var(--text-strong)]">{asset ? t('editor.editAsset') : t('editor.newAsset')}</DialogTitle>
       <DialogContent>
         <div className="mt-1 flex flex-col gap-3">
           <TextField
@@ -196,7 +196,7 @@ export function AssetEditorDialog({
             placeholder={t('editor.tagsPlaceholder')}
           />
           <div>
-            <div className="mb-1 text-xs text-[#64748B]">{t('editor.uploadText')}</div>
+            <div className="mb-1 text-xs text-[var(--text-muted)]">{t('editor.uploadText')}</div>
             <input
               ref={fileRef}
               type="file"
@@ -207,7 +207,7 @@ export function AssetEditorDialog({
           </div>
           {!asset && (
             <div>
-              <div className="mb-1 text-xs text-[#64748B]">{t('editor.uploadBinary')}</div>
+              <div className="mb-1 text-xs text-[var(--text-muted)]">{t('editor.uploadBinary')}</div>
               <input
                 type="file"
                 accept=".zip,.tar,.gz,.tgz,.whl,.py,.sh"
@@ -218,7 +218,7 @@ export function AssetEditorDialog({
             </div>
           )}
           {error && (
-            <div className="rounded-md bg-[#FEE2E2] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>
+            <div className="rounded-md bg-[var(--danger-soft)] px-3 py-2 text-xs text-[#B91C1C]">{error}</div>
           )}
         </div>
       </DialogContent>

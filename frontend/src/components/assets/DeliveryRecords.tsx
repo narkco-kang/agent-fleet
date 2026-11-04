@@ -16,11 +16,11 @@ const STATUS_KEY: Record<string, string> = {
 };
 
 const STATUS_CLS: Record<string, string> = {
-  pending: 'bg-[#F1F5F9] text-[#475569]',
-  confirmed: 'bg-[#EEF2FF] text-[#4F46E5]',
-  sending: 'bg-[#FEF3C7] text-[#B45309]',
+  pending: 'bg-[var(--bg-subtle)] text-[var(--text-muted)]',
+  confirmed: 'bg-[var(--brand-soft)] text-[#4F46E5]',
+  sending: 'bg-[var(--warning-soft)] text-[#B45309]',
   delivered: 'bg-[#D1FAE5] text-[#047857]',
-  failed: 'bg-[#FEE2E2] text-[#B91C1C]',
+  failed: 'bg-[var(--danger-soft)] text-[#B91C1C]',
 };
 
 function fmtTime(ts: number, language: 'zh' | 'en'): string {
@@ -54,17 +54,17 @@ export function DeliveryRecords({ refreshKey }: { refreshKey: number }): JSX.Ele
 
   return (
     <Card className="p-0">
-      <div className="flex items-center justify-between border-b border-[#E2E8F0] px-4 py-3">
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 text-sm font-semibold text-[#0F172A]"
+          className="flex items-center gap-1 text-sm font-semibold text-[var(--text-strong)]"
         >
           {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
           {t('records.title')}（{deliveries.length}）
         </button>
         <button
           onClick={fetchRecords}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[#4F46E5] hover:bg-[#EEF2FF]"
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[#4F46E5] hover:bg-[var(--brand-soft)]"
         >
           <RefreshIcon fontSize="small" /> {t('records.refresh')}
         </button>
@@ -74,12 +74,12 @@ export function DeliveryRecords({ refreshKey }: { refreshKey: number }): JSX.Ele
         <div className="overflow-x-auto">
           {error && <div className="px-4 py-3 text-xs text-[#B91C1C]">{error}</div>}
           {!error && loading && (
-            <div className="px-4 py-4 text-center text-sm text-[#94A3B8]">{t('common.loading')}</div>
+            <div className="px-4 py-4 text-center text-sm text-[var(--text-muted)]">{t('common.loading')}</div>
           )}
           {!error && !loading && (
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
+                <tr className="bg-[var(--bg-subtle)] text-left text-xs text-[var(--text-muted)]">
                   <th className="px-4 py-2 font-medium">{t('records.assetId')}</th>
                   <th className="px-4 py-2 font-medium">{t('records.deviceId')}</th>
                   <th className="px-4 py-2 font-medium">{t('records.version')}</th>
@@ -91,25 +91,25 @@ export function DeliveryRecords({ refreshKey }: { refreshKey: number }): JSX.Ele
               <tbody>
                 {deliveries.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-[#94A3B8]">
+                    <td colSpan={6} className="px-4 py-6 text-center text-[var(--text-muted)]">
                       {t('records.empty')}
                     </td>
                   </tr>
                 ) : (
                   deliveries.map((d) => {
-                    const cls = STATUS_CLS[d.status] ?? 'bg-[#F1F5F9] text-[#475569]';
+                    const cls = STATUS_CLS[d.status] ?? 'bg-[var(--bg-subtle)] text-[var(--text-muted)]';
                     const labelKey = STATUS_KEY[d.status] ?? d.status;
                     return (
-                      <tr key={d.id} className="border-t border-[#E2E8F0]">
-                        <td className="px-4 py-2 font-mono text-xs text-[#334155]">{d.assetId}</td>
-                        <td className="px-4 py-2 font-mono text-xs text-[#334155]">{d.deviceId}</td>
-                        <td className="px-4 py-2 text-[#334155]">v{d.assetVersion}</td>
+                      <tr key={d.id} className="border-t border-[var(--border)]">
+                        <td className="px-4 py-2 font-mono text-xs text-[var(--text)]">{d.assetId}</td>
+                        <td className="px-4 py-2 font-mono text-xs text-[var(--text)]">{d.deviceId}</td>
+                        <td className="px-4 py-2 text-[var(--text)]">v{d.assetVersion}</td>
                         <td className="px-4 py-2">
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
                             {t(labelKey)}
                           </span>
                         </td>
-                        <td className="px-4 py-2 text-[#64748B]">{fmtTime(d.createdAt, language)}</td>
+                        <td className="px-4 py-2 text-[var(--text-muted)]">{fmtTime(d.createdAt, language)}</td>
                         <td className="px-4 py-2 text-[#B91C1C]">{d.error ?? '—'}</td>
                       </tr>
                     );
