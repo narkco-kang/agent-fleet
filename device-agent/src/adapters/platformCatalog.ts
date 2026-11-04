@@ -94,6 +94,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
     runSpec: { mode: 'cli-text', args: ['-p', '{prompt}'], textOutput: true, note: 'cursor-agent -p headless（print 模式，--force 允许改文件，待实机验证）' },
+    loginSpec: { args: ['login'], note: 'cursor-agent login 浏览器授权（browser flow，待实机验证命令）' },
   },
   {
     agentType: 'aider',
@@ -104,6 +105,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     capabilities: ['coding'],
     maxConcurrency: 1,
     runSpec: { mode: 'cli-text', args: ['--message', '{prompt}', '--no-git', '--yes'], textOutput: true, note: 'aider --message 单轮（无 headless agent 循环）' },
+    loginSpec: { args: [], note: 'aider 无 device-auth，需在设备配置 API key（OPENAI_API_KEY / ANTHROPIC_API_KEY 等 env）' },
   },
   {
     agentType: 'gemini',
@@ -115,6 +117,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
     runSpec: { mode: 'cli-text', args: ['-p', '{prompt}'], textOutput: true, note: 'gemini -p 单轮（待实机验证）' },
+    loginSpec: { args: [], note: 'gemini 免费登录通道已停用（2026-06），需配置 GEMINI_API_KEY 环境变量' },
   },
   {
     agentType: 'cody',
@@ -137,6 +140,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
     runSpec: { mode: 'cli-text', args: ['-p', '{prompt}'], textOutput: true, note: 'qwen -p print 模式（v0.3+ 支持 stream-json，待实机验证）' },
+    loginSpec: { args: [], note: 'qwen 无 device-auth，需 API key（阿里云百炼/魔搭），交互 /auth 配置' },
   },
   {
     agentType: 'doubao',
@@ -171,6 +175,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     capabilities: ['coding'],
     maxConcurrency: 1,
     runSpec: { mode: 'cli-text', args: ['run', '{prompt}'], textOutput: true, note: 'opencode run 非交互单轮（待实机验证）' },
+    loginSpec: { args: ['auth', 'login'], note: 'opencode auth login 授权码模式（打印授权 URL + 授权码，待实机验证命令）' },
   },
   {
     agentType: 'windsurf',

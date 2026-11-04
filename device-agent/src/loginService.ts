@@ -32,6 +32,11 @@ export function parseLoginChallenge(
   return { url, code };
 }
 
+/** 专用 Adapter 平台的登录规格（不在 platformCatalog 里，如 grok） */
+const DEDICATED_LOGIN_SPEC: Record<string, LoginSpec> = {
+  grok: { args: ['login', '--device-auth'], note: 'grok login --device-auth（浏览器授权短码）' },
+};
+
 export interface LoginHandle {
   cancel(): void;
 }
@@ -42,13 +47,13 @@ export function startDeviceLogin(
   onResult: (r: DeviceLoginResult) => void,
 ): LoginHandle {
   const def = findPlatformDef(input.agentType);
-  const loginSpec = def?.loginSpec;
+  const loginSpec = def?.loginSpec ?? DEDICATED_LOGIN_SPEC[input.agentType];
   const base = { deviceId: input.deviceId, agentType: input.agentType };
 
   console.log(`[login] 收到登录授权请求 ${input.deviceId}/${input.agentType}`);
-  // 平台目录无该平台或未配置 loginSpec → 不支持
-  if (!def || !loginSpec?.args?.length) {
-    onResult({ ...base, status: 'failed', message: loginSpec?.note ?? '该平台不支持登录授权（无 loginSpec）' });
+  // 无 loginSpec（或仅 api-key 说明、无 device-auth args）→ 不支持看板授权
+  if (!loginSpec?.args?.length) {
+    onResult({ ...base, status: 'failed', message: loginSpec?.note ?? `该平台不支持登录授权（无 loginSpec）` });
     return { cancel: () => undefined };
   }
 
@@ -62,7 +67,7 @@ export function startDeviceLogin(
 
   void detection.then((d) => {
     if (!d.found || !d.executable) {
-      onResult({ ...base, status: 'failed', message: `未检测到 ${def.displayName} 可执行文件` });
+      onResult({ ...base, status: 'failed', message: `未检测到 ${def?.displayName ?? input.agentType} 可执行文件` });
       return;
     }
     runLoginProcess(input, d.executable, loginSpec, onChallenge, onResult);
