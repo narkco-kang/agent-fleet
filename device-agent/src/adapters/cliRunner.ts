@@ -93,14 +93,17 @@ export function runCli(opts: CliRunOptions): CliRunHandle {
   // 直接 join、不做转义，含空格的 prompt 被拆成多个参数 → "unexpected argument"）；
   // 正确做法是 spawn cmd.exe /c，args 作为独立参数交给 Node 做默认引号转义（真实多机 benchmark 踩过）。
   const isWindowsBatch = process.platform === 'win32' && /\.(cmd|bat)$/i.test(cmd);
-  const spawnOpts = {
-    cwd: opts.cwd ?? process.cwd(),
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'] as const,
-  };
   const child = isWindowsBatch
-    ? spawn('cmd.exe', ['/d', '/s', '/c', cmd, ...args], spawnOpts)
-    : spawn(cmd, args, spawnOpts);
+    ? spawn('cmd.exe', ['/d', '/s', '/c', cmd, ...args], {
+        cwd: opts.cwd ?? process.cwd(),
+        env: process.env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    : spawn(cmd, args, {
+        cwd: opts.cwd ?? process.cwd(),
+        env: process.env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
 
   let seq = 0;
   const makeSeq = (): number => ++seq;
