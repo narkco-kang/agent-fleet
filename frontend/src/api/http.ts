@@ -94,6 +94,11 @@ export const http = {
       `/api/devices/${deviceId}/platforms/${agentType}/open`,
       { method: 'POST' },
     ),
+  requestDeviceLogin: (deviceId: string, agentType: string) =>
+    request<ApiOk<{ dispatched: boolean; deviceId: string; agentType: string }>>(
+      `/api/devices/${deviceId}/platforms/${agentType}/login`,
+      { method: 'POST' },
+    ),
   pairDevice: (deviceId: string, name?: string) =>
     request<ApiOk<{ pairingCode: string }>>('/api/devices/pair', {
       method: 'POST',

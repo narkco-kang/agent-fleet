@@ -7,6 +7,24 @@ import { MESSAGE_TYPES, WS_RECONNECT_BASE_MS, WS_RECONNECT_MAX_MS } from '@agent
 export type SnapshotHandler = (snapshot: DashboardSnapshot) => void;
 export type PatchHandler = (patch: DashboardPatch) => void;
 
+/** 设备登录授权消息（看板授权中心） */
+export interface LoginChallengeMsg {
+  deviceId: string;
+  agentType: string;
+  url: string;
+  code: string;
+}
+export interface LoginResultMsg {
+  deviceId: string;
+  agentType: string;
+  status: 'success' | 'timeout' | 'cancelled' | 'failed';
+  message?: string;
+}
+export type LoginMessage =
+  | { kind: 'challenge'; data: LoginChallengeMsg }
+  | { kind: 'result'; data: LoginResultMsg };
+export type LoginHandler = (msg: LoginMessage) => void;
+
 const WS_BASE = (import.meta.env.VITE_WS_BASE as string | undefined) ?? 'ws://127.0.0.1:4173/ws';
 
 let ws: WebSocket | null = null;
@@ -16,6 +34,7 @@ let manualClose = false;
 
 const snapshotHandlers = new Set<SnapshotHandler>();
 const patchHandlers = new Set<PatchHandler>();
+const loginHandlers = new Set<LoginHandler>();
 const stateHandlers = new Set<(state: 'connecting' | 'open' | 'closed') => void>();
 
 /** 订阅快照 */
@@ -28,6 +47,12 @@ export function onSnapshot(h: SnapshotHandler): () => void {
 export function onPatch(h: PatchHandler): () => void {
   patchHandlers.add(h);
   return () => patchHandlers.delete(h);
+}
+
+/** 订阅设备登录授权消息（challenge/result） */
+export function onLogin(h: LoginHandler): () => void {
+  loginHandlers.add(h);
+  return () => loginHandlers.delete(h);
 }
 
 /** 订阅连接状态 */
@@ -65,6 +90,10 @@ export function connectWs(): void {
       for (const h of snapshotHandlers) h(env.payload as DashboardSnapshot);
     } else if (env.type === MESSAGE_TYPES.DASHBOARD_PATCH) {
       for (const h of patchHandlers) h(env.payload as DashboardPatch);
+    } else if (env.type === MESSAGE_TYPES.DEVICE_LOGIN_CHALLENGE) {
+      for (const h of loginHandlers) h({ kind: 'challenge', data: env.payload as LoginChallengeMsg });
+    } else if (env.type === MESSAGE_TYPES.DEVICE_LOGIN_RESULT) {
+      for (const h of loginHandlers) h({ kind: 'result', data: env.payload as LoginResultMsg });
     }
   };
 

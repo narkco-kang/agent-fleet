@@ -213,4 +213,29 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
       return { ok: true, data: { dispatched: true, deviceId: id, agentType } };
     },
   );
+
+  /** 发起登录授权（看板授权中心）：向在线设备下发 device.login_request，
+   *  设备执行 platform device-auth，回传 URL+code 经看板展示给用户完成浏览器授权。 */
+  app.post<{ Params: { id: string; agentType: string } }>(
+    '/api/devices/:id/platforms/:agentType/login',
+    async (req, reply) => {
+      const { id, agentType } = req.params;
+      const row = getDevice(id);
+      if (!row) return reply.code(404).send({ ok: false, error: 'device_not_found' });
+      if (!deviceRegistry.isOnline(id)) {
+        return reply.code(409).send({ ok: false, error: 'device_offline' });
+      }
+      const sent = sendToDevice(id, {
+        v: 1,
+        type: MESSAGE_TYPES.DEVICE_LOGIN_REQUEST,
+        id: `loginreq-${Date.now()}`,
+        ts: Date.now(),
+        from: 'coordinator',
+        to: id,
+        payload: { deviceId: id, agentType },
+      });
+      if (!sent) return reply.code(409).send({ ok: false, error: 'device_not_reachable' });
+      return { ok: true, data: { dispatched: true, deviceId: id, agentType } };
+    },
+  );
 }

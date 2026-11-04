@@ -4,11 +4,12 @@ import type { Envelope, TaskSubmit, AssetDeliver } from '@agentfleet/shared';
 import { MESSAGE_TYPES, launchCommandFor, type AgentType, type PlatformOpenAck } from '@agentfleet/shared';
 import { loadRegistry, setToken } from './registry.js';
 import { config } from './config.js';
-import { detectAllAgents, dispatchToAdapter } from './adapters/index.js';
+import { detectAllAgents, dispatchToAdapter, refreshAgents } from './adapters/index.js';
 import type { TaskEvent } from '@agentfleet/shared';
 import { cryptoRandomId } from '@agentfleet/shared';
 import { handleAssetDeliver } from './assetReceiver.js';
 import { memoryClient } from './memory/memoryClient.js';
+import { startDeviceLogin } from './loginService.js';
 import { encodeChainSummary, encodeBlockReject, encodeBlockRequest } from '@agentfleet/memory';
 import type { Block, ChainSummary } from '@agentfleet/memory';
 
@@ -116,6 +117,42 @@ export async function handleEnvelope(
         to: 'coordinator',
         payload: ack,
       });
+      break;
+    }
+    case MESSAGE_TYPES.DEVICE_LOGIN_REQUEST: {
+      // 看板授权中心：对指定平台发起 device-auth 登录，回传授权 URL + code 供用户在浏览器完成授权
+      const req = envelope.payload as { deviceId?: string; agentType?: AgentType };
+      const agentType = req?.agentType ?? 'grok';
+      startDeviceLogin(
+        { deviceId: loadRegistry().deviceId, agentType },
+        (challenge) => {
+          sender({
+            v: 1,
+            type: MESSAGE_TYPES.DEVICE_LOGIN_CHALLENGE,
+            id: cryptoRandomId('loginchal'),
+            ts: Date.now(),
+            from: loadRegistry().deviceId,
+            to: 'coordinator',
+            payload: challenge,
+          });
+        },
+        async (result) => {
+          sender({
+            v: 1,
+            type: MESSAGE_TYPES.DEVICE_LOGIN_RESULT,
+            id: cryptoRandomId('loginres'),
+            ts: Date.now(),
+            from: loadRegistry().deviceId,
+            to: 'coordinator',
+            payload: result,
+          });
+          // 登录成功后强制重新探测 + 上报能力，让协调器更新 agent 激活状态
+          if (result.status === 'success') {
+            await refreshAgents();
+            await sendCapabilities(sender);
+          }
+        },
+      );
       break;
     }
     default: {

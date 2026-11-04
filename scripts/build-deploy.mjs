@@ -29,6 +29,9 @@ const base = {
   minify: false,
   logLevel: 'info',
   alias,
+  // @xenova/transformers（onnxruntime）原生 .node 无法打进单文件；embedder 已改动态 import，
+  // 设备端不跑向量检索，运行时不会 require 它；backend 侧在运行时从 node_modules 解析。
+  external: ['@xenova/transformers'],
 };
 
 async function main() {

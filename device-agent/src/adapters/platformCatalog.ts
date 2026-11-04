@@ -32,6 +32,20 @@ export interface PlatformDef extends PlatformProbe {
   maxConcurrency: number;
   /** 执行配置（缺省 = unsupported，run 走占位失败并附说明） */
   runSpec?: RunSpec;
+  /** 登录授权配置（Device Auth Flow：headless 执行 CLI 登录命令，捕获 URL + code，供看板授权中心用） */
+  loginSpec?: LoginSpec;
+}
+
+/** 登录授权规格（Device Auth Flow） */
+export interface LoginSpec {
+  /** device-auth 启动参数（如 codex：['login','--device-auth']） */
+  args: string[];
+  /** 授权 URL 提取正则（缺省用通用 https 链接提取） */
+  urlPattern?: RegExp;
+  /** 一次性 code 提取正则（缺省用通用 XXXX-XXXX 短码提取） */
+  codePattern?: RegExp;
+  /** 未配置 loginSpec 时的说明（诚实口径） */
+  note?: string;
 }
 
 export const PLATFORM_CATALOG: PlatformDef[] = [
@@ -45,6 +59,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     capabilities: ['coding'],
     maxConcurrency: 1,
     runSpec: { mode: 'cli-text', args: ['exec', '{prompt}', '--skip-git-repo-check'], textOutput: true, note: 'codex exec 单轮（--skip-git-repo-check 允许非 git 目录）' },
+    loginSpec: { args: ['login', '--device-auth'], note: 'codex login --device-auth 输出 URL + one-time code（实机验证）' },
   },
   {
     agentType: 'claude',
@@ -56,6 +71,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
     runSpec: { mode: 'cli-stream', args: ['-p', '{prompt}', '--output-format', 'stream-json', '--verbose'], streamJson: true, note: 'claude -p stream-json（实机验证：--output-format=stream-json 需 --verbose，否则报错）' },
+    loginSpec: { args: ['login'], note: 'claude login 输出授权 URL + code（device auth flow，待实机验证）' },
   },
   {
     agentType: 'dsh',
@@ -143,6 +159,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
     runSpec: { mode: 'acp', spawnArgs: ['acp'], note: 'kimi acp 走 ACP（开箱即用，需先 kimi /login 登录）；旧版 kimi-cli(PyPI)已归档，新版 npm 包 @moonshot-ai/kimi-code' },
+    loginSpec: { args: ['login'], note: 'kimi login 走 device auth flow（待实机验证 URL/code 输出）' },
   },
   {
     agentType: 'opencode',

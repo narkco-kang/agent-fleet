@@ -13,6 +13,10 @@ export type MessageType =
   | 'device.relay_offline'
   | 'device.platform_open'
   | 'device.platform_open_ack'
+  // 设备登录授权（Device Auth Flow 中继：看板统一完成各设备 agent 的登录授权）
+  | 'device.login_request'
+  | 'device.login_challenge'
+  | 'device.login_result'
   // 任务下发 / 流转
   | 'task.submit'
   | 'task.submit_ack'
@@ -51,6 +55,9 @@ export const MESSAGE_TYPES: Record<string, MessageType> = {
   DEVICE_RELAY_OFFLINE: 'device.relay_offline',
   DEVICE_PLATFORM_OPEN: 'device.platform_open',
   DEVICE_PLATFORM_OPEN_ACK: 'device.platform_open_ack',
+  DEVICE_LOGIN_REQUEST: 'device.login_request',
+  DEVICE_LOGIN_CHALLENGE: 'device.login_challenge',
+  DEVICE_LOGIN_RESULT: 'device.login_result',
   TASK_SUBMIT: 'task.submit',
   TASK_SUBMIT_ACK: 'task.submit_ack',
   TASK_EVENT: 'task.event',

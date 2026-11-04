@@ -26,6 +26,32 @@ export interface DeviceRegisterAck {
   paired: boolean;
 }
 
+/** 登录授权请求（device.login_request：coordinator → 设备，让设备对指定平台发起 device-auth 登录） */
+export interface DeviceLoginRequest {
+  deviceId: string;
+  agentType: AgentType;
+}
+
+/** 登录授权挑战（device.login_challenge：设备 → coordinator，回传浏览器授权 URL + 一次性码） */
+export interface DeviceLoginChallenge {
+  deviceId: string;
+  agentType: AgentType;
+  /** 浏览器授权 URL（用户打开并登录） */
+  url: string;
+  /** 一次性授权码（用户输入） */
+  code: string;
+  /** 已授权（平台此前已登录，无需再次授权） */
+  alreadyAuthed?: boolean;
+}
+
+/** 登录授权结果（device.login_result：设备 → coordinator，device-auth 轮询的最终结果） */
+export interface DeviceLoginResult {
+  deviceId: string;
+  agentType: AgentType;
+  status: 'success' | 'timeout' | 'cancelled' | 'failed';
+  message?: string;
+}
+
 /** 设备心跳 payload（device.heartbeat，10s） */
 export interface DeviceHeartbeat {
   deviceId: string;

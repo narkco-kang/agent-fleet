@@ -238,6 +238,11 @@ function handleEnvelope(socket: WebSocket, raw: string, fallbackPeer?: Peer): vo
       }
       break;
     }
+    case MESSAGE_TYPES.DEVICE_LOGIN_CHALLENGE:
+    case MESSAGE_TYPES.DEVICE_LOGIN_RESULT: {
+      handleDeviceLoginMessage(type, envelope.payload);
+      break;
+    }
     default: {
       // 未知类型：按 03 §6.4 不静默吞，回一个 system 事件
       if (peer?.kind === 'device' && peer.deviceId) {
@@ -420,6 +425,45 @@ export function handleRelayEnvelope(env: Envelope): void {
     broadcastDevicePatch(hb.deviceId);
     return;
   }
+
+  // 设备登录授权挑战/结果（看板授权中心）：转发看板 + 成功后标记 agent 激活
+  handleDeviceLoginMessage(type, payload);
+}
+
+/** 处理设备登录授权消息（challenge/result），直连与中继路径共用 */
+function handleDeviceLoginMessage(type: string, payload: unknown): boolean {
+  if (type === MESSAGE_TYPES.DEVICE_LOGIN_CHALLENGE) {
+    const c = payload as { deviceId?: string; agentType?: string; url?: string; code?: string };
+    if (!c?.url || !c?.code) return false;
+    broadcastToDashboards({
+      v: 1,
+      type: MESSAGE_TYPES.DEVICE_LOGIN_CHALLENGE,
+      id: `lc-${Date.now()}`,
+      ts: Date.now(),
+      from: c.deviceId ?? 'device',
+      to: 'dashboard',
+      payload: c,
+    });
+    return true;
+  }
+  if (type === MESSAGE_TYPES.DEVICE_LOGIN_RESULT) {
+    const r = payload as { deviceId?: string; agentType?: string; status?: string; message?: string };
+    broadcastToDashboards({
+      v: 1,
+      type: MESSAGE_TYPES.DEVICE_LOGIN_RESULT,
+      id: `lr-${Date.now()}`,
+      ts: Date.now(),
+      from: r.deviceId ?? 'device',
+      to: 'dashboard',
+      payload: r,
+    });
+    // 登录成功 → 标记该 agent 已激活（用户已授权）
+    if (r?.status === 'success' && r.deviceId && r.agentType) {
+      setAgentActivated(r.deviceId, r.agentType as never, true);
+    }
+    return true;
+  }
+  return false;
 }
 
 /** ws 探活间隔：每 PING_INTERVAL_MS 发一次 ping，一次未回 pong 即判定死连接 */

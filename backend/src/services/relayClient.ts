@@ -69,6 +69,8 @@ export function connectRelay(): void {
 export function relaySend(deviceId: string, envelope: Envelope): void {
   if (relaySocket && relaySocket.readyState === WebSocket.OPEN) {
     relaySocket.send(JSON.stringify({ ...envelope, to: deviceId }));
+  } else if (process.env.AGENTFLEET_DEBUG_RELAY === '1') {
+    console.log(`[relay-send] 未发送 type=${envelope.type} to=${deviceId} relaySocket=${relaySocket ? `state=${relaySocket.readyState}` : 'NULL'}`);
   }
 }
 

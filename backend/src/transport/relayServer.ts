@@ -120,6 +120,9 @@ function route(env: Envelope, from: WebSocket): void {
   // 协调 → 设备：to 是 deviceId
   if (env.to && env.to !== 'dashboard' && env.to !== 'wechat') {
     const target = deviceSockets.get(env.to);
+    if (process.env.AGENTFLEET_DEBUG_RELAY === '1') {
+      console.log(`[relay-route] to=${env.to} type=${env.type} target=${target ? 'found' : 'MISSING'} targetOpen=${target ? target.readyState : 'n/a'}`);
+    }
     if (target && target !== from && target.readyState === target.OPEN) {
       target.send(JSON.stringify(env));
     }

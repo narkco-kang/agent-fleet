@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Drawer from '@mui/material/Drawer';
 import Button from '@mui/material/Button';
 import CloseIcon from '@mui/icons-material/Close';
@@ -6,6 +6,7 @@ import { useDeviceStore } from '../../store/deviceStore';
 import { useTaskStore } from '../../store/taskStore';
 import { StatusBadge } from '../common/StatusBadge';
 import { http } from '../../api/http';
+import { onLogin, type LoginChallengeMsg, type LoginResultMsg } from '../../api/ws';
 
 /**
  * 右侧详情抽屉（04 §3.6）：点神经图节点后展开该节点详情。
@@ -101,7 +102,25 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
   const agent = device?.agents.find((a) => a.agentType === target.agentType) ?? device?.agents.find((a) => a.displayName === target.title);
   const [opening, setOpening] = useState(false);
   const [openMsg, setOpenMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // 看板授权中心：device-auth 登录挑战（URL + code）与结果
+  const [loginChallenge, setLoginChallenge] = useState<LoginChallengeMsg | null>(null);
+  const [loginResult, setLoginResult] = useState<LoginResultMsg | null>(null);
+  const [requesting, setRequesting] = useState(false);
   const deviceOnline = device?.status === 'online' || device?.status === 'busy';
+
+  // 监听设备登录授权消息（challenge / result），仅处理当前 agent
+  useEffect(() => {
+    return onLogin((msg) => {
+      if (msg.data.deviceId !== target.deviceId || msg.data.agentType !== target.agentType) return;
+      if (msg.kind === 'challenge') {
+        setLoginChallenge(msg.data);
+        setLoginResult(null);
+      } else if (msg.kind === 'result') {
+        setLoginResult(msg.data);
+        if (msg.data.status === 'success') setLoginChallenge(null);
+      }
+    });
+  }, [target.deviceId, target.agentType]);
 
   const openPlatform = async (): Promise<void> => {
     setOpening(true);
@@ -113,6 +132,24 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
       setOpenMsg({ ok: false, text: (err as Error).message });
     } finally {
       setOpening(false);
+    }
+  };
+
+  const requestLogin = async (): Promise<void> => {
+    setRequesting(true);
+    setLoginChallenge(null);
+    setLoginResult(null);
+    try {
+      await http.requestDeviceLogin(target.deviceId, target.agentType);
+    } catch (err) {
+      setLoginResult({
+        deviceId: target.deviceId,
+        agentType: target.agentType,
+        status: 'failed',
+        message: (err as Error).message,
+      });
+    } finally {
+      setRequesting(false);
     }
   };
 
@@ -167,6 +204,69 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
             }`}
           >
             {openMsg.text}
+          </div>
+        )}
+
+        {/* 看板授权中心：Device Auth Flow（无需 SSH 到设备，浏览器统一完成授权） */}
+        {!activated && deviceOnline && (
+          <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] p-3">
+            <div className="text-xs font-semibold text-[var(--text-strong)]">看板授权（推荐）</div>
+            <div className="mt-1 text-xs text-[var(--text-muted)]">
+              直接在本看板完成浏览器授权，无需远程登录设备。
+            </div>
+            {!loginChallenge && !loginResult && (
+              <Button
+                size="small"
+                variant="outlined"
+                fullWidth
+                disabled={requesting}
+                onClick={requestLogin}
+                sx={{ mt: 1.5 }}
+              >
+                {requesting ? '发起登录中…' : '发起登录授权'}
+              </Button>
+            )}
+            {loginChallenge && (
+              <div className="mt-2 space-y-1.5">
+                <div className="text-xs text-[var(--text)]">1. 打开链接并登录你的账号</div>
+                <a
+                  href={loginChallenge.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block truncate text-xs text-[#4F46E5] underline"
+                >
+                  {loginChallenge.url}
+                </a>
+                <div className="text-xs text-[var(--text)]">2. 输入下方一次性授权码</div>
+                <div className="flex items-center gap-2">
+                  <code className="rounded bg-[var(--brand-soft)] px-2 py-1 text-sm font-bold tracking-widest text-[#4F46E5]">
+                    {loginChallenge.code}
+                  </code>
+                  <button
+                    onClick={() => void navigator.clipboard?.writeText(loginChallenge.code)}
+                    className="text-xs text-[#4F46E5] hover:underline"
+                  >
+                    复制
+                  </button>
+                </div>
+                <div className="text-xs text-[var(--text-muted)]">授权成功后自动激活，正在等待…</div>
+              </div>
+            )}
+            {loginResult && (
+              <div
+                className={`mt-2 rounded-md px-2 py-1.5 text-xs ${
+                  loginResult.status === 'success'
+                    ? 'bg-[var(--success-soft)] text-[#15803D]'
+                    : 'bg-[var(--danger-soft)] text-[#B91C1C]'
+                }`}
+              >
+                {loginResult.status === 'success'
+                  ? '授权成功，该 agent 已激活'
+                  : loginResult.status === 'timeout'
+                    ? '授权超时（一次性码 15 分钟过期），请重新发起'
+                    : `登录失败：${loginResult.message ?? loginResult.status}`}
+              </div>
+            )}
           </div>
         )}
       </div>
