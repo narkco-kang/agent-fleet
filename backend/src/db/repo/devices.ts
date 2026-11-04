@@ -18,6 +18,7 @@ export interface DeviceRow {
   primary_agent_type: AgentType | null;
   team_id: string | null;
   role_team_id: string | null;
+  group_name: string;
   sub_role_bindings: string;
   created_at: number;
 }
@@ -161,6 +162,21 @@ export function getDeviceTeam(deviceId: string): string | null {
   return row?.team_id ?? null;
 }
 
+/** 设置设备分组标签（group 为空字符串表示清除分组，群组感知） */
+export function setDeviceGroup(deviceId: string, group: string): boolean {
+  return getDb()
+    .prepare(`UPDATE devices SET group_name = ? WHERE device_id = ?`)
+    .run(group.trim(), deviceId).changes > 0;
+}
+
+/** 查询某分组的设备 id 列表（群组感知，group 模式路由） */
+export function listDevicesByGroup(group: string): string[] {
+  const rows = getDb()
+    .prepare(`SELECT device_id FROM devices WHERE group_name = ? ORDER BY created_at ASC`)
+    .all(group) as Array<{ device_id: string }>;
+  return rows.map((r) => r.device_id);
+}
+
 /** 设置设备绑定的蜂群角色团队（roleTeamId 为 null 表示解绑） */
 export function setDeviceRoleTeam(deviceId: string, roleTeamId: string | null): boolean {
   return getDb()
@@ -277,6 +293,7 @@ export function toDeviceSnapshot(
     teamName,
     roleTeamId: row.role_team_id ?? null,
     roleTeamName,
+    groupName: row.group_name || null,
     load,
     busyAgents,
   };

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS devices (
   owner          TEXT NOT NULL DEFAULT 'default',
   primary_agent_type TEXT,
   team_id        TEXT,                       -- 该设备绑定的团队（团队模式路由）
+  group_name     TEXT NOT NULL DEFAULT '',   -- 设备分组标签（群组感知，group 模式路由）
   created_at     INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
 );
 

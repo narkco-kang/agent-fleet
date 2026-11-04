@@ -57,12 +57,18 @@ function runMigrations(database: Database.Database): void {
   if (!taskCols.includes('checkpoint')) {
     database.exec(`ALTER TABLE tasks ADD COLUMN checkpoint TEXT`);
   }
+  if (!taskCols.includes('target_group')) {
+    database.exec(`ALTER TABLE tasks ADD COLUMN target_group TEXT`);
+  }
 
   const deviceCols = (
     database.prepare(`PRAGMA table_info(devices)`).all() as Array<{ name: string }>
   ).map((c) => c.name);
   if (!deviceCols.includes('primary_agent_type')) {
     database.exec(`ALTER TABLE devices ADD COLUMN primary_agent_type TEXT`);
+  }
+  if (!deviceCols.includes('group_name')) {
+    database.exec(`ALTER TABLE devices ADD COLUMN group_name TEXT NOT NULL DEFAULT ''`);
   }
   if (!deviceCols.includes('team_id')) {
     database.exec(`ALTER TABLE devices ADD COLUMN team_id TEXT`);

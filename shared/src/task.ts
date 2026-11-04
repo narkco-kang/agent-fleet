@@ -133,6 +133,8 @@ export interface TaskSnapshot {
   targetRoleTeamId?: string | null;
   /** mode='swarm' 时的子角色 slug */
   targetSubRole?: string | null;
+  /** mode='group' 时的设备分组标签 */
+  targetGroup?: string | null;
   /** 平台内的 bot 名（如 grok 自定义 agent） */
   agentProfile?: string | null;
   resultText?: string | null;

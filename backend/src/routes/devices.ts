@@ -7,6 +7,8 @@ import {
   deleteDevice,
   getDevice,
   listDevices,
+  listDevicesByGroup,
+  setDeviceGroup,
   setDeviceTeam,
   setDeviceToken,
   setPrimaryAgent,
@@ -146,6 +148,34 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
       };
     },
   );
+
+  /** 设置设备分组标签（group 为空字符串 = 清除分组，群组感知） */
+  app.put<{ Params: { id: string }; Body: { group?: string } }>(
+    '/api/devices/:id/group',
+    async (req, reply) => {
+      const row = getDevice(req.params.id);
+      if (!row) return reply.code(404).send({ ok: false, error: 'device_not_found' });
+      const group = (req.body?.group ?? '').trim();
+      setDeviceGroup(req.params.id, group);
+      return { ok: true, data: { deviceId: req.params.id, groupName: group || null } };
+    },
+  );
+
+  /** 列出所有设备分组（群组感知，供新建任务选分组） */
+  app.get('/api/devices/groups', async () => {
+    const rows = listDevices();
+    const groups = new Map<string, number>();
+    for (const r of rows) {
+      const g = (r.group_name ?? '').trim();
+      if (g) groups.set(g, (groups.get(g) ?? 0) + 1);
+    }
+    return {
+      ok: true,
+      data: Array.from(groups.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  });
 
   /** 批量设置主 AI agent */
   app.post<{ Body: { deviceIds?: string[]; agentType?: string | null } }>(

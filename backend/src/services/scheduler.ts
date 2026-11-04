@@ -11,7 +11,7 @@ import {
 import type { TaskRow } from '../db/repo/tasks.js';
 import type { AgentRow } from '../db/repo/agents.js';
 import { claimAgent, releaseAgent, listAgents } from '../db/repo/agents.js';
-import { listDevicesByTeam, listPrimaryAgents } from '../db/repo/devices.js';
+import { listDevicesByTeam, listDevicesByGroup, listPrimaryAgents } from '../db/repo/devices.js';
 import { getTeam } from '../db/repo/teams.js';
 import { broadcastToDashboards, sendToDevice } from '../transport/wsServer.js';
 import { roleRouter } from './routing/roleRouter.js';
@@ -50,6 +50,8 @@ export interface SchedulerSubmitInput {
   targetTeamId?: string;
   targetRoleTeamId?: string;
   targetSubRole?: string;
+  /** 群组感知：mode='group' 时的设备分组标签 */
+  targetGroup?: string;
   requireCapability?: string;
   /** 平台内的 bot 名（如 grok 的 explore/plan/reviewer） */
   agentProfile?: string;
@@ -119,6 +121,7 @@ export function enqueueTask(input: SchedulerSubmitInput): string {
     targetTeamId: input.targetTeamId ?? null,
     targetRoleTeamId: input.targetRoleTeamId ?? null,
     targetSubRole: input.targetSubRole ?? null,
+    targetGroup: input.targetGroup ?? null,
     requireCapability: input.requireCapability ?? null,
     agentProfile: input.agentProfile ?? null,
   });
@@ -267,6 +270,7 @@ export function pickTarget(task: {
   target_agent_type: AgentType | null;
   target_role: string | null;
   target_team_id?: string | null;
+  target_group?: string | null;
   require_capability: string | null;
 }): DeviceAgent | null {
   return pickTargetCached(task, onlineDeviceAgents(), listPrimaryAgents());
@@ -281,6 +285,7 @@ function pickTargetCached(
     target_agent_type: AgentType | null;
     target_role: string | null;
     target_team_id?: string | null;
+    target_group?: string | null;
     require_capability: string | null;
   },
   pairs: DeviceAgent[],
@@ -291,6 +296,15 @@ function pickTargetCached(
   // 团队模式：只在团队绑定的设备上选目标（A 设备=软件开发团队，B 设备=内容专家团队）
   if (task.target_mode === 'team') {
     return pickTeamTarget(task, pairs);
+  }
+
+  // 群组模式：只在指定分组标签的设备上选目标（群组感知）
+  if (task.target_mode === 'group' && task.target_group) {
+    const groupDevices = new Set(listDevicesByGroup(task.target_group));
+    const candidates = pairs.filter(
+      (p) => groupDevices.has(p.deviceId) && agentMatches(p.agent, task.target_agent_type, task.require_capability),
+    );
+    return pickBest(candidates);
   }
 
   // 角色路由 → 本地 agent 路径

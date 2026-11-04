@@ -21,6 +21,7 @@ export interface TaskRow {
   target_team_id: string | null;
   target_role_team_id: string | null;
   target_sub_role: string | null;
+  target_group: string | null;
   require_capability: string | null;
   agent_profile: string | null;
   status: TaskStatus;
@@ -50,6 +51,7 @@ export interface TaskCreateInput {
   targetTeamId?: string | null;
   targetRoleTeamId?: string | null;
   targetSubRole?: string | null;
+  targetGroup?: string | null;
   requireCapability?: string | null;
   agentProfile?: string | null;
 }
@@ -61,10 +63,10 @@ export function createTask(input: TaskCreateInput): void {
       `INSERT INTO tasks
         (task_id, session_id, origin, origin_ref, prompt, target_mode,
          target_device_id, target_agent_type, target_role, target_team_id,
-         target_role_team_id, target_sub_role, require_capability, agent_profile, status, created_at)
+         target_role_team_id, target_sub_role, target_group, require_capability, agent_profile, status, created_at)
        VALUES (@taskId, @sessionId, @origin, @originRef, @prompt, @targetMode,
          @targetDeviceId, @targetAgentType, @targetRole, @targetTeamId,
-         @targetRoleTeamId, @targetSubRole, @requireCapability, @agentProfile, 'queued', @now)`,
+         @targetRoleTeamId, @targetSubRole, @targetGroup, @requireCapability, @agentProfile, 'queued', @now)`,
     )
     .run({
       taskId: input.taskId,
@@ -79,6 +81,7 @@ export function createTask(input: TaskCreateInput): void {
       targetTeamId: input.targetTeamId ?? null,
       targetRoleTeamId: input.targetRoleTeamId ?? null,
       targetSubRole: input.targetSubRole ?? null,
+      targetGroup: input.targetGroup ?? null,
       requireCapability: input.requireCapability ?? null,
       agentProfile: input.agentProfile ?? null,
       now: Date.now(),

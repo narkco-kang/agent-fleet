@@ -124,6 +124,8 @@ export interface DeviceSnapshot {
   roleTeamId?: string | null;
   /** 蜂群角色团队展示名（快照冗余，便于前端直接展示） */
   roleTeamName?: string | null;
+  /** 设备分组标签（群组感知，group 模式路由用，空字符串 = 未分组） */
+  groupName?: string | null;
   load: DeviceLoad;
   busyAgents: number;
 }

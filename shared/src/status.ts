@@ -51,8 +51,8 @@ export type AgentType =
   | 'windsurf'
   | 'workbuddy';
 
-/** 路由模式（扩展 role：角色路由；team：按设备团队模式路由；swarm：蜂群角色团队路由） */
-export type TargetMode = 'auto' | 'device' | 'agent' | 'role' | 'team' | 'swarm';
+/** 路由模式（扩展 role：角色路由；team：按设备团队模式路由；swarm：蜂群角色团队路由；group：按设备分组标签路由） */
+export type TargetMode = 'auto' | 'device' | 'agent' | 'role' | 'team' | 'swarm' | 'group';
 
 /** 任务取消原因 */
 export type CancelReason = 'user_cancel' | 'timeout' | 'device_offline' | 'system';
@@ -174,7 +174,7 @@ export const AGENT_TYPES: readonly AgentType[] = [
   'workbuddy',
 ] as const;
 
-export const TARGET_MODES: readonly TargetMode[] = ['auto', 'device', 'agent', 'role', 'team', 'swarm'] as const;
+export const TARGET_MODES: readonly TargetMode[] = ['auto', 'device', 'agent', 'role', 'team', 'swarm', 'group'] as const;
 
 export const ASSET_KINDS: readonly AssetKind[] = ['rule', 'knowledge', 'skill', 'prompt'] as const;
 
