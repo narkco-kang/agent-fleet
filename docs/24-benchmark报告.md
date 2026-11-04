@@ -17,6 +17,7 @@
 | 断连迁移 | **running → queued 自动重派** | 设备断线秒级感知，任务不丢 |
 | 调度延迟 P50/P90/P99 | **339 / 592 / 639 ms** | enqueue → running（4 设备×2 agent，200 任务） |
 | 大规模故障转移 | **1000/1000 完成，lost=0** | 8 设备×24 agent，dev-0 @200ms 掉线仍不丢任务 |
+| 真实物理机端到端 | **5/5 completed** | 3 台云服务器 × 5 agent，免登录真 CLI 出结果 |
 
 ---
 
@@ -59,7 +60,49 @@
 
 ---
 
-## 四、断连感知 + 任务自动迁移（容错实证）
+## 四、真实物理机（云服务器）端到端验证（2026-11-05）
+
+度量对象：**真实物理机 + 真实 CLI + 免登录免费源**的完整端到端链路（区别于第三节的「进程级 bench 模式」——这里是真云服务器上跑真 codex/claude CLI）。
+
+### 拓扑
+
+```
+本机 backend :4173 ──出站连──> 公网中继（Ubuntu :4174）──转发──> 三台真实云服务器
+                                                                  ├─ ubuntu-dev：codex 0.166.0 + claude 2.1.197
+                                                                  ├─ win120-dev：codex
+                                                                  └─ win165-dev：codex + claude
+                                                                  （每台本地 modelgateway :18765 做 anthropic 转换）
+```
+
+### 免登录模型源（关键技术）
+
+| 平台 | 免登录方式 | 模型源 |
+|---|---|---|
+| codex | 直连 kilo 免费源（原生 Responses API，免 key） | `api.kilo.ai/api/gateway/v1`，`wire_api=responses` |
+| claude | 走设备本地 modelgateway（anthropic→chat 转换） | 免费源模型，`ANTHROPIC_BASE_URL=127.0.0.1:18765` |
+
+### 数据（5 任务并发，跨三台物理机）
+
+| 设备 | agent | 结果 | 输出 |
+|---|---|---|---|
+| ubuntu-dev | codex | completed | OK |
+| ubuntu-dev | claude | completed | OK |
+| win120-dev | codex | completed | OK |
+| win165-dev | codex | completed | OK |
+| win165-dev | claude | completed | OK |
+
+**5/5 completed**，全程免登录（未登录 OpenAI/Anthropic 账号），真 CLI 启动 → 免费源 → 结果回传。
+
+### 关键点
+
+1. **真 CLI 免登录闭环**：codex 直连 kilo（原生 responses 免 key）、claude 走本地 modelgateway anthropic 转换，无需任何账号登录。
+2. **Windows 真执行打通**：修复探测器返回 `.cmd` 路径（`where` 同时返回无扩展名 shell 脚本，spawn ENOENT）+ `spawn cmd.exe /c` 包装（含空格 prompt 转义），两台 Windows 真机 codex/claude 首次跑通。
+3. **跨公网调度**：backend → 公网中继 → 三台设备，任务派发/认领/结果回传全链路通。
+4. **免费源限流约束**：本验证为「5 任务的端到端链路验证」，非高吞吐压测（高吞吐由进程级 bench 度量，见二/三节）。免费源有速率限制，换付费 Provider 可跑更高并发真实吞吐。
+
+---
+
+## 五、断连感知 + 任务自动迁移（容错实证）
 
 | 能力 | 实现 | 验证 |
 |---|---|---|
@@ -68,7 +111,7 @@
 
 ---
 
-## 五、可复现方法
+## 六、可复现方法
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v24.22.1/bin:$PATH"   # 必须 Node 24
@@ -86,7 +129,7 @@ npm run benchmark:multi --workspace backend
 
 ---
 
-## 六、结论
+## 七、结论
 
 这三组数字共同证明：**AgentFleet 的「跨设备蜂群调度」是可量化、可审计、不可复制的工程能力**——
 
