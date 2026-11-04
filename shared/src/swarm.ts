@@ -63,6 +63,8 @@ export interface RoleTeam {
   purpose: SwarmPurpose;
   /** 有序子角色 slug 数组（冗余，便于快速展示；事实源为 sub_roles 表） */
   subRoleIds: string[];
+  /** Leader 子角色 slug（P2-4：未指定 subRole 的任务先路由到 Leader 协调） */
+  leaderSlug?: string;
   version: number;
   isPreset: boolean;
   createdAt: number;

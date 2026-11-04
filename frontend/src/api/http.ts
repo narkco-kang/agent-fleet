@@ -160,6 +160,8 @@ export const http = {
     id: string,
     body: { name?: string; slug?: string; description?: string; purpose?: SwarmPurpose },
   ) => put<ApiOk<RoleTeam>>(`/api/swarm/teams/${id}`, body),
+  setSwarmLeader: (id: string, slug: string | null) =>
+    put<ApiOk<RoleTeam>>(`/api/swarm/teams/${id}/leader`, { slug }),
   deleteSwarmTeam: (id: string) => del<ApiOk<never>>(`/api/swarm/teams/${id}`),
   upsertSwarmSubRole: (teamId: string, body: Partial<SubRole> & { slug: string; name: string }) =>
     post<ApiOk<SubRole>>(`/api/swarm/teams/${teamId}/sub-roles`, body),

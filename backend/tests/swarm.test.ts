@@ -1089,3 +1089,92 @@ describe('J. 设备 REST 快照含 roleTeamName', () => {
     expect(body.data.roleTeamName).toBe('rest-device-team-team');
   });
 });
+
+// ============================================================
+// J. Leader 实体（P2-4）
+// ============================================================
+describe('J. Leader 实体（P2-4）', () => {
+  let sent: Array<{ deviceId: string; envelope: Envelope }>;
+
+  beforeAll(() => {
+    setRelayForward((deviceId, envelope) => {
+      sent.push({ deviceId, envelope });
+    });
+  });
+
+  beforeEach(() => {
+    sent = [];
+  });
+
+  it('设置 Leader 后，未指定 subRole 的任务路由到 Leader（协调 prompt）', () => {
+    registerDevice('dev-lead');
+    seedAgent('dev-lead', 'codex', { capabilities: ['coding'] });
+
+    const teamId = createTeam('lead-team', [
+      subRoleInput('lead', { name: '团队协调', preferredAgentType: 'codex', requiredCapabilities: ['coding'], position: 0 }),
+      subRoleInput('engineer', { preferredAgentType: 'codex', requiredCapabilities: ['coding'], position: 1 }),
+    ]);
+    swarmService.bindDevice(teamId, 'dev-lead');
+    swarmService.setDeviceSubRoleBinding('dev-lead', 'lead', 'codex');
+    swarmService.setDeviceSubRoleBinding('dev-lead', 'engineer', 'codex');
+    swarmService.setLeader(teamId, 'lead');
+
+    enqueueTask({
+      taskId: 'task-lead-1',
+      sessionId: 'sess-lead-1',
+      origin: 'dashboard',
+      originRef: 'qa-swarm',
+      prompt: '请规划登录模块的实现',
+      targetMode: 'swarm',
+      targetRoleTeamId: teamId,
+    });
+
+    const row = getTask('task-lead-1');
+    expect(row?.target_sub_role).toBe('lead');
+
+    const dispatched = sent.find((s) => s.deviceId === 'dev-lead');
+    expect(dispatched).toBeDefined();
+    const payload = dispatched!.envelope.payload as TaskSubmit;
+    expect(payload.systemPrompt).toContain('Leader（协调者）');
+    expect(payload.systemPrompt).toContain('团队成员清单');
+    expect(payload.systemPrompt).toContain('engineer'); // 成员清单里含 engineer 子角色
+  });
+
+  it('指定 subRole 的任务仍直接路由到该子角色（Leader 不介入）', () => {
+    registerDevice('dev-lead2');
+    seedAgent('dev-lead2', 'codex', { capabilities: ['coding'] });
+
+    const teamId = createTeam('lead-team2', [
+      subRoleInput('lead', { name: '协调', preferredAgentType: 'codex', position: 0 }),
+      subRoleInput('engineer', { preferredAgentType: 'codex', requiredCapabilities: ['coding'], position: 1 }),
+    ]);
+    swarmService.bindDevice(teamId, 'dev-lead2');
+    swarmService.setDeviceSubRoleBinding('dev-lead2', 'lead', 'codex');
+    swarmService.setDeviceSubRoleBinding('dev-lead2', 'engineer', 'codex');
+    swarmService.setLeader(teamId, 'lead');
+
+    enqueueTask({
+      taskId: 'task-lead-2',
+      sessionId: 'sess-lead-2',
+      origin: 'dashboard',
+      originRef: 'qa-swarm',
+      prompt: '实现登录接口',
+      targetMode: 'swarm',
+      targetRoleTeamId: teamId,
+      targetSubRole: 'engineer',
+    });
+
+    const row = getTask('task-lead-2');
+    expect(row?.target_sub_role).toBe('engineer');
+
+    const dispatched = sent.find((s) => s.deviceId === 'dev-lead2');
+    const payload = dispatched!.envelope.payload as TaskSubmit;
+    expect(payload.systemPrompt).not.toContain('团队成员清单');
+    expect(payload.systemPrompt).toContain('IDENTITY_TEXT_工程师身份'); // 走普通 persona
+  });
+
+  it('setLeader 校验：子角色不存在报 sub_role_not_found', () => {
+    const teamId = createTeam('lead-team3', [subRoleInput('engineer')]);
+    expect(() => swarmService.setLeader(teamId, 'nope')).toThrow('sub_role_not_found');
+  });
+});

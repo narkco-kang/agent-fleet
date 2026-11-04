@@ -60,6 +60,21 @@ export function registerSwarmRoutes(app: FastifyInstance): void {
     return { ok: true };
   });
 
+  /** 设置/清除团队 Leader 子角色（P2-4：slug=null 清除） */
+  app.put<{ Params: { id: string }; Body: { slug?: string | null } }>(
+    '/api/swarm/teams/:id/leader',
+    async (req, reply) => {
+      try {
+        const team = swarmService.setLeader(req.params.id, req.body?.slug ?? null);
+        if (!team) return reply.code(404).send({ ok: false, error: 'team_not_found' });
+        return { ok: true, data: team };
+      } catch (err) {
+        const msg = (err as Error).message;
+        return reply.code(msg === 'sub_role_not_found' ? 404 : 400).send({ ok: false, error: msg });
+      }
+    },
+  );
+
   /** 团队子角色列表 */
   app.get<{ Params: { id: string } }>('/api/swarm/teams/:id/sub-roles', async (req, reply) => {
     if (!swarmService.get(req.params.id)) {

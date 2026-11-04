@@ -150,6 +150,14 @@ export function update(roleTeamId: string, patch: RoleTeamUpdateInput): RoleTeam
   });
 }
 
+/** 设置/清除团队 Leader 子角色（P2-4：slug=null 清除） */
+export function setLeader(roleTeamId: string, slug: string | null): RoleTeam | undefined {
+  const team = repo.getRoleTeam(roleTeamId);
+  if (!team) return undefined;
+  if (slug && !repo.getSubRole(roleTeamId, slug)) throw new Error('sub_role_not_found');
+  return repo.setLeaderSlug(roleTeamId, slug);
+}
+
 /** 删除团队（先清空子角色软绑定，再解绑设备） */
 export function remove(roleTeamId: string): void {
   const deviceIds = listDevicesByRoleTeam(roleTeamId);

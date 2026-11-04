@@ -24,6 +24,7 @@ export interface RoleTeamRow {
   description: string;
   purpose: string;
   sub_roles: string;
+  leader_slug: string | null;
   version: number;
   is_preset: number;
   created_at: number;
@@ -99,6 +100,7 @@ export function rowToRoleTeam(row: RoleTeamRow): RoleTeam {
     description: row.description ?? '',
     purpose: (row.purpose ?? 'general') as SwarmPurpose,
     subRoleIds: parseArray(row.sub_roles),
+    leaderSlug: row.leader_slug ?? undefined,
     version: row.version ?? 1,
     isPreset: row.is_preset === 1,
     createdAt: row.created_at,
@@ -257,6 +259,14 @@ export function updateRoleTeam(
       purpose: patch.purpose ?? prev.purpose ?? 'general',
       now: Date.now(),
     });
+  return getRoleTeam(roleTeamId);
+}
+
+/** 设置/清除团队 Leader 子角色（P2-4：slug=null 清除） */
+export function setLeaderSlug(roleTeamId: string, slug: string | null): RoleTeam | undefined {
+  getDb()
+    .prepare(`UPDATE role_teams SET leader_slug = ?, updated_at = ? WHERE role_team_id = ?`)
+    .run(slug, Date.now(), roleTeamId);
   return getRoleTeam(roleTeamId);
 }
 

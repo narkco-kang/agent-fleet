@@ -162,6 +162,11 @@ export default function SwarmTeamsPage(): JSX.Element {
     openDetail(teamId);
   };
 
+  const setLeader = async (teamId: string, slug: string | null): Promise<void> => {
+    await http.setSwarmLeader(teamId, slug);
+    openDetail(teamId);
+  };
+
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -245,13 +250,23 @@ export default function SwarmTeamsPage(): JSX.Element {
                 <div key={s.subRoleId} className="rounded-lg border border-[#E2E8F0] p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-medium text-[#0F172A]">{s.name}</div>
+                      <div className="flex items-center gap-2 font-medium text-[#0F172A]">
+                        {s.name}
+                        {detail.leaderSlug === s.slug && <Chip label="Leader" size="small" color="primary" />}
+                      </div>
                       <div className="truncate text-xs text-[#64748B]">
                         {s.slug}
                         {s.preferredAgentType ? ` · 偏好 ${s.preferredAgentType}` : ''}
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
+                      <button
+                        title={detail.leaderSlug === s.slug ? '取消 Leader' : '设为 Leader（未指定子角色的任务先路由到这里）'}
+                        onClick={() => void setLeader(detail.roleTeamId, detail.leaderSlug === s.slug ? null : s.slug)}
+                        className="text-[#0891B2]"
+                      >
+                        {detail.leaderSlug === s.slug ? '取消 Leader' : '设为 Leader'}
+                      </button>
                       <button title="编辑" onClick={() => setSubRoleDialog({ teamId: detail.roleTeamId, subRole: s })} className="text-[#4F46E5]">
                         <EditIcon fontSize="small" />
                       </button>

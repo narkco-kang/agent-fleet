@@ -150,7 +150,7 @@ export function dispatch(): void {
         )?.agent;
         if (!swarmAgent) continue;
         // 认领成功即停；失败则尝试下一个候选（可能是另一台设备，或同设备另一平台）
-        if (dispatchLocalTask(task, decision.deviceId, swarmAgent, decision.systemPrompt)) break;
+        if (dispatchLocalTask(task, decision.deviceId, swarmAgent, decision.systemPrompt, decision.subRoleSlug)) break;
       }
       continue; // 全部候选认领失败 → 保持 queued，等下一轮 dispatch
     }
@@ -185,6 +185,7 @@ function dispatchLocalTask(
   deviceId: string,
   agent: AgentRow,
   systemPrompt?: string,
+  subRoleSlug?: string,
 ): boolean {
   if (!claimAgent(deviceId, agent.agent_type)) {
     // 认领失败（agent 满员）→ 标记 waiting（区别于未分配目标的 queued），等待释放后自动再投递
@@ -195,7 +196,7 @@ function dispatchLocalTask(
   agent.busy_count += 1;
 
   const deviceName = deviceRegistry.get(deviceId)?.name ?? deviceId;
-  assignTaskTarget(task.task_id, deviceId, agent.agent_type);
+  assignTaskTarget(task.task_id, deviceId, agent.agent_type, subRoleSlug);
   updateTaskStatus(task.task_id, 'running', { started_at: Date.now() });
   incBusy(deviceId);
   syncRegistryBusy();

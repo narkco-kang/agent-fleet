@@ -156,17 +156,24 @@ export function setTaskResult(
     });
 }
 
-/** 分配目标（调度确定后写回） */
+/** 分配目标（调度确定后写回；可选写回实际命中的子角色 slug） */
 export function assignTaskTarget(
   taskId: string,
   deviceId: string,
   agentType: AgentType,
+  subRole?: string,
 ): void {
-  getDb()
-    .prepare(
-      `UPDATE tasks SET target_device_id = ?, target_agent_type = ? WHERE task_id = ?`,
-    )
-    .run(deviceId, agentType, taskId);
+  if (subRole !== undefined) {
+    getDb()
+      .prepare(
+        `UPDATE tasks SET target_device_id = ?, target_agent_type = ?, target_sub_role = ? WHERE task_id = ?`,
+      )
+      .run(deviceId, agentType, subRole, taskId);
+  } else {
+    getDb()
+      .prepare(`UPDATE tasks SET target_device_id = ?, target_agent_type = ? WHERE task_id = ?`)
+      .run(deviceId, agentType, taskId);
+  }
 }
 
 /** 写入断点续跑 checkpoint（P1-3：断线时保存部分输出，重派时注入续跑上下文） */

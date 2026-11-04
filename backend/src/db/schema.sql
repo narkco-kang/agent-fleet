@@ -227,6 +227,7 @@ CREATE TABLE IF NOT EXISTS role_teams (
   description  TEXT NOT NULL DEFAULT '',
   purpose      TEXT NOT NULL DEFAULT 'general', -- software|content|security|research|general
   sub_roles    TEXT NOT NULL DEFAULT '[]',      -- 有序子角色 slug JSON 数组（冗余）
+  leader_slug  TEXT,                            -- Leader 子角色 slug（P2-4，未指定 subRole 时路由到 Leader）
   version      INTEGER NOT NULL DEFAULT 1,
   is_preset    INTEGER NOT NULL DEFAULT 0,      -- 1=预设；0=用户创建
   created_at   INTEGER NOT NULL,

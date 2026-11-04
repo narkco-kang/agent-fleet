@@ -143,6 +143,14 @@ function runMigrations(database: Database.Database): void {
   if (!usageCols.includes('cost')) {
     database.exec(`ALTER TABLE usage_records ADD COLUMN cost REAL`);
   }
+
+  // role_teams 新增列 leader_slug（Leader 实体，P2-4）
+  const roleTeamCols = (
+    database.prepare(`PRAGMA table_info(role_teams)`).all() as Array<{ name: string }>
+  ).map((c) => c.name);
+  if (!roleTeamCols.includes('leader_slug')) {
+    database.exec(`ALTER TABLE role_teams ADD COLUMN leader_slug TEXT`);
+  }
 }
 
 /** 获取数据库实例（未初始化则先初始化） */

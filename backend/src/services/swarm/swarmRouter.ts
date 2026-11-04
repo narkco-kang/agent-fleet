@@ -2,8 +2,8 @@ import type { AgentType, SubRole, SwarmRoutingDecision } from '@agentfleet/share
 import { deviceRegistry } from '../deviceRegistry.js';
 import { listAgentsByDevice, type AgentRow } from '../../db/repo/agents.js';
 import { getSubRoleBindings, listDevicesByRoleTeam } from '../../db/repo/devices.js';
-import { getRoleTeam, getSubRole, listSubRoles } from '../../db/repo/roleTeams.js';
-import { buildSystemPrompt } from './personaBuilder.js';
+import { getRoleTeam, listSubRoles } from '../../db/repo/roleTeams.js';
+import { buildSystemPrompt, buildLeaderPrompt } from './personaBuilder.js';
 
 /**
  * 蜂群软绑定三级决策：resolveCandidates({ roleTeamId, subRoleSlug? }) → SwarmRoutingDecision[]。
@@ -40,12 +40,19 @@ export class SwarmRouter {
     const team = getRoleTeam(input.roleTeamId);
     if (!team) return [];
 
+    const members = listSubRoles(input.roleTeamId);
+    // 未指定 subRole 时：优先路由到 Leader（P2-4）；无 Leader 则取第一个子角色
     const subRole = input.subRoleSlug
-      ? getSubRole(input.roleTeamId, input.subRoleSlug)
-      : listSubRoles(input.roleTeamId)[0];
+      ? members.find((s) => s.slug === input.subRoleSlug)
+      : (team.leaderSlug ? members.find((s) => s.slug === team.leaderSlug) : undefined) ?? members[0];
     if (!subRole) return [];
 
-    const systemPrompt = buildSystemPrompt(subRole);
+    // Leader 场景（未指定 subRole 且命中 Leader）：注入团队协调 prompt + 成员清单（排除 Leader 自己）
+    const isLeader = !input.subRoleSlug && team.leaderSlug === subRole.slug;
+    const systemPrompt = isLeader
+      ? buildLeaderPrompt(subRole, team, members.filter((m) => m.slug !== subRole.slug))
+      : buildSystemPrompt(subRole);
+
     const bound = listDevicesByRoleTeam(input.roleTeamId);
     if (bound.length === 0) return [];
 
