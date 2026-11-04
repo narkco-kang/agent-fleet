@@ -8,12 +8,13 @@ import { getTask } from '../../db/repo/tasks.js';
 import * as loopService from './loopService.js';
 
 /**
- * Loop 编排器：逐 round 逐 step 把任务模板转成 enqueueTask()（复用 tasks 状态机），
- * 监听 step 任务终态推进 currentStepIndex，一轮完成 currentRound+1。
+ * Loop 编排器（DAG 依赖调度，替代旧的串行 step 指针）。
  *
- * - 依赖注入：enqueueTask / getTaskStatus 可在单测中 mock，确保 tick() 确定性。
- * - 状态：completed 步进；failed/cancelled/interrupted 步失败 → loop 置 failed。
- * - pause/cancel 中断推进。
+ * - P0-1 依赖 DAG：dependsOn 满足即派发，不再按 currentStepIndex 串行；收敛检测区分 all_done/failed/stuck。
+ * - P1-4 并行组：同一 tick 内多个依赖已满足的 step 并发派发（认领限流由 scheduler 兜底）。
+ * - P2-2 编排算子：sequence（默认）/ parallel（无依赖并行）/ map（对 targets 每个 target 派发）/ human（人工）。
+ *
+ * 依赖注入：enqueueTask / getTaskStatus 可在单测中 mock，确保 tick() 确定性。
  */
 
 export interface LoopSchedulerDeps {
@@ -21,10 +22,13 @@ export interface LoopSchedulerDeps {
   getTaskStatus: (taskId: string) => TaskStatus | undefined;
 }
 
-/** 单个 step 的运行记录 */
+/** 单个 step 的运行记录（map 算子多任务，sequence/parallel 单任务，human 无任务） */
 interface StepRun {
-  taskId: string;
+  taskIds: string[];
+  /** 聚合状态：任一失败→failed；全部完成→completed；否则 in-flight */
   status: TaskStatus;
+  /** human 算子标记 */
+  human?: boolean;
 }
 
 interface ActiveLoop {
@@ -79,6 +83,18 @@ export class LoopScheduler {
     return true;
   }
 
+  /** 人工步骤 resolve（human 算子）：标记该 step 完成 */
+  resolveHumanStep(loopId: string, stepId: string): boolean {
+    const active = this.active.get(loopId);
+    if (!active) return false;
+    const run = active.stepTasks.get(stepId);
+    if (!run?.human) return false;
+    run.status = 'completed';
+    run.human = false;
+    this.tick();
+    return true;
+  }
+
   isActive(loopId: string): boolean {
     return this.active.has(loopId);
   }
@@ -87,23 +103,56 @@ export class LoopScheduler {
     return Array.from(this.active.keys());
   }
 
-  /** step 模板 → 调度输入 */
-  private toSubmitInput(loop: Loop, step: LoopStep): SchedulerSubmitInput {
+  /** step 模板 → 调度输入（map 算子可覆盖 deviceId） */
+  private toSubmitInput(loop: Loop, step: LoopStep, deviceId?: string): SchedulerSubmitInput {
+    const target = step.template.target;
     return {
       taskId: randomId('task'),
       sessionId: randomId('session'),
       origin: 'dashboard',
       originRef: `loop:${loop.id}:${step.id}`,
       prompt: step.template.prompt,
-      targetMode: step.template.target.mode,
-      targetDeviceId: step.template.target.deviceId,
-      targetAgentType: step.template.target.agentType,
-      targetRole: step.template.target.role,
-      requireCapability: step.template.target.requireCapability,
+      targetMode: target.mode,
+      targetDeviceId: deviceId ?? target.deviceId,
+      targetAgentType: target.agentType,
+      targetRole: target.role,
+      requireCapability: target.requireCapability,
     };
   }
 
-  /** 推进一轮：刷新终态 → 依赖检查 → 入队 → 步进。同步且幂等，供定时器与单测调用。 */
+  /** 派发一个 step（按算子）→ 返回 StepRun */
+  private enqueueStep(loop: Loop, step: LoopStep): StepRun {
+    const op = step.operator ?? 'sequence';
+    if (op === 'human') {
+      // 人工步骤：不派发任务，等待 resolveHumanStep
+      return { taskIds: [], status: 'queued', human: true };
+    }
+    if (op === 'map') {
+      // map：对 targets 每个 target 派发一个任务
+      const deviceIds = loop.targets.length > 0 ? loop.targets : [undefined];
+      const taskIds = deviceIds.map((d) => this.deps.enqueueTask(this.toSubmitInput(loop, step, d)));
+      return { taskIds, status: 'queued' };
+    }
+    // sequence / parallel：单任务
+    const taskId = this.deps.enqueueTask(this.toSubmitInput(loop, step));
+    return { taskIds: [taskId], status: 'queued' };
+  }
+
+  /** 聚合 StepRun 状态：任一失败→failed；全部终态完成→completed；否则 in-flight */
+  private refreshRun(active: ActiveLoop): void {
+    for (const run of active.stepTasks.values()) {
+      if (run.human) continue; // human 等待 resolve，不刷新
+      if (isTerminalTaskStatus(run.status)) continue;
+      const statuses = run.taskIds.map((tid) => this.deps.getTaskStatus(tid));
+      const anyFailed = statuses.some((s) => s === 'failed' || s === 'cancelled' || s === 'interrupted');
+      const allDone = statuses.every((s) => s === 'completed');
+      if (anyFailed) run.status = 'failed';
+      else if (allDone) run.status = 'completed';
+      // 其余保持 in-flight（queued/running/undefined）
+    }
+  }
+
+  /** 推进一轮：刷新终态 → 依赖检查 → 入队 → 收敛检测。同步且幂等。 */
   tick(): void {
     for (const [loopId, active] of Array.from(this.active.entries())) {
       const loop = loopService.get(loopId);
@@ -116,56 +165,71 @@ export class LoopScheduler {
         continue;
       }
 
-      // 1) 刷新 in-flight step 任务终态
-      for (const [stepId, run] of active.stepTasks) {
-        if (!isTerminalTaskStatus(run.status)) {
-          const status = this.deps.getTaskStatus(run.taskId);
-          if (status && isTerminalTaskStatus(status)) run.status = status;
-        }
-      }
-
       const steps = loop.steps;
 
-      // 2) 一轮完成 → 下一轮
-      if (loop.currentStepIndex >= steps.length) {
-        loopService.setProgress(loopId, loop.currentRound + 1, 0);
-        active.stepTasks.clear();
-        continue;
-      }
+      // 1) 刷新 in-flight 终态
+      this.refreshRun(active);
 
-      const step = steps[loop.currentStepIndex];
-      if (!step) {
-        loopService.setProgress(loopId, loop.currentRound + 1, 0);
-        active.stepTasks.clear();
-        continue;
+      // 2) 失败检测：任一 step failed → loop failed
+      let failed = false;
+      for (const run of active.stepTasks.values()) {
+        if (run.status === 'failed') {
+          failed = true;
+          break;
+        }
       }
-
-      // 3) 依赖满足检查
-      const depsOk = step.dependsOn.every(
-        (depId) => active.stepTasks.get(depId)?.status === 'completed',
-      );
-      if (!depsOk) continue;
-
-      // 4) 当前 step 未入队 → 入队
-      const run = active.stepTasks.get(step.id);
-      if (!run) {
-        const taskId = this.deps.enqueueTask(this.toSubmitInput(loop, step));
-        active.stepTasks.set(step.id, { taskId, status: 'queued' });
-        continue;
-      }
-
-      // 5) 依据终态推进
-      if (run.status === 'completed') {
-        loopService.setProgress(loopId, loop.currentRound, loop.currentStepIndex + 1);
-        continue;
-      }
-      if (run.status === 'failed' || run.status === 'cancelled' || run.status === 'interrupted') {
+      if (failed) {
         loopService.setState(loopId, 'failed');
         this.active.delete(loopId);
         continue;
       }
-      // queued/running → 等待下一 tick
+
+      // 3) 收敛检测：依赖环 / 永久阻塞（stuck）
+      if (this.isStuck(steps, active)) {
+        loopService.setState(loopId, 'failed');
+        this.active.delete(loopId);
+        continue;
+      }
+
+      // 4) 依赖满足且未入队 → 入队（并行：同 tick 多个可派发 step 一并派发）
+      let completedCount = 0;
+      for (const step of steps) {
+        const run = active.stepTasks.get(step.id);
+        if (run) {
+          if (run.status === 'completed') completedCount += 1;
+          continue;
+        }
+        const depsOk = step.dependsOn.every(
+          (depId) => active.stepTasks.get(depId)?.status === 'completed',
+        );
+        if (!depsOk) continue;
+        active.stepTasks.set(step.id, this.enqueueStep(loop, step));
+      }
+
+      // 5) 进度 + 收敛：全部完成 → 下一轮；否则记录已完成 step 数（进度条）
+      if (completedCount === steps.length) {
+        loopService.setProgress(loopId, loop.currentRound + 1, 0);
+        active.stepTasks.clear();
+      } else {
+        loopService.setProgress(loopId, loop.currentRound, completedCount);
+      }
     }
+  }
+
+  /** 依赖环 / 依赖永久阻塞检测：存在「未完成」step 且其依赖不存在或已失败 */
+  private isStuck(steps: LoopStep[], active: ActiveLoop): boolean {
+    const ids = new Set(steps.map((s) => s.id));
+    for (const step of steps) {
+      const run = active.stepTasks.get(step.id);
+      if (run && run.status === 'completed') continue;
+      // 未完成 step：检查依赖是否已失败或引用不存在
+      for (const depId of step.dependsOn) {
+        if (!ids.has(depId)) return true; // 依赖引用不存在的 step → 永久阻塞
+        const depRun = active.stepTasks.get(depId);
+        if (depRun && depRun.status === 'failed') return true; // 依赖失败 → 永久阻塞
+      }
+    }
+    return false;
   }
 
   /** 启动后台定时器 */

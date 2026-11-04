@@ -75,6 +75,17 @@ export function registerLoopRoutes(app: FastifyInstance): void {
     return { ok: true };
   });
 
+  /** 人工步骤 resolve（human 算子，HITL） */
+  app.post<{ Params: { id: string; stepId: string } }>(
+    '/api/loops/:id/steps/:stepId/resolve',
+    async (req, reply) => {
+      if (!loopScheduler.resolveHumanStep(req.params.id, req.params.stepId)) {
+        return reply.code(409).send({ ok: false, error: 'step_not_resolvable' });
+      }
+      return { ok: true };
+    },
+  );
+
   /** 删除 */
   app.delete<{ Params: { id: string } }>('/api/loops/:id', async (req) => {
     loopScheduler.cancel(req.params.id);

@@ -613,10 +613,8 @@ describe('G. Loop 编排', () => {
     expect(enqueued).toHaveLength(2);
     expect(enqueued[1].prompt).toBe('p2');
 
-    // s2 完成 → index 越界 → 下一 tick round+1
+    // s2 完成 → 全部完成 → round+1（DAG 收敛检测）
     taskStatuses.set('t2', 'completed');
-    scheduler.tick();
-    expect(loopService.get(loop.id)?.currentStepIndex).toBe(2);
     scheduler.tick();
     expect(loopService.get(loop.id)?.currentRound).toBe(1);
     expect(loopService.get(loop.id)?.currentStepIndex).toBe(0);

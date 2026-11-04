@@ -78,12 +78,8 @@ describe('loopScheduler 编排', () => {
     expect(enqueued).toHaveLength(2);
     expect(enqueued[1].input.prompt).toBe('p2');
 
-    // s2 完成 → index 越界
+    // s2 完成 → 全部完成 → round+1，stepIndex 归零（DAG 收敛检测）
     taskStatuses.set(enqueued[1].taskId, 'completed');
-    scheduler.tick();
-    expect(loopService.get(loop.id)?.currentStepIndex).toBe(2);
-
-    // 下一 tick → round+1，stepIndex 归零
     scheduler.tick();
     const fresh = loopService.get(loop.id);
     expect(fresh?.currentRound).toBe(1);
@@ -125,6 +121,82 @@ describe('loopScheduler 编排', () => {
     scheduler.start(loop.id);
     taskStatuses.set(enqueued[0].taskId, 'failed');
     scheduler.tick();
+    expect(loopService.get(loop.id)?.state).toBe('failed');
+    expect(scheduler.isActive(loop.id)).toBe(false);
+  });
+
+  it('P1-4 并行组：无依赖多 step 同批并发入队', () => {
+    const loop = loopService.create({
+      name: 'parallel-loop',
+      steps: [
+        { id: 'a', name: 'A', template: { prompt: 'pa', target: { mode: 'auto' }, options: {} }, dependsOn: [] },
+        { id: 'b', name: 'B', template: { prompt: 'pb', target: { mode: 'auto' }, options: {} }, dependsOn: [] },
+        { id: 'c', name: 'C', template: { prompt: 'pc', target: { mode: 'auto' }, options: {} }, dependsOn: ['a', 'b'] },
+      ],
+      targets: [],
+    });
+    const { scheduler, taskStatuses, enqueued } = makeMock();
+
+    scheduler.start(loop.id);
+    // a、b 无依赖，同批并发入队；c 依赖 a+b，暂不入队
+    expect(enqueued.map((e) => e.input.prompt)).toEqual(['pa', 'pb']);
+
+    // a、b 完成 → c 入队
+    taskStatuses.set(enqueued[0].taskId, 'completed');
+    taskStatuses.set(enqueued[1].taskId, 'completed');
+    scheduler.tick();
+    expect(enqueued).toHaveLength(3);
+    expect(enqueued[2].input.prompt).toBe('pc');
+  });
+
+  it('P2-2 map 算子：对 targets 每个 target 各派发一个任务', () => {
+    const loop = loopService.create({
+      name: 'map-loop',
+      steps: [
+        { id: 'm', name: 'M', template: { prompt: 'pm', target: { mode: 'device' }, options: {} }, dependsOn: [], operator: 'map' },
+      ],
+      targets: ['dev-1', 'dev-2', 'dev-3'],
+    });
+    const { scheduler, enqueued } = makeMock();
+
+    scheduler.start(loop.id);
+    // map 对 3 个 target 各派发一个任务
+    expect(enqueued).toHaveLength(3);
+    expect(enqueued.map((e) => e.input.targetDeviceId)).toEqual(['dev-1', 'dev-2', 'dev-3']);
+  });
+
+  it('P2-2 human 算子：等待 resolveHumanStep 后才推进', () => {
+    const loop = loopService.create({
+      name: 'human-loop',
+      steps: [
+        { id: 'h', name: 'H', template: { prompt: 'ph', target: { mode: 'auto' }, options: {} }, dependsOn: [], operator: 'human' },
+        { id: 'next', name: 'N', template: { prompt: 'pn', target: { mode: 'auto' }, options: {} }, dependsOn: ['h'] },
+      ],
+      targets: [],
+    });
+    const { scheduler, enqueued } = makeMock();
+
+    scheduler.start(loop.id);
+    // human 步骤不派发任务
+    expect(enqueued).toHaveLength(0);
+
+    // resolve 后 → 下一步入队
+    expect(scheduler.resolveHumanStep(loop.id, 'h')).toBe(true);
+    expect(enqueued).toHaveLength(1);
+    expect(enqueued[0].input.prompt).toBe('pn');
+  });
+
+  it('P0-1 收敛检测：依赖引用不存在 step → stuck → failed', () => {
+    const loop = loopService.create({
+      name: 'stuck-loop',
+      steps: [
+        { id: 'x', name: 'X', template: { prompt: 'px', target: { mode: 'auto' }, options: {} }, dependsOn: ['ghost'] },
+      ],
+      targets: [],
+    });
+    const { scheduler } = makeMock();
+
+    scheduler.start(loop.id);
     expect(loopService.get(loop.id)?.state).toBe('failed');
     expect(scheduler.isActive(loop.id)).toBe(false);
   });
