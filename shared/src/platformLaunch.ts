@@ -50,10 +50,10 @@ const LAUNCH_SPECS: Record<AgentType, LaunchSpec> = {
 export type LoginMethod = 'device-auth' | 'app' | 'cli' | 'api-key';
 
 /** device-auth 平台（CLI 支持 `login --device-auth` 类命令，输出 URL + code） */
-const DEVICE_AUTH_PLATFORMS: readonly AgentType[] = ['codex', 'claude', 'cursor', 'kimi', 'opencode'];
+const DEVICE_AUTH_PLATFORMS: readonly AgentType[] = ['codex', 'claude', 'grok', 'cursor', 'kimi', 'opencode'];
 
 /** api-key 平台（无交互登录，需手动配 API key） */
-const API_KEY_PLATFORMS: readonly AgentType[] = ['aider', 'gemini', 'qwen', 'grok'];
+const API_KEY_PLATFORMS: readonly AgentType[] = ['aider', 'gemini', 'qwen'];
 
 /** 判断某平台的登录授权方式 */
 export function loginMethodFor(agentType: AgentType): LoginMethod {

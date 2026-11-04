@@ -34,10 +34,11 @@ export function parseLoginChallenge(
 
 /** 专用 Adapter 平台的登录规格（不在 platformCatalog 里，如 grok） */
 const DEDICATED_LOGIN_SPEC: Record<string, LoginSpec> = {
-  // grok 在项目里 = 「grok bot」（云端 agent 队友，专用 GrokAdapter 走 ACP `grok agent stdio`），
-  // 不是「grok 模型 CLI」。grok bot 无 device-auth（URL+code），认证 = 登录 x.ai 账号（付费订阅，
-  // GUI 首次启动浏览器 OAuth）或 headless 用 XAI_API_KEY。
-  grok: { args: [], note: 'grok bot（云端 agent，需 x.ai 付费订阅）：无 device-auth，登录 x.ai 账号（GUI 浏览器 OAuth）或 XAI_API_KEY（headless）' },
+  // grok 在项目里 = 「grok bot」（云端 agent 队友，专用 GrokAdapter 走 ACP `grok agent stdio`）。
+  // 登录 = 网页授权（device-auth）：`grok login --device-auth` 输出授权 URL + 一次性码，
+  // 用户从任意浏览器打开授权（看板展示 URL+code），登录后 grok 缓存 cached_token。
+  // 注意：headless 可选 XAI_API_KEY 只是「替代认证」，不是 grok bot 的主要登录方式（用户明确纠正）。
+  grok: { args: ['login', '--device-auth'], note: 'grok bot 网页授权登录：grok login --device-auth 输出授权 URL + 一次性码，浏览器授权后激活' },
 };
 
 export interface LoginHandle {

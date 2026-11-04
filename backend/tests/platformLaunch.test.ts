@@ -46,14 +46,14 @@ describe('platformLaunch 打开平台应用命令（OS 自适应）', () => {
 });
 
 describe('loginMethodFor 登录授权方式分类（看板授权中心）', () => {
-  it('device-auth：codex/claude/cursor/kimi/opencode', () => {
-    for (const t of ['codex', 'claude', 'cursor', 'kimi', 'opencode']) {
+  it('device-auth：codex/claude/grok/cursor/kimi/opencode（grok bot 网页授权）', () => {
+    for (const t of ['codex', 'claude', 'grok', 'cursor', 'kimi', 'opencode']) {
       expect(loginMethodFor(t)).toBe('device-auth');
     }
   });
 
-  it('api-key：gemini/qwen/aider/grok（grok 无 device-auth，用 XAI_API_KEY）', () => {
-    for (const t of ['gemini', 'qwen', 'aider', 'grok']) {
+  it('api-key：gemini/qwen/aider', () => {
+    for (const t of ['gemini', 'qwen', 'aider']) {
       expect(loginMethodFor(t)).toBe('api-key');
     }
   });
