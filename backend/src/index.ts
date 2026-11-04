@@ -37,6 +37,7 @@ import {
   setRelayMessageHandler,
 } from './services/relayClient.js';
 import { deviceRegistry, setDeviceOfflineHandler } from './services/deviceRegistry.js';
+import { setDeviceStatus } from './db/repo/devices.js';
 import { initTaskRunner, onDeviceTaskEvent, onDeviceTaskResult, onDeviceDisconnected } from './services/taskRunner.js';
 import { memoryLedger } from './services/memoryLedger.js';
 import { setupMemorySync, handleMemorySyncMessage } from './services/memorySync.js';
@@ -189,7 +190,11 @@ async function main(): Promise<void> {
     } else if (env.type === MESSAGE_TYPES.DEVICE_RELAY_OFFLINE) {
       const { deviceId } = env.payload as { deviceId: string };
       const entry = deviceRegistry.get(deviceId);
-      if (entry?.kind === 'relay') deviceRegistry.remove(deviceId);
+      if (entry?.kind === 'relay') {
+        deviceRegistry.remove(deviceId);
+        // 同步清 DB 状态：relay 设备断线只清内存、不清 DB 会残留 online（看板误报在线）
+        setDeviceStatus(deviceId, 'offline');
+      }
     }
     // 设备经中继上报的注册/能力/心跳（真实远程设备场景，复用直连逻辑但经 relay 回执）
     handleRelayEnvelope(env);

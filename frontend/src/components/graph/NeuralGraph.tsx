@@ -82,7 +82,17 @@ export function NeuralGraph({
         }),
     [data],
   );
-  const agents = useMemo(() => data.nodes.filter((n): n is GraphAgentNode => n.type === 'agent'), [data]);
+  const agents = useMemo(
+    () =>
+      data.nodes
+        .filter((n): n is GraphAgentNode => n.type === 'agent')
+        .sort((a, b) => {
+          const ab = a.data.status === 'busy' ? 1 : 0;
+          const bb = b.data.status === 'busy' ? 1 : 0;
+          return bb - ab; // 处理中优先，空闲/待登录沉底
+        }),
+    [data],
+  );
   const tasks = useMemo(
     () =>
       data.nodes
@@ -246,6 +256,7 @@ export function NeuralGraph({
               <TaskCard
                 key={t.id}
                 prompt={t.data.prompt}
+                resultText={t.data.resultText ?? ''}
                 label={STATUS_LABEL[st] ?? st}
                 target={agentName ? `${agentName}` : (t.data.targetAgentType ?? '未分配')}
                 color={color}
@@ -392,12 +403,16 @@ function AgentCard({ initial, name, version, label, busy, busyCount, maxConcurre
   );
 }
 
-function TaskCard({ prompt, label, target, color, running, active, dimmed, onClick }: {
-  prompt: string; label: string; target: string; color: string; running: boolean; active: boolean; dimmed: boolean; onClick: (e: React.MouseEvent) => void;
+function TaskCard({ prompt, resultText, label, target, color, running, active, dimmed, onClick }: {
+  prompt: string; resultText: string; label: string; target: string; color: string; running: boolean; active: boolean; dimmed: boolean; onClick: (e: React.MouseEvent) => void;
 }): JSX.Element {
+  // 完成且有输出 → 主行直接展示输出内容（总览页一眼看到结果），副行展示问题原文
+  const showResult = !running && !!resultText;
+  const primary = showResult ? resultText : prompt;
   return (
     <button
       onClick={onClick}
+      title={prompt + (resultText ? `\n\n${resultText}` : '')}
       className="group w-full rounded-md border bg-[var(--surface)] px-3 py-2.5 text-left transition-all hover:shadow-sm"
       style={{
         borderColor: active ? 'var(--brand)' : 'var(--border)',
@@ -408,11 +423,13 @@ function TaskCard({ prompt, label, target, color, running, active, dimmed, onCli
     >
       <div className="flex items-center gap-2">
         <StatusDot color={color} ping={running} />
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">{truncate(prompt, 42)}</span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">{truncate(primary, 48)}</span>
       </div>
       <div className="mt-1.5 flex items-center justify-between">
-        <span className="font-mono text-[10px] text-[var(--text-muted)]">{truncate(target, 20)}</span>
-        <span className="text-[10px] font-semibold" style={{ color }}>{label}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--text-muted)]">
+          {showResult ? truncate(prompt, 24) : truncate(target, 20)}
+        </span>
+        <span className="shrink-0 text-[10px] font-semibold" style={{ color }}>{label}</span>
       </div>
     </button>
   );
