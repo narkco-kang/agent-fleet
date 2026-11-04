@@ -28,6 +28,8 @@
     "build:wechat": "npm run build --workspace wechat",
     "build:memory": "npm run build --workspace memory",
     "build:gateway": "npm run build --workspace modelgateway",
+    "build:deploy": "node scripts/build-deploy.mjs",
+    "deploy:remote": "bash scripts/deploy-remote.sh",
     "build": "npm run build:shared && npm run build:backend && npm run build:frontend && npm run build:agent && npm run build:wechat && npm run build:memory && npm run build:gateway",
     "start:gateway": "npm run start --workspace modelgateway",
     "typecheck": "npm run typecheck --workspaces --if-present"
