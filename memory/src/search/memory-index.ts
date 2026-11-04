@@ -8,6 +8,7 @@ import type { MemoryChange } from '../types';
 import { Bm25Index, type SearchHit } from './bm25';
 import { tokenize } from './tokenize';
 import { findSimilar, type SimilarHit } from './similarity';
+import { embed, cosine } from '../semantic/embedder';
 
 /** 提取 change 的可检索文本（target + note + node 的 label/note/source）。 */
 export function changeText(change: MemoryChange): string {
@@ -29,12 +30,24 @@ export interface MemorySearchHit {
 export class MemorySearchIndex {
   private readonly bm25 = new Bm25Index();
   private readonly changes = new Map<string, MemoryChange>();
+  /** change.id → 语义向量（异步懒生成，缺失时向量路降级） */
+  private readonly vectors = new Map<string, number[]>();
+  private vectorsReady = false;
 
   /** 加入一个 change（幂等：同 id 覆盖）。 */
   add(change: MemoryChange): void {
     this.changes.set(change.id, change);
     const text = changeText(change);
     if (text) this.bm25.add(change.id, tokenize(text));
+    // 异步生成语义向量（fire-and-forget，不阻塞入索引）
+    void this.embedChange(change.id, text);
+  }
+
+  /** 单个 change 的向量生成（懒加载模型，失败静默降级） */
+  private async embedChange(id: string, text: string): Promise<void> {
+    const vecs = await embed([text]);
+    if (vecs && vecs[0]) this.vectors.set(id, vecs[0]);
+    if (!this.vectorsReady && vecs) this.vectorsReady = true;
   }
 
   /** 移除一个 change（supersede/expire 后重建）。 */
@@ -87,6 +100,50 @@ export class MemorySearchIndex {
     });
 
     // 信号 2：Jaccard 字符相似（阈值 0 拿全部，靠 RRF 统一排序）
+    const candidates = Array.from(this.changes.values()).map((c) => ({
+      item: c,
+      text: changeText(c),
+    }));
+    findSimilar(query, candidates, 0, 50).forEach((h, i) => {
+      rrf.set(h.item.id, (rrf.get(h.item.id) ?? 0) + 1 / (K + i + 1));
+    });
+
+    return Array.from(rrf.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([id, score]): MemorySearchHit | null => {
+        const change = this.changes.get(id);
+        return change ? { change, score } : null;
+      })
+      .filter((h): h is MemorySearchHit => h !== null);
+  }
+
+  /**
+   * 三重混合检索（P0-1）：BM25（关键词）+ 语义向量（cosine）+ Jaccard（字符相似）
+   * 三路 Reciprocal Rank Fusion 融合。向量未就绪（模型加载中/失败）时降级为 BM25 + Jaccard。
+   */
+  async hybridSearchAsync(query: string, limit = 10): Promise<MemorySearchHit[]> {
+    const K = 60;
+    const rrf = new Map<string, number>();
+
+    // 信号 1：BM25 关键词
+    this.bm25.search(tokenize(query), 50).forEach((h, i) => {
+      rrf.set(h.id, (rrf.get(h.id) ?? 0) + 1 / (K + i + 1));
+    });
+
+    // 信号 2：语义向量（cosine 相似，降序）
+    const qv = await embed([query]);
+    if (qv && qv[0] && this.vectors.size > 0) {
+      const ranked = Array.from(this.vectors.entries())
+        .map(([id, vec]) => ({ id, sim: cosine(qv[0]!, vec) }))
+        .sort((a, b) => b.sim - a.sim)
+        .slice(0, 50);
+      ranked.forEach((r, i) => {
+        rrf.set(r.id, (rrf.get(r.id) ?? 0) + 1 / (K + i + 1));
+      });
+    }
+
+    // 信号 3：Jaccard 字符相似（阈值 0 拿全部，靠 RRF 统一排序）
     const candidates = Array.from(this.changes.values()).map((c) => ({
       item: c,
       text: changeText(c),

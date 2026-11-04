@@ -33,7 +33,7 @@ export function registerMemoryRoutes(app: FastifyInstance): void {
       }
       const limit = Math.min(Math.max(Number(req.query.limit ?? 10) || 10, 1), 50);
       const mode = req.query.mode === 'bm25' ? 'bm25' : 'hybrid';
-      const data = mode === 'bm25' ? memoryLedger.search(q, limit) : memoryLedger.hybridSearch(q, limit);
+      const data = mode === 'bm25' ? memoryLedger.search(q, limit) : await memoryLedger.hybridSearchAsync(q, limit);
       return { ok: true, mode, data };
     },
   );

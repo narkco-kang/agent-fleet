@@ -270,6 +270,14 @@ class MemoryLedgerService {
     }));
   }
 
+  /** 三重混合检索（P0-1）：BM25 + 语义向量 + Jaccard 三路 RRF（向量未就绪自动降级两路）。 */
+  async hybridSearchAsync(query: string, limit = 10): Promise<Array<{ change: MemoryChange; score: number }>> {
+    return (await this.searchIndex.hybridSearchAsync(query, limit)).map((h) => ({
+      change: h.change,
+      score: h.score,
+    }));
+  }
+
   /** 相似记忆：找与给定文本 Jaccard 相似度 >= threshold 的历史记录（近重复/推荐）。 */
   findSimilar(text: string, threshold = 0.6, limit = 5): Array<{ change: MemoryChange; score: number }> {
     return this.searchIndex.findSimilar(text, threshold, limit).map((h) => ({
