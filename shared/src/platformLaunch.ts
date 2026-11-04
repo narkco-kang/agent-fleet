@@ -40,6 +40,31 @@ const LAUNCH_SPECS: Record<AgentType, LaunchSpec> = {
   workbuddy: { appNames: ['WorkBuddy AI'], cli: 'codebuddy' },
 };
 
+/**
+ * 登录授权方式（看板授权中心统一入口）。
+ * - device-auth：headless 输出授权 URL + code，看板展示，用户浏览器授权（无需碰设备）
+ * - app：桌面应用登录（打开设备上的 GUI 应用，用户在应用内登录）
+ * - cli：终端登录（打开设备终端运行 CLI，用户在终端内登录）
+ * - api-key：无交互登录，需手动配置 API key（看板提示，待后续做 key 下发）
+ */
+export type LoginMethod = 'device-auth' | 'app' | 'cli' | 'api-key';
+
+/** device-auth 平台（CLI 支持 `login --device-auth` 类命令，输出 URL + code） */
+const DEVICE_AUTH_PLATFORMS: readonly AgentType[] = ['codex', 'claude', 'grok', 'cursor', 'kimi', 'opencode'];
+
+/** api-key 平台（无交互登录，需手动配 API key） */
+const API_KEY_PLATFORMS: readonly AgentType[] = ['aider', 'gemini', 'qwen'];
+
+/** 判断某平台的登录授权方式 */
+export function loginMethodFor(agentType: AgentType): LoginMethod {
+  if ((DEVICE_AUTH_PLATFORMS as readonly string[]).includes(agentType)) return 'device-auth';
+  if ((API_KEY_PLATFORMS as readonly string[]).includes(agentType)) return 'api-key';
+  const spec = LAUNCH_SPECS[agentType];
+  if (spec?.appNames?.length) return 'app';
+  if (spec?.cli) return 'cli';
+  return 'api-key';
+}
+
 /** 生成在指定 OS 上打开某平台应用的命令 */
 export function launchCommandFor(agentType: AgentType, osPlatform: string): LaunchCommand {
   const spec = LAUNCH_SPECS[agentType];

@@ -7,6 +7,7 @@ import { useTaskStore } from '../../store/taskStore';
 import { StatusBadge } from '../common/StatusBadge';
 import { http } from '../../api/http';
 import { onLogin, type LoginChallengeMsg, type LoginResultMsg } from '../../api/ws';
+import { loginMethodFor, type AgentType } from '@agentfleet/shared';
 
 /**
  * 右侧详情抽屉（04 §3.6）：点神经图节点后展开该节点详情。
@@ -107,6 +108,8 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
   const [loginResult, setLoginResult] = useState<LoginResultMsg | null>(null);
   const [requesting, setRequesting] = useState(false);
   const deviceOnline = device?.status === 'online' || device?.status === 'busy';
+  // 登录授权方式：device-auth（看板 URL+code）/ app（桌面应用）/ cli（终端）/ api-key（手动配 key）
+  const loginMethod = loginMethodFor(target.agentType as AgentType);
 
   // 监听设备登录授权消息（challenge / result），仅处理当前 agent
   useEffect(() => {
@@ -180,61 +183,25 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
       <InfoRow label="并发" value={`${agent.busyCount}/${agent.maxConcurrency}`} />
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] p-3">
-        <div className="text-xs text-[var(--text-muted)]">
-          {!deviceOnline
-            ? '设备当前离线，无法打开平台应用。请先让该设备上线（运行 device-agent 并连接协调服务）后再试。'
-            : activated
-              ? '已激活。如登录态失效需重新登录，可重新打开平台应用。'
-              : '该平台尚未登录激活，无法接任务。点击下方按钮，本设备会弹出对应平台应用，完成登录后即自动激活。'}
-        </div>
-        <Button
-          size="small"
-          variant="contained"
-          fullWidth
-          disabled={opening || !deviceOnline}
-          onClick={openPlatform}
-          sx={{ mt: 1.5 }}
-        >
-          {!deviceOnline ? '设备离线，无法打开' : opening ? '打开中…' : activated ? '重新打开平台应用' : '打开平台应用登录激活'}
-        </Button>
-        {openMsg && (
-          <div
-            className={`mt-2 rounded-md px-2 py-1.5 text-xs ${
-              openMsg.ok ? 'bg-[var(--success-soft)] text-[#15803D]' : 'bg-[var(--danger-soft)] text-[#B91C1C]'
-            }`}
-          >
-            {openMsg.text}
+        {!deviceOnline ? (
+          <div className="text-xs text-[var(--text-muted)]">
+            设备当前离线，无法登录授权。请先让该设备上线（运行 device-agent 并连接协调服务）后再试。
           </div>
-        )}
-
-        {/* 看板授权中心：Device Auth Flow（无需 SSH 到设备，浏览器统一完成授权） */}
-        {!activated && deviceOnline && (
-          <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] p-3">
-            <div className="text-xs font-semibold text-[var(--text-strong)]">看板授权（推荐）</div>
-            <div className="mt-1 text-xs text-[var(--text-muted)]">
-              直接在本看板完成浏览器授权，无需远程登录设备。
-            </div>
+        ) : activated ? (
+          <div className="text-xs text-[var(--text-muted)]">已激活。如登录态失效需重新登录，可重新发起授权。</div>
+        ) : loginMethod === 'device-auth' ? (
+          <>
+            <div className="text-xs font-semibold text-[var(--text-strong)]">看板授权（无需碰设备）</div>
+            <div className="mt-1 text-xs text-[var(--text-muted)]">直接在本看板完成浏览器授权，无需远程登录设备。</div>
             {!loginChallenge && !loginResult && (
-              <Button
-                size="small"
-                variant="outlined"
-                fullWidth
-                disabled={requesting}
-                onClick={requestLogin}
-                sx={{ mt: 1.5 }}
-              >
+              <Button size="small" variant="outlined" fullWidth disabled={requesting} onClick={requestLogin} sx={{ mt: 1.5 }}>
                 {requesting ? '发起登录中…' : '发起登录授权'}
               </Button>
             )}
             {loginChallenge && (
               <div className="mt-2 space-y-1.5">
                 <div className="text-xs text-[var(--text)]">1. 打开链接并登录你的账号</div>
-                <a
-                  href={loginChallenge.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block truncate text-xs text-[#4F46E5] underline"
-                >
+                <a href={loginChallenge.url} target="_blank" rel="noreferrer" className="block truncate text-xs text-[#4F46E5] underline">
                   {loginChallenge.url}
                 </a>
                 <div className="text-xs text-[var(--text)]">2. 输入下方一次性授权码</div>
@@ -267,6 +234,30 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
                     : `登录失败：${loginResult.message ?? loginResult.status}`}
               </div>
             )}
+          </>
+        ) : loginMethod === 'app' || loginMethod === 'cli' ? (
+          <>
+            <div className="text-xs text-[var(--text-muted)]">
+              {loginMethod === 'app'
+                ? '该平台需在桌面应用内登录。点击下方按钮，本设备会弹出对应桌面应用，完成登录后即自动激活。'
+                : '该平台需在终端内登录。点击下方按钮，本设备会打开终端运行 CLI，完成登录后即自动激活。'}
+            </div>
+            <Button size="small" variant="contained" fullWidth disabled={opening} onClick={openPlatform} sx={{ mt: 1.5 }}>
+              {opening ? '打开中…' : loginMethod === 'app' ? '打开桌面应用登录' : '打开终端登录'}
+            </Button>
+            {openMsg && (
+              <div
+                className={`mt-2 rounded-md px-2 py-1.5 text-xs ${
+                  openMsg.ok ? 'bg-[var(--success-soft)] text-[#15803D]' : 'bg-[var(--danger-soft)] text-[#B91C1C]'
+                }`}
+              >
+                {openMsg.text}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-xs text-[var(--text-muted)]">
+            该平台无交互式登录，需在设备上手动配置 API key（环境变量或平台配置）后才能使用。
           </div>
         )}
       </div>
