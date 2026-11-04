@@ -31,6 +31,10 @@ export interface TaskBridge {
   onDecisionGate?(taskId: string, title: string, options: string[]): void;
 }
 
+/** 跳过设备 token 鉴权（本地开发/测试用）。兼容历史名 AGENTMESH_SKIP_AUTH（项目曾名 AgentMesh）
+ *  与现名 AGENTFLEET_SKIP_AUTH，避免改名后误用旧名导致鉴权未跳过。 */
+const SKIP_AUTH = process.env.AGENTMESH_SKIP_AUTH === '1' || process.env.AGENTFLEET_SKIP_AUTH === '1';
+
 /** 看板连接集合 */
 const dashboards = new Set<WebSocket>();
 /** 网关连接集合 */
@@ -289,9 +293,8 @@ function handleDeviceRegister(socket: WebSocket, envelope: Envelope, peer?: Peer
     return;
   }
 
-  // token 校验（本地开发可配 AGENTMESH_SKIP_AUTH=1 跳过）
-  const skipAuth = process.env.AGENTMESH_SKIP_AUTH === '1';
-  if (!skipAuth && !verifyToken(reg.deviceId, reg.token)) {
+  // token 校验（本地开发可配 AGENTMESH_SKIP_AUTH=1 / AGENTFLEET_SKIP_AUTH=1 跳过）
+  if (!SKIP_AUTH && !verifyToken(reg.deviceId, reg.token)) {
     sendEnvelope(socket, {
       v: 1,
       type: MESSAGE_TYPES.DEVICE_REGISTER_ACK,
@@ -358,8 +361,7 @@ export function handleRelayEnvelope(env: Envelope): void {
     if (!reg?.deviceId) return;
 
     // token 校验（与直连一致，SKIP_AUTH 跳过）
-    const skipAuth = process.env.AGENTMESH_SKIP_AUTH === '1';
-    if (!skipAuth && !verifyToken(reg.deviceId, reg.token)) {
+    if (!SKIP_AUTH && !verifyToken(reg.deviceId, reg.token)) {
       relayForwardToDevice(reg.deviceId, {
         v: 1,
         type: MESSAGE_TYPES.DEVICE_REGISTER_ACK,
@@ -372,15 +374,19 @@ export function handleRelayEnvelope(env: Envelope): void {
       return;
     }
 
-    deviceRegistry.register(reg.deviceId, reg.name, 'relay');
-    upsertDevice({
-      deviceId: reg.deviceId,
-      name: reg.name,
-      hostname: reg.hostname,
-      os: reg.os,
-      version: reg.version,
-      token: reg.token,
-    });
+    try {
+      deviceRegistry.register(reg.deviceId, reg.name, 'relay');
+      upsertDevice({
+        deviceId: reg.deviceId,
+        name: reg.name,
+        hostname: reg.hostname,
+        os: reg.os,
+        version: reg.version,
+        token: reg.token,
+      });
+    } catch (err) {
+      console.error('[relay-register] 处理失败:', (err as Error).message, 'payload=', JSON.stringify(reg));
+    }
     broadcastDevicePatch(reg.deviceId);
     relayForwardToDevice(reg.deviceId, {
       v: 1,

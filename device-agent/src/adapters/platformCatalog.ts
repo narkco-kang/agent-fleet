@@ -18,6 +18,10 @@ export interface RunSpec {
   streamJson?: boolean;
   /** 整段 stdout 作为结果文本（进程退出后一次性发） */
   textOutput?: boolean;
+  /** ACP 启动参数（mode='acp' 时，让该 CLI 进入 ACP stdio，如 kimi 为 ['acp']、grok 为 ['agent','--always-approve','stdio']） */
+  spawnArgs?: string[];
+  /** ACP 模式：跳过 authenticate（复用本地登录态，authenticate 会报错的平台） */
+  skipAuthenticate?: boolean;
   /** 未接入/待验证的说明（mode='unsupported' 时，诚实口径） */
   note?: string;
 }
@@ -51,7 +55,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
-    runSpec: { mode: 'cli-stream', args: ['-p', '{prompt}', '--output-format', 'stream-json'], streamJson: true, note: 'claude -p stream-json（待实机验证）' },
+    runSpec: { mode: 'cli-stream', args: ['-p', '{prompt}', '--output-format', 'stream-json', '--verbose'], streamJson: true, note: 'claude -p stream-json（实机验证：--output-format=stream-json 需 --verbose，否则报错）' },
   },
   {
     agentType: 'dsh',
@@ -131,14 +135,14 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'kimi',
-    displayName: 'Kimi CLI',
-    commands: ['kimi', 'kimi-cli'],
-    defaultDirs: ['.local/bin/kimi'],
-    npmPackages: ['kimi-cli'],
+    displayName: 'Kimi Code CLI',
+    commands: ['kimi', 'kimi-code'],
+    defaultDirs: ['.local/bin/kimi', '.kimi/bin/kimi'],
+    npmPackages: ['@moonshot-ai/kimi-code'],
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
-    runSpec: { mode: 'unsupported', note: '支持 ACP（kimi acp，类似 grok agent stdio），待泛化 acpClient 接入' },
+    runSpec: { mode: 'acp', spawnArgs: ['acp'], note: 'kimi acp 走 ACP（开箱即用，需先 kimi /login 登录）；旧版 kimi-cli(PyPI)已归档，新版 npm 包 @moonshot-ai/kimi-code' },
   },
   {
     agentType: 'opencode',

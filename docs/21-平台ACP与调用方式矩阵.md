@@ -21,13 +21,13 @@ ACP（**Agent Client Protocol**）是由 Zed 主导、Anthropic 与 Google 参�
 | codex | `codex exec` | ✅ 支持 | 走 ACP 或 `codex exec` |
 | gemini | `gemini` CLI | ✅ 支持 | 走 ACP |
 | cursor | `cursor-agent` | ✅ 支持 | 走 ACP 或 CLI |
-| kimi | `kimi-cli` | ✅ 支持 | 走 ACP |
+| kimi | `kimi acp`（npm `@moonshot-ai/kimi-code`） | ✅ 原生（`kimi acp`） | 走 ACP（catalogAdapter acp 模式已落地，待装 CLI+登录实测）；旧 `kimi-cli` 是 PyPI 包已归档 |
 | qwen | `qwen -p` | ✅ 支持（`qwen-code --acp`） | 走 ACP 或 `qwen -p` |
 | opencode | `opencode` | ❓ 未确认 | 有自己的 SDK/TUI，需实测 |
-| windsurf | windsurf CLI | ❓ 未确认 | 以 IDE 为主，需实测 |
+| windsurf | 无 headless CLI | ❌ 无 | 未接入（GUI/Cascade 为主） |
 | aider | `aider --message` | ❌ 无 | 走 `aider --message` |
-| cody | `cody` CLI | ❓ 未确认 | 需实测 |
-| doubao | `mars-code` | ❓ 未确认 | 需实测 |
+| cody | 无 headless print 参数 | ❌ 无 | 未接入（IDE 插件为主） |
+| doubao | 无 headless CLI | ❌ 无 | 未接入（MarsCode 以 IDE 插件为主） |
 | dsh | DSH Desktop | ❓ 未确认 | 需实测 |
 
 > 标注原则：已确认的写「✅/⚠️/❌」，未确认的一律写「❓ 需实测」——**不编造**。
@@ -53,11 +53,12 @@ ACP（**Agent Client Protocol**）是由 Zed 主导、Anthropic 与 Google 参�
 
 ## 5. 待办（逐平台实测后补全矩阵）
 
-- [ ] codex：确认 `codex exec` 与 ACP 的差异与参数。
-- [ ] gemini / cursor / kimi / qwen：确认 `agent stdio` 的 ACP 入口与认证参数。
-- [ ] claude：评估是否引入 `@zed-industries/claude-code-acp`，还是沿用 `claude -p`。
-- [ ] opencode / windsurf / cody / doubao / dsh：实测 CLI，确定是否支持 ACP / headless 命令。
+- [x] claude：实机验证 `claude -p --output-format stream-json` 需 `--verbose`（已补参数）。
+- [x] kimi：调研确认 `kimi acp` 走 ACP（新版 npm `@moonshot-ai/kimi-code`），catalogAdapter 已落地 acp 模式。
+- [x] cody / doubao / windsurf：调研确认三者无 headless CLI（IDE 插件/交互式为主），维持未接入。
+- [ ] gemini / cursor / qwen：确认 `agent stdio` 的 ACP 入口与认证参数。
+- [ ] opencode / dsh：实测 CLI，确定是否支持 ACP / headless 命令。
 
 ---
 
-*本矩阵基于 2026-11-02 对 ACP 协议公开资料与 grok CLI 实测；未确认项不臆测，待逐平台实测。*
+*本矩阵基于 2026-11-02 对 ACP 协议公开资料与 grok CLI 实测；2026-11-04 补充 kimi/cody/doubao/windsurf 调研结论与 claude --verbose 实测。未确认项不臆测。*
