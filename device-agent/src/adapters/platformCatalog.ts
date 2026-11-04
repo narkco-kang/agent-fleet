@@ -162,8 +162,12 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
-    runSpec: { mode: 'acp', spawnArgs: ['acp'], note: 'kimi acp 走 ACP（开箱即用，需先 kimi /login 登录）；旧版 kimi-cli(PyPI)已归档，新版 npm 包 @moonshot-ai/kimi-code' },
-    loginSpec: { args: ['login'], note: 'kimi login 走 device auth flow（待实机验证 URL/code 输出）' },
+    // 实机验证（v2.5.0）：kimi acp = ACP stdio（authMethod id='login' 走 terminal device-code flow）；
+    // 登录命令是 `kimi login`（非 `/login`），未登录时输出 device-code 授权 URL+code。
+    // 已知限制：WorkBuddy 沙箱里 session/new 会因写锁 ~/.kimi-code/.projects-write-lock.lock
+    // 被 safe-delete broker 拦截而报 Internal error（环境限制，非本代码 bug）；真实设备/云服务器无沙箱应可正常。
+    runSpec: { mode: 'acp', spawnArgs: ['acp'], note: 'kimi acp 走 ACP（需先 kimi login 登录）；旧版 kimi-cli(PyPI)已归档，新版 npm 包 @moonshot-ai/kimi-code' },
+    loginSpec: { args: ['login'], note: 'kimi login 走 device-code flow（网页授权 URL+code，未登录时输出）' },
   },
   {
     agentType: 'opencode',
