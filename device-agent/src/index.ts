@@ -100,8 +100,9 @@ async function main(): Promise<void> {
   const lan = await startLanServer();
   console.log(`[device-agent] 本地 WS Server 已启动 ws://0.0.0.0:${lan.port}`);
 
-  // mDNS 广播（沙箱受限自动降级为配置直连）
-  const discovery = startDiscovery(lan.port);
+  // mDNS 广播（沙箱受限自动降级为配置直连；AGENTFLEET_NO_MDNS=1 时跳过——纯中继/远程设备场景无需广播）
+  const discovery =
+    process.env.AGENTFLEET_NO_MDNS === '1' ? { stop: () => undefined } : startDiscovery(lan.port);
 
   // 能力探测（grok 真接 + codex/claude/dsh 骨架）
   const agents = await detectAllAgents();

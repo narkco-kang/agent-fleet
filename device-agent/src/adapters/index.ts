@@ -42,8 +42,11 @@ export function findAdapter(agentType: AgentType): Adapter | undefined {
   return adapters.find((a) => a.agentType === agentType);
 }
 
-/** 探测全部平台，返回已安装的 AgentInfo 列表 */
-export async function detectAllAgents(): Promise<AgentInfo[]> {
+/** 探测结果缓存：探测用 execFileSync 同步阻塞，重复探测（如 sendCapabilities）会阻塞事件循环
+ *  导致心跳延迟、超时断线。启动探测一次后复用缓存；平台登录/环境变化用 refreshAgents 强制刷新。 */
+let cachedAgents: AgentInfo[] | null = null;
+
+async function detectAgentsUncached(): Promise<AgentInfo[]> {
   const results: AgentInfo[] = [];
   for (const adapter of adapters) {
     const d = await adapter.detect();
@@ -62,6 +65,19 @@ export async function detectAllAgents(): Promise<AgentInfo[]> {
     }
   }
   return results;
+}
+
+/** 探测全部平台，返回已安装的 AgentInfo 列表（带缓存，避免同步探测阻塞事件循环） */
+export async function detectAllAgents(): Promise<AgentInfo[]> {
+  if (cachedAgents) return cachedAgents;
+  cachedAgents = await detectAgentsUncached();
+  return cachedAgents;
+}
+
+/** 强制重新探测（平台登录/环境变化后刷新能力） */
+export async function refreshAgents(): Promise<AgentInfo[]> {
+  cachedAgents = null;
+  return detectAllAgents();
 }
 
 /** 派发任务到对应 Adapter，流式事件回传 */

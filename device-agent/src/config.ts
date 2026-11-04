@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { DEVICE_DATA_DIR } from '@agentfleet/shared';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, '..', '..');
+// CJS 打包产物（esbuild bundle）有模块级 __dirname；ESM 源码（tsx）用 import.meta.url 推导
+const dirName: string =
+  typeof __dirname === 'string' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(dirName, '..', '..');
 
 dotenv.config({ path: path.join(rootDir, '.env') });
 

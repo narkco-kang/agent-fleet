@@ -54,6 +54,9 @@ class DeviceRegistry {
     };
     this.devices.set(deviceId, entry);
     setDeviceRelay(deviceId, kind === 'relay');
+    if (process.env.AGENTFLEET_DEBUG_RELAY === '1') {
+      console.log(`[registry] register ${deviceId} kind=${kind} lastHeartbeat=${entry.lastHeartbeat} now=${Date.now()}`);
+    }
     return entry;
   }
 
@@ -105,6 +108,9 @@ class DeviceRegistry {
         if (now - e.lastHeartbeat > config.heartbeatTimeoutMs) {
           this.devices.delete(e.deviceId);
           setDeviceStatus(e.deviceId, 'offline');
+          if (process.env.AGENTFLEET_DEBUG_RELAY === '1') {
+            console.log(`[registry] sweep 判定超时 ${e.deviceId} age=${now - e.lastHeartbeat}ms`);
+          }
           offlineHandler?.(e.deviceId);
         }
       }

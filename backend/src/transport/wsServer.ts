@@ -329,6 +329,84 @@ function handleDeviceRegister(socket: WebSocket, envelope: Envelope, peer?: Peer
   });
 }
 
+/**
+ * 处理经中继转发的设备消息（真实远程设备场景：无直连 socket，回执经 relayForwardToDevice）。
+ * 复用直连场景的注册/能力/心跳逻辑，仅发送通道不同（relay 无 socket、无 lanAddr）。
+ */
+export function handleRelayEnvelope(env: Envelope): void {
+  const type = env.type as string;
+  const payload = env.payload as Record<string, unknown> | undefined;
+
+  if (type === MESSAGE_TYPES.DEVICE_REGISTER) {
+    const reg = payload as {
+      deviceId: string;
+      name: string;
+      hostname: string;
+      os: { platform: string; arch: string; release: string };
+      version: string;
+      token: string;
+    };
+    if (!reg?.deviceId) return;
+
+    // token 校验（与直连一致，SKIP_AUTH 跳过）
+    const skipAuth = process.env.AGENTMESH_SKIP_AUTH === '1';
+    if (!skipAuth && !verifyToken(reg.deviceId, reg.token)) {
+      relayForwardToDevice(reg.deviceId, {
+        v: 1,
+        type: MESSAGE_TYPES.DEVICE_REGISTER_ACK,
+        id: `ack-${Date.now()}`,
+        ts: Date.now(),
+        from: 'coordinator',
+        to: reg.deviceId,
+        payload: { deviceId: reg.deviceId, accepted: false, reason: 'token_invalid', paired: false },
+      });
+      return;
+    }
+
+    deviceRegistry.register(reg.deviceId, reg.name, 'relay');
+    upsertDevice({
+      deviceId: reg.deviceId,
+      name: reg.name,
+      hostname: reg.hostname,
+      os: reg.os,
+      version: reg.version,
+      token: reg.token,
+    });
+    broadcastDevicePatch(reg.deviceId);
+    relayForwardToDevice(reg.deviceId, {
+      v: 1,
+      type: MESSAGE_TYPES.DEVICE_REGISTER_ACK,
+      id: `ack-${Date.now()}`,
+      ts: Date.now(),
+      from: 'coordinator',
+      to: reg.deviceId,
+      payload: {
+        deviceId: reg.deviceId,
+        accepted: true,
+        paired: true,
+        coordinatorPublicKey: coordinatorKeyProvider() ?? undefined,
+      },
+    });
+    return;
+  }
+
+  if (type === MESSAGE_TYPES.DEVICE_CAPABILITIES) {
+    const caps = payload as { deviceId: string; agents: unknown[] };
+    if (!caps?.deviceId || !Array.isArray(caps.agents)) return;
+    upsertAgents(caps.deviceId, caps.agents as never);
+    return;
+  }
+
+  if (type === MESSAGE_TYPES.DEVICE_HEARTBEAT) {
+    const hb = payload as { deviceId: string; load: { cpu: number; mem: number }; busyAgents: number };
+    if (!hb?.deviceId) return;
+    deviceRegistry.heartbeat(hb.deviceId, hb.load ?? { cpu: 0, mem: 0 }, hb.busyAgents ?? 0);
+    touchHeartbeat(hb.deviceId);
+    broadcastDevicePatch(hb.deviceId);
+    return;
+  }
+}
+
 /** ws 探活间隔：每 PING_INTERVAL_MS 发一次 ping，一次未回 pong 即判定死连接 */
 const PING_INTERVAL_MS = 1_500;
 

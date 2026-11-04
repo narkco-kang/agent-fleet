@@ -26,9 +26,10 @@ import {
   setAssetAckHandler,
   setMemorySyncHandler,
   setCoordinatorKeyProvider,
+  handleRelayEnvelope,
 } from './transport/wsServer.js';
 import { startLanDiscovery, stopLanDiscovery } from './transport/lanDiscovery.js';
-import { createRelayServer } from './transport/relayServer.js';
+import { createRelayServer, setRelayLocalHooks } from './transport/relayServer.js';
 import { buildSnapshot, buildDevicePatch } from './services/snapshot.js';
 import {
   connectRelay,
@@ -169,8 +170,19 @@ async function main(): Promise<void> {
     wss.on('listening', () =>
       console.log(`[backend] 同进程中继已启动 ws://0.0.0.0:${config.relayPort}`),
     );
+    // 同进程场景：设备经中继上/下线直接登记本地 registry（独立 relay 进程走 device.relay_online 消息）
+    setRelayLocalHooks(
+      (deviceId) => deviceRegistry.register(deviceId, deviceId, 'relay'),
+      (deviceId) => {
+        const entry = deviceRegistry.get(deviceId);
+        if (entry?.kind === 'relay') deviceRegistry.remove(deviceId);
+      },
+    );
   }
   setRelayMessageHandler((env) => {
+    if (process.env.AGENTFLEET_DEBUG_RELAY === '1') {
+      console.log(`[relay-in] ${env.type} from=${env.from} to=${env.to}`);
+    }
     if (env.type === MESSAGE_TYPES.DEVICE_RELAY_ONLINE) {
       const { deviceId } = env.payload as { deviceId: string };
       deviceRegistry.register(deviceId, deviceId, 'relay');
@@ -179,6 +191,8 @@ async function main(): Promise<void> {
       const entry = deviceRegistry.get(deviceId);
       if (entry?.kind === 'relay') deviceRegistry.remove(deviceId);
     }
+    // 设备经中继上报的注册/能力/心跳（真实远程设备场景，复用直连逻辑但经 relay 回执）
+    handleRelayEnvelope(env);
     // 设备经中继上报的任务事件/结果复用协调 WS 分发
     if (env.type === MESSAGE_TYPES.TASK_EVENT) onDeviceTaskEvent(env.payload as never);
     if (env.type === MESSAGE_TYPES.TASK_RESULT) onDeviceTaskResult(env.payload as never);

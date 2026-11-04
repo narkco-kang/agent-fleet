@@ -1,7 +1,6 @@
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { Envelope } from '@agentfleet/shared';
 import { config } from '../config.js';
-import { deviceRegistry } from '../services/deviceRegistry.js';
 
 /**
  * 云端 WS 中继：纯透传，不解析、不落业务数据。
@@ -13,6 +12,10 @@ import { deviceRegistry } from '../services/deviceRegistry.js';
  * 路由规则：
  *  - 收到 {to: deviceId} → 转发给该 device 连接
  *  - 收到 {to: coordinator} 或 {from: deviceId} → 转发给 coordinator 连接
+ *
+ * 依赖边界：独立 relay 进程（relayEntry）不持有 deviceRegistry（那属于协调器进程），
+ * 设备经中继上/下线只通过 device.relay_online/offline 消息通知协调器；
+ * 仅当 backend 同进程内嵌中继（RELAY_IN_PROCESS=1）时，才通过注入 hook 直接登记本地 registry。
  */
 
 interface RelayPeer {
@@ -25,6 +28,19 @@ interface RelayPeer {
 const deviceSockets = new Map<string, WebSocket>();
 /** 协调服务连接 */
 const coordinatorSockets = new Set<WebSocket>();
+
+/** 同进程本地登记 hook（backend 内嵌中继时注入；独立 relay 进程不注入，保持零原生依赖） */
+let onDeviceRelayOnline: ((deviceId: string) => void) | null = null;
+let onDeviceRelayOffline: ((deviceId: string) => void) | null = null;
+
+/** 注入「设备经中继上/下线」的本地登记回调（backend 同进程中继时调用） */
+export function setRelayLocalHooks(
+  online: (deviceId: string) => void,
+  offline: (deviceId: string) => void,
+): void {
+  onDeviceRelayOnline = online;
+  onDeviceRelayOffline = offline;
+}
 
 /** 中继服务实例 */
 export function createRelayServer(): { wss: WebSocketServer; close: () => void } {
@@ -132,8 +148,8 @@ function notifyCoordinatorOnline(deviceId: string): void {
       );
     }
   }
-  // 若协调服务与中继同进程（本地兜底测试），直接登记
-  deviceRegistry.register(deviceId, deviceId, 'relay');
+  // 同进程场景直接登记（仅 backend 内嵌中继时注入 hook）
+  onDeviceRelayOnline?.(deviceId);
 }
 
 /** 设备经中继下线：通知协调服务 */
@@ -154,6 +170,5 @@ function notifyCoordinatorOffline(deviceId: string): void {
     }
   }
   // 同进程场景直接清理
-  const entry = deviceRegistry.get(deviceId);
-  if (entry?.kind === 'relay') deviceRegistry.remove(deviceId);
+  onDeviceRelayOffline?.(deviceId);
 }
