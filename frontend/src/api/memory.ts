@@ -49,12 +49,33 @@ export interface MemoryFacts {
   lessons: Array<{ note: string; at: string }>;
 }
 
+/** 结构化语义事实（P1-1） */
+export interface SemanticFact {
+  category: string;
+  subject: string;
+  predicate: string;
+  object: string;
+  confidence: number;
+  sourceId: string;
+}
+
+/** 五类语义记忆分层统计 */
+export interface SemanticStats {
+  total: number;
+  coverage: number;
+  byCategory: Record<string, number>;
+  samples: Record<string, SemanticFact[]>;
+}
+
 export const memoryApi = {
   /** 账本摘要 + 健康状态 */
   summary: () => get<MemorySummary>('/api/memory/summary'),
 
   /** 记忆整合洞察（统计事实 + 失败教训） */
   facts: () => get<MemoryFacts>('/api/memory/facts'),
+
+  /** 五类语义记忆分层（P1-1） */
+  semantic: () => get<ApiOk<SemanticStats>>('/api/memory/semantic'),
 
   /** 语义召回（关键词搜索记忆） */
   search: (q: string, limit = 10) =>

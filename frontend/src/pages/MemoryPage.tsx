@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import SearchIcon from '@mui/icons-material/Search';
-import { memoryApi, type MemorySummary, type MemorySearchHit, type MemoryFacts } from '../api/memory';
+import { memoryApi, type MemorySummary, type MemorySearchHit, type MemoryFacts, type SemanticStats } from '../api/memory';
 import { Card } from '../components/common/Card';
 
 function fmtTime(iso: string): string {
@@ -8,12 +8,22 @@ function fmtTime(iso: string): string {
   return isNaN(d.getTime()) ? iso : d.toLocaleString('zh-CN', { hour12: false });
 }
 
+/** 五类语义记忆的中文标签 */
+const CATEGORY_LABEL: Record<string, string> = {
+  profile: '画像',
+  semantic: '语义知识',
+  episodic: '情景记忆',
+  variable: '变量状态',
+  summary: '摘要',
+};
+
 /**
  * 团队记忆页：账本摘要（区块/记忆条数/链头/完整性）+ 语义检索。
  */
 export default function MemoryPage(): JSX.Element {
   const [summary, setSummary] = useState<MemorySummary | null>(null);
   const [facts, setFacts] = useState<MemoryFacts | null>(null);
+  const [semantic, setSemantic] = useState<SemanticStats | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MemorySearchHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -28,6 +38,10 @@ export default function MemoryPage(): JSX.Element {
       .facts()
       .then(setFacts)
       .catch(() => setFacts(null));
+    memoryApi
+      .semantic()
+      .then((r) => setSemantic(r.data))
+      .catch(() => setSemantic(null));
   }, []);
 
   useEffect(() => {
@@ -139,6 +153,52 @@ export default function MemoryPage(): JSX.Element {
                 ))}
               </div>
             )}
+          </Card>
+        </div>
+      )}
+
+      {/* 五类语义记忆分层（P1-1） */}
+      {semantic && semantic.total > 0 && (
+        <div className="mb-4">
+          <Card className="p-4">
+            <div className="mb-3 flex items-baseline justify-between">
+              <div className="text-sm font-semibold text-[#0F172A]">语义记忆分层</div>
+              <div className="text-xs text-[#64748B]">
+                共 {semantic.total} 条 · 覆盖率 {(semantic.coverage * 100).toFixed(0)}%
+              </div>
+            </div>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {Object.entries(semantic.byCategory).map(([cat, n]) => (
+                <span
+                  key={cat}
+                  className="rounded-full bg-[#EEF2FF] px-2.5 py-0.5 text-xs text-[#4F46E5]"
+                >
+                  {CATEGORY_LABEL[cat] ?? cat} ×{n}
+                </span>
+              ))}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {Object.entries(semantic.samples).map(([cat, facts]) =>
+                facts.length === 0 ? null : (
+                  <div key={cat}>
+                    <div className="mb-1 text-xs font-medium text-[#64748B]">
+                      {CATEGORY_LABEL[cat] ?? cat}
+                    </div>
+                    <div className="space-y-1">
+                      {facts.map((f) => (
+                        <div
+                          key={f.sourceId}
+                          className="rounded border border-[#E2E8F0] px-2.5 py-1.5 text-xs text-[#334155]"
+                        >
+                          <span className="text-[#4F46E5]">{f.subject}</span> · {f.predicate} ·{' '}
+                          {f.object}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
           </Card>
         </div>
       )}

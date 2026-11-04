@@ -43,3 +43,6 @@ export * from './adapters/amg-mcp';
 
 // 语义检索层（借鉴 AgentMemory：BM25 召回 + secret 脱敏）
 export * from './search';
+
+// 语义记忆分层（P1-1：五类分类 + 结构化事实抽取）
+export * from './semantic/extractor';

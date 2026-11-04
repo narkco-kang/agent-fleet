@@ -10,6 +10,12 @@ export function registerMemoryRoutes(app: FastifyInstance): void {
   /** 记忆整合洞察：从账本 change 提炼统计事实（成功率、按 agent/设备分布、失败教训）。 */
   app.get('/api/memory/facts', async () => memoryLedger.consolidate());
 
+  /** 五类语义记忆分层（P1-1）：profile/semantic/episodic/variable/summary 分类统计 + 样本。 */
+  app.get<{ Querystring: { limit?: string } }>('/api/memory/semantic', async (req) => {
+    const limit = Math.min(Math.max(Number(req.query.limit ?? 8) || 8, 1), 50);
+    return { ok: true, data: await memoryLedger.semanticStats(limit) };
+  });
+
   /** 诊断/测试：直接写入一条 change 并出块（用于验证同步链路，不依赖任务执行）。 */
   app.post<{ Body: { note?: string; status?: string } }>(
     '/api/memory/record',

@@ -17,8 +17,9 @@ import {
   verifyChainSigned,
   scrubSecrets,
   MemorySearchIndex,
+  semanticDistribution,
 } from '@agentfleet/memory';
-import type { Block, MemoryChange, KeyPair } from '@agentfleet/memory';
+import type { Block, MemoryChange, KeyPair, SemanticFact } from '@agentfleet/memory';
 
 /** 团队账本落盘目录（可被环境变量覆盖）。 */
 const MEMORY_DIR = process.env.MEMORY_DIR ?? './data/memory';
@@ -284,6 +285,26 @@ class MemoryLedgerService {
       change: h.item,
       score: h.score,
     }));
+  }
+
+  /**
+   * 五类语义记忆分层（P1-1）：把账本 change 按 profile/semantic/episodic/variable/summary
+   * 分类统计，返回覆盖率 + 各类结构化事实样本。只读派生，不写账本。
+   */
+  async semanticStats(limitPerCategory = 8): Promise<{
+    total: number;
+    coverage: number;
+    byCategory: Record<string, number>;
+    samples: Record<string, SemanticFact[]>;
+  }> {
+    const doc = await this.ledger.load();
+    const changes = doc.blocks.flatMap((b) => b.changes);
+    const { byCategory, coverage, facts } = semanticDistribution(changes);
+    const samples: Record<string, SemanticFact[]> = {};
+    for (const cat of Object.keys(byCategory)) {
+      samples[cat] = facts.filter((f) => f.category === cat).slice(-limitPerCategory).reverse();
+    }
+    return { total: changes.length, coverage, byCategory, samples };
   }
 
   /** 供测试/诊断生成一条任意 change（随机 uuid，不幂等）。 */
