@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Origin, TargetMode } from '@agentfleet/shared';
 import { getTask, listTasks, toTaskSnapshot } from '../db/repo/tasks.js';
 import { listMessagesByTask, toTaskEvent } from '../db/repo/messages.js';
+import { getLatestSummary } from '../db/repo/taskContexts.js';
 import { createSession, getSession, makeTitle } from '../db/repo/sessions.js';
 import { enqueueTask } from '../services/scheduler.js';
 import { cancelTask, retryTask } from '../services/taskRunner.js';
@@ -43,12 +44,19 @@ export function registerTaskRoutes(app: FastifyInstance): void {
     createSession(sessionId, origin, originRef, makeTitle(body.prompt));
     const taskId = randomId('task');
 
+    // 同 session 任务链上下文累积：注入前序交接摘要（P0-3，有界单条，不无限累积）
+    let prompt = body.prompt;
+    const prev = body.sessionId ? getLatestSummary(sessionId) : null;
+    if (prev) {
+      prompt = `【前序任务摘要】${prev.summary}\n\n---\n\n${body.prompt}`;
+    }
+
     enqueueTask({
       taskId,
       sessionId,
       origin,
       originRef,
-      prompt: body.prompt,
+      prompt,
       targetMode: mode,
       targetDeviceId: body.target?.deviceId,
       targetAgentType: (body.target?.agentType as never) ?? undefined,

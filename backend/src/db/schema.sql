@@ -261,3 +261,13 @@ CREATE INDEX IF NOT EXISTS idx_action_confirmations_ref ON action_confirmations 
 CREATE INDEX IF NOT EXISTS idx_usage_records_task ON usage_records (task_id);
 CREATE INDEX IF NOT EXISTS idx_role_teams_slug ON role_teams (slug);
 CREATE INDEX IF NOT EXISTS idx_sub_roles_team ON sub_roles (role_team_id);
+
+-- 任务级上下文交接摘要（P0-3）：同 session 下一任务注入前序摘要，沿任务链有界累积
+CREATE TABLE IF NOT EXISTS task_contexts (
+  task_id     TEXT PRIMARY KEY,
+  session_id  TEXT NOT NULL,
+  summary     TEXT NOT NULL DEFAULT '',
+  token_count INTEGER NOT NULL DEFAULT 0,
+  updated_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_task_contexts_session ON task_contexts (session_id, updated_at);

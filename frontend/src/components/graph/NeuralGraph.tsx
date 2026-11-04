@@ -351,9 +351,10 @@ function StatusBar({ items }: { items: Array<{ color: string; count: number; lab
       </div>
       <div className="flex shrink-0 items-center gap-2 font-mono text-[10px] text-[var(--text-muted)]">
         {visible.map((i) => (
-          <span key={i.label} className="flex items-center gap-1">
+          <span key={i.label} className="flex items-center gap-1 whitespace-nowrap">
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: i.color }} />
             {i.count}
+            <span className="opacity-70">{i.label}</span>
           </span>
         ))}
       </div>

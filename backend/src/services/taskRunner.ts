@@ -2,6 +2,7 @@ import type { AgentType, TaskEvent, TaskEventType, TaskResult, TaskStatus } from
 import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
 import { getTask, listTasks, setTaskResult, updateTaskStatus } from '../db/repo/tasks.js';
+import { saveTaskContext } from '../db/repo/taskContexts.js';
 import { appendMessage, listMessagesByTask } from '../db/repo/messages.js';
 import { release, enqueueTask, type SchedulerSubmitInput, type GatewayTaskResult } from './scheduler.js';
 import { setSchedulerHooks } from './scheduler.js';
@@ -64,6 +65,14 @@ export function initTaskRunner(): void {
   });
 }
 
+/** 任务终态生成交接摘要（规则抽取，不调 LLM，零依赖）并写 task_contexts */
+function recordTaskContext(taskId: string, prompt: string, resultText: string, status: TaskStatus): void {
+  const summary = `[${status}] ${prompt.slice(0, 60)}${resultText ? ` → ${resultText.slice(0, 120)}` : ''}`;
+  const tokenCount = Math.ceil((prompt.length + resultText.length) / 4);
+  const task = getTask(taskId);
+  if (task) saveTaskContext(taskId, task.session_id, summary, tokenCount);
+}
+
 /** 角色路由 → 网关任务完成：落库结果 + 广播 + 台账记账 */
 export function completeGatewayTask(taskId: string, result: GatewayTaskResult): void {
   const status: TaskStatus = result.status;
@@ -95,6 +104,7 @@ export function completeGatewayTask(taskId: string, result: GatewayTaskResult): 
   );
 
   const task = getTask(taskId);
+  recordTaskContext(taskId, task?.prompt ?? '', result.resultText, status);
   void memoryLedger
     .recordTaskTerminal({
       taskId,
@@ -209,6 +219,10 @@ export function onDeviceTaskResult(result: TaskResult): void {
     Date.now(),
     randomId('msg'),
   );
+
+  // 交接摘要（同 session 下一任务注入前序摘要）
+  const rt = getTask(result.taskId);
+  recordTaskContext(result.taskId, rt?.prompt ?? '', result.result?.text ?? '', status);
 
   finalize(result.taskId, status);
 
