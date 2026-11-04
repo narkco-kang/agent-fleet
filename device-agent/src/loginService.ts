@@ -34,8 +34,10 @@ export function parseLoginChallenge(
 
 /** 专用 Adapter 平台的登录规格（不在 platformCatalog 里，如 grok） */
 const DEDICATED_LOGIN_SPEC: Record<string, LoginSpec> = {
-  // grok 官方 CLI 无 device-auth：headless 用 XAI_API_KEY 环境变量，GUI 环境首次启动打开本机浏览器 OAuth（非 URL+code）
-  grok: { args: [], note: 'grok 无 device-auth 命令：headless 用 XAI_API_KEY 环境变量认证，GUI 环境首次启动打开浏览器 OAuth' },
+  // grok 在项目里 = 「grok bot」（云端 agent 队友，专用 GrokAdapter 走 ACP `grok agent stdio`），
+  // 不是「grok 模型 CLI」。grok bot 无 device-auth（URL+code），认证 = 登录 x.ai 账号（付费订阅，
+  // GUI 首次启动浏览器 OAuth）或 headless 用 XAI_API_KEY。
+  grok: { args: [], note: 'grok bot（云端 agent，需 x.ai 付费订阅）：无 device-auth，登录 x.ai 账号（GUI 浏览器 OAuth）或 XAI_API_KEY（headless）' },
 };
 
 export interface LoginHandle {
