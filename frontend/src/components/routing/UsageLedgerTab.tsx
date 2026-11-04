@@ -38,6 +38,46 @@ export function UsageLedgerTab(): JSX.Element {
         />
       </div>
 
+      {/* 按 Provider 成本明细（P2-11：钱花在哪个 Provider） */}
+      {summary && Object.keys(summary.byProvider).length > 0 && (
+        <Card className="p-0">
+          <div className="border-b border-[#E2E8F0] px-4 py-3 text-sm font-semibold text-[#0F172A]">
+            按 Provider 用量与成本
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-[#F8FAFC] text-left text-xs text-[#64748B]">
+                  <th className="px-3 py-2 font-medium">Provider</th>
+                  <th className="px-3 py-2 font-medium">记录数</th>
+                  <th className="px-3 py-2 font-medium">输入 tokens</th>
+                  <th className="px-3 py-2 font-medium">输出 tokens</th>
+                  <th className="px-3 py-2 font-medium">估算成本</th>
+                  <th className="px-3 py-2 font-medium">占比</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(summary.byProvider)
+                  .sort((a, b) => b[1].cost - a[1].cost)
+                  .map(([provider, p]) => {
+                    const share = summary.totalCost > 0 ? (p.cost / summary.totalCost) * 100 : 0;
+                    return (
+                      <tr key={provider} className="border-t border-[#E2E8F0]">
+                        <td className="px-3 py-2 font-mono text-xs text-[#334155]">{provider}</td>
+                        <td className="px-3 py-2 text-[#334155]">{p.records}</td>
+                        <td className="px-3 py-2 text-[#334155]">{p.tokensIn}</td>
+                        <td className="px-3 py-2 text-[#334155]">{p.tokensOut}</td>
+                        <td className="px-3 py-2 font-medium text-[#4F46E5]">${p.cost.toFixed(4)}</td>
+                        <td className="px-3 py-2 text-[#64748B]">{share.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
       <Card className="p-0">
         <div className="border-b border-[#E2E8F0] px-4 py-3 text-sm font-semibold text-[#0F172A]">
           台账明细（最近 {records.length} 条）
