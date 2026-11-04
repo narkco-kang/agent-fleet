@@ -44,6 +44,14 @@ export function useLiveData(): void {
     engine.current.start();
   };
 
+  // 退出演示模式：后端出现真实设备后，停掉 mock 引擎，切换到真实数据
+  const exitMock = (): void => {
+    engine.current?.stop();
+    engine.current = null;
+    mockMode.current = false;
+    setTasks([]);
+  };
+
   useEffect(() => {
     if (inited.current) return;
     inited.current = true;
@@ -71,7 +79,15 @@ export function useLiveData(): void {
 
     // WS 订阅
     onSnapshot((snap: DashboardSnapshot) => {
-      if (mockMode.current) return;
+      // mock 模式下，后端一旦出现真实设备 → 退出 mock，切换到真实数据（否则 mock 节点
+      // 会与真实设备并存，用户点到 mock 节点（如 dev-pcwin 的 DSH）会 404/报错）
+      if (mockMode.current) {
+        if (snap.devices && snap.devices.length > 0) {
+          exitMock();
+        } else {
+          return;
+        }
+      }
       const devices: DeviceRecord[] = snap.devices.map((d) => ({
         ...d,
         agents: snap.agents.filter((a) => a.deviceId === d.deviceId),
