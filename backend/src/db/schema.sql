@@ -271,3 +271,16 @@ CREATE TABLE IF NOT EXISTS task_contexts (
   updated_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_task_contexts_session ON task_contexts (session_id, updated_at);
+
+-- 决策门（P0-5）：agent 执行中上报带选项决策门，任务 blocked 等人类 resolve
+CREATE TABLE IF NOT EXISTS decision_gates (
+  gate_id         TEXT PRIMARY KEY,
+  task_id         TEXT NOT NULL,
+  title           TEXT NOT NULL DEFAULT '',
+  options         TEXT NOT NULL DEFAULT '[]',  -- JSON string[]
+  status          TEXT NOT NULL DEFAULT 'open',  -- open / resolved
+  resolved_option TEXT,
+  created_at      INTEGER NOT NULL,
+  resolved_at     INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_decision_gates_task ON decision_gates (task_id, status);

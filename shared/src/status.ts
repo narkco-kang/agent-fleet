@@ -5,10 +5,11 @@
  * deploy/team/loop/action）只 import 不重复定义，保证单一事实源。
  */
 
-/** 任务六态 */
+/** 任务七态（+ blocked：决策门阻塞等人类选择，P0-5） */
 export type TaskStatus =
   | 'queued'
   | 'running'
+  | 'blocked'
   | 'completed'
   | 'failed'
   | 'cancelled'
@@ -129,6 +130,7 @@ export const FREE_SOURCE_RATINGS: readonly FreeSourceRating[] = [
 ] as const;export const TASK_STATUSES: readonly TaskStatus[] = [
   'queued',
   'running',
+  'blocked',
   'completed',
   'failed',
   'cancelled',

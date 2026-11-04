@@ -38,7 +38,7 @@ import {
 } from './services/relayClient.js';
 import { deviceRegistry, setDeviceOfflineHandler } from './services/deviceRegistry.js';
 import { setDeviceStatus } from './db/repo/devices.js';
-import { initTaskRunner, onDeviceTaskEvent, onDeviceTaskResult, onDeviceDisconnected } from './services/taskRunner.js';
+import { initTaskRunner, onDeviceTaskEvent, onDeviceTaskResult, onDeviceDisconnected, onDecisionGate } from './services/taskRunner.js';
 import { memoryLedger } from './services/memoryLedger.js';
 import { setupMemorySync, handleMemorySyncMessage } from './services/memorySync.js';
 import { startDispatchLoop } from './services/scheduler.js';
@@ -98,6 +98,7 @@ async function main(): Promise<void> {
     onDeviceTaskEvent,
     onDeviceTaskResult,
     onDeviceDisconnected,
+    onDecisionGate,
   });
   // 心跳超时兜底 → 同样走断连处理（标 interrupted）
   setDeviceOfflineHandler(onDeviceDisconnected);

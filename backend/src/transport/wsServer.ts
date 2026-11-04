@@ -27,6 +27,8 @@ export interface TaskBridge {
   onDeviceTaskResult(result: TaskResult): void;
   /** 设备断开时标记其运行中任务为 interrupted */
   onDeviceDisconnected(deviceId: string): void;
+  /** 设备上报决策门（P0-5：任务 blocked 等人类选择） */
+  onDecisionGate?(taskId: string, title: string, options: string[]): void;
 }
 
 /** 看板连接集合 */
@@ -208,6 +210,13 @@ function handleEnvelope(socket: WebSocket, raw: string, fallbackPeer?: Peer): vo
     }
     case MESSAGE_TYPES.TASK_RESULT: {
       taskBridge?.onDeviceTaskResult(envelope.payload as TaskResult);
+      break;
+    }
+    case MESSAGE_TYPES.DECISION_GATE: {
+      const gate = envelope.payload as { taskId?: string; title?: string; options?: string[] };
+      if (gate?.taskId) {
+        taskBridge?.onDecisionGate?.(gate.taskId, gate.title ?? '', gate.options ?? []);
+      }
       break;
     }
     case MESSAGE_TYPES.ASSET_DELIVER_ACK: {

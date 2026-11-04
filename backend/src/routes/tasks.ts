@@ -1,10 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { Origin, TargetMode } from '@agentfleet/shared';
-import { getTask, listTasks, toTaskSnapshot } from '../db/repo/tasks.js';
+import { getTask, listTasks, toTaskSnapshot, updateTaskStatus } from '../db/repo/tasks.js';
 import { listMessagesByTask, toTaskEvent } from '../db/repo/messages.js';
 import { getLatestSummary } from '../db/repo/taskContexts.js';
+import { getOpenGate, resolveGate } from '../db/repo/decisionGates.js';
 import { createSession, getSession, makeTitle } from '../db/repo/sessions.js';
-import { enqueueTask } from '../services/scheduler.js';
+import { enqueueTask, dispatch } from '../services/scheduler.js';
 import { cancelTask, retryTask } from '../services/taskRunner.js';
 import { randomId } from '../security/auth.js';
 
@@ -115,4 +116,30 @@ export function registerTaskRoutes(app: FastifyInstance): void {
     }
     return { ok: true, data: { taskId: newTaskId } };
   });
+
+  /** 查询任务打开的决策门（P0-5） */
+  app.get<{ Params: { id: string } }>('/api/tasks/:id/gate', async (req) => {
+    return { ok: true, data: getOpenGate(req.params.id) };
+  });
+
+  /** resolve 决策门（人类选择选项 → 任务 blocked 恢复 queued 重新派发） */
+  app.post<{ Params: { id: string }; Body: { gateId?: string; option?: string } }>(
+    '/api/tasks/:id/gate/resolve',
+    async (req, reply) => {
+      const gate = getOpenGate(req.params.id);
+      const gateId = req.body?.gateId ?? gate?.gateId;
+      const option = req.body?.option;
+      if (!gateId || !option) {
+        return reply.code(400).send({ ok: false, error: 'gateId/option required' });
+      }
+      const resolved = resolveGate(gateId, option);
+      if (!resolved) {
+        return reply.code(409).send({ ok: false, error: 'gate_not_resolvable' });
+      }
+      // 恢复任务：blocked → queued，重新派发（决策结果已落库供下次执行参考）
+      updateTaskStatus(req.params.id, 'queued', { error: undefined });
+      dispatch();
+      return { ok: true, data: resolved };
+    },
+  );
 }

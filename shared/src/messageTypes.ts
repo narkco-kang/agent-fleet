@@ -20,6 +20,7 @@ export type MessageType =
   | 'task.cancel'
   | 'task.result'
   | 'task.reroute'
+  | 'task.decision_gate'
   // 资产分发（协调 ↔ 设备）
   | 'asset.deliver'
   | 'asset.deliver_ack'
@@ -56,6 +57,7 @@ export const MESSAGE_TYPES: Record<string, MessageType> = {
   TASK_CANCEL: 'task.cancel',
   TASK_RESULT: 'task.result',
   TASK_REROUTE: 'task.reroute',
+  DECISION_GATE: 'task.decision_gate',
   ASSET_DELIVER: 'asset.deliver',
   ASSET_DELIVER_ACK: 'asset.deliver_ack',
   DASHBOARD_SNAPSHOT: 'dashboard.snapshot',

@@ -4,6 +4,7 @@ import { deviceRegistry } from './deviceRegistry.js';
 import { circuitBreaker } from './circuitBreaker.js';
 import { getTask, listTasks, setTaskResult, updateTaskStatus } from '../db/repo/tasks.js';
 import { saveTaskContext } from '../db/repo/taskContexts.js';
+import { createGate } from '../db/repo/decisionGates.js';
 import { appendMessage, listMessagesByTask } from '../db/repo/messages.js';
 import { release, enqueueTask, type SchedulerSubmitInput, type GatewayTaskResult } from './scheduler.js';
 import { setSchedulerHooks } from './scheduler.js';
@@ -246,6 +247,22 @@ export function onDeviceTaskResult(result: TaskResult): void {
     from: 'coordinator',
     to: 'wechat',
     payload: result,
+  });
+}
+
+/** 决策门（P0-5）：agent 执行中上报带选项决策门 → 任务 blocked + 落库 + 广播 */
+export function onDecisionGate(taskId: string, title: string, options: string[]): void {
+  createGate(taskId, title, options);
+  updateTaskStatus(taskId, 'blocked');
+  appendMessage(taskId, nextSeq(taskId), 'status', 'blocked', { message: `决策门：${title}` }, Date.now(), randomId('msg'));
+  broadcastToDashboards({
+    v: 1,
+    type: MESSAGE_TYPES.DASHBOARD_PATCH,
+    id: randomId('patch'),
+    ts: Date.now(),
+    from: 'coordinator',
+    to: 'dashboard',
+    payload: taskStatusPatch(taskId, 'blocked'),
   });
 }
 
