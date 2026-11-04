@@ -288,3 +288,17 @@ CREATE TABLE IF NOT EXISTS decision_gates (
   resolved_at     INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_decision_gates_task ON decision_gates (task_id, status);
+
+-- 免费模型源目录（抓取自 dsh-our-free-model registry.json）：各平台协议兼容的免费/付费源
+CREATE TABLE IF NOT EXISTS free_sources (
+  source_id   TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  category    TEXT NOT NULL,   -- free | free-tier | apikey | oauth | local
+  format      TEXT NOT NULL,   -- openai-chat | openai-responses | anthropic-messages
+  base_url    TEXT NOT NULL,
+  models      TEXT NOT NULL DEFAULT '[]',  -- JSON [{id,name}]
+  notes       TEXT NOT NULL DEFAULT '',
+  website     TEXT NOT NULL DEFAULT '',
+  updated_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_free_sources_format ON free_sources (format, category);

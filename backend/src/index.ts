@@ -53,6 +53,7 @@ import {
 } from './services/assets/deliveryService.js';
 import { loopScheduler, registerLoopExecutor } from './services/loop/loopScheduler.js';
 import { startCheckinLoop } from './services/routing/checkinService.js';
+import { startFreeSourceCrawlLoop } from './services/routing/freeSourceCrawler.js';
 import { registerGatewayRoutes } from './routes/gateway.js';
 import { gatewayManager } from './services/gateway/gatewayManager.js';
 import { MESSAGE_TYPES } from '@agentfleet/shared';
@@ -93,6 +94,8 @@ async function main(): Promise<void> {
   startDeliverySweeper();
   loopScheduler.startTicker();
   startCheckinLoop();
+  // 免费源目录：启动后 30s 首次抓取 + 每 12 小时自动定期抓取
+  startFreeSourceCrawlLoop();
 
   // 装配任务桥接 + 中继转发
   setTaskBridge({

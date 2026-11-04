@@ -15,6 +15,11 @@ import {
   probeDirectSource,
 } from '@agentfleet/shared';
 import { checkin, status as checkinStatus } from '../services/routing/checkinService.js';
+import {
+  crawlFreeSources,
+  freeSourcesStats,
+  queryFreeSources,
+} from '../services/routing/freeSourceCrawler.js';
 
 /**
  * 路由网关 REST 出口：角色路由 CRUD/导入 + 决策 + 台账 + 网关健康。
@@ -165,4 +170,22 @@ export function registerRoutingRoutes(app: FastifyInstance): void {
   app.get('/api/routing/free-sources/checkin/status', async () => {
     return { ok: true, data: checkinStatus() };
   });
+
+  /** 手动抓取免费源目录（dsh-our-free-model registry.json） */
+  app.post('/api/routing/free-sources/crawl', async () => {
+    const result = await crawlFreeSources();
+    return { ok: result.ok, data: result };
+  });
+
+  /** 查询已抓取的免费源目录（按协议/分类过滤） */
+  app.get<{ Querystring: { format?: string; category?: string } }>(
+    '/api/routing/free-sources/crawled',
+    async (req) => {
+      const sources = queryFreeSources({
+        format: req.query.format,
+        category: req.query.category,
+      });
+      return { ok: true, data: { total: freeSourcesStats().total, sources } };
+    },
+  );
 }
