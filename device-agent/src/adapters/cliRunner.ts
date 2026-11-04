@@ -89,15 +89,18 @@ export function detectToolUse(j: {
 export function runCli(opts: CliRunOptions): CliRunHandle {
   // 沙箱包裹（P0-2）：readonly/isolated 时用 sandbox-exec/bwrap 包裹命令
   const { cmd, args } = buildSandboxCommand(opts.sandbox ?? 'none', opts.cmd, opts.args);
-  // Windows：npm 全局 CLI 是 .cmd/.bat 批处理，必须 shell:true 经 cmd.exe 执行，
-  // 否则 spawn 直接 CreateProcess 会 ENOENT（真实多机 benchmark 踩过）
+  // Windows：npm 全局 CLI 是 .cmd/.bat 批处理。不能用 shell:true（Node 会把 cmd+args 用空格
+  // 直接 join、不做转义，含空格的 prompt 被拆成多个参数 → "unexpected argument"）；
+  // 正确做法是 spawn cmd.exe /c，args 作为独立参数交给 Node 做默认引号转义（真实多机 benchmark 踩过）。
   const isWindowsBatch = process.platform === 'win32' && /\.(cmd|bat)$/i.test(cmd);
-  const child = spawn(cmd, args, {
+  const spawnOpts = {
     cwd: opts.cwd ?? process.cwd(),
     env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    shell: isWindowsBatch,
-  });
+    stdio: ['ignore', 'pipe', 'pipe'] as const,
+  };
+  const child = isWindowsBatch
+    ? spawn('cmd.exe', ['/d', '/s', '/c', cmd, ...args], spawnOpts)
+    : spawn(cmd, args, spawnOpts);
 
   let seq = 0;
   const makeSeq = (): number => ++seq;
