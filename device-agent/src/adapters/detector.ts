@@ -153,11 +153,24 @@ function readAppVersion(appPath: string): string {
 /** 版本探测（失败返回 'unknown'，不抛错） */
 function probeVersion(executable: string, probe: PlatformProbe): string {
   try {
-    const out = execFileSync(executable, probe.versionArgs, {
-      encoding: 'utf-8',
-      timeout: 5_000,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
+    // Windows 的 .cmd/.bat 不能直接 execFileSync（会 ENOENT），须经 cmd.exe /c 包装
+    // （与 cliRunner spawn 的坑一致，真机验证：否则版本显示 'unknown'）
+    const isWindowsBatch = os.platform() === 'win32' && /\.(cmd|bat)$/i.test(executable);
+    const out = (
+      isWindowsBatch
+        ? execFileSync('cmd.exe', ['/d', '/s', '/c', executable, ...probe.versionArgs], {
+            encoding: 'utf-8',
+            timeout: 5_000,
+            stdio: ['ignore', 'pipe', 'ignore'],
+          })
+        : execFileSync(executable, probe.versionArgs, {
+            encoding: 'utf-8',
+            timeout: 5_000,
+            stdio: ['ignore', 'pipe', 'ignore'],
+          })
+    )
+      .toString()
+      .trim();
     if (probe.parseVersion) return probe.parseVersion(out);
     // 默认提取第一个 semver（形如 "codex 0.31.0" / "aider v0.75.0"）
     const m = out.match(/\d+\.\d+(\.\d+)?/);

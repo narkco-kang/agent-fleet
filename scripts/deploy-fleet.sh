@@ -40,8 +40,9 @@ scp_win120() { sshpass -p "$WIN120_PASS" scp "${SSH_OPTS[@]}" "$@"; }
 scp_win165() { sshpass -p "$WIN165_PASS" scp "${SSH_OPTS[@]}" "$@"; }
 
 restart_ubuntu() { ssh_ubuntu "sudo systemctl restart agentfleet-device && echo ubuntu-dev 已重启" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"; }
-restart_win120() { ssh_win120 'taskkill /f /im node.exe 2>nul & ping -n 2 127.0.0.1 > nul & schtasks /run /tn AgentFleetDevice & echo win120-dev 已重启' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"; }
-restart_win165() { ssh_win165 'taskkill /f /im node.exe 2>nul & ping -n 2 127.0.0.1 > nul & powershell -NoProfile -Command "Start-ScheduledTask -TaskName AFDevSys" & echo win165-dev 已重启' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"; }
+# taskkill node.exe 会连 modelgateway 一起杀（也是 node.exe），所以重启 device-agent 后必须同时重启 modelgateway 常驻任务
+restart_win120() { ssh_win120 'taskkill /f /im node.exe 2>nul & ping -n 2 127.0.0.1 > nul & schtasks /run /tn AgentFleetDevice & schtasks /run /tn AgentFleetModelGateway & echo win120-dev 已重启' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"; }
+restart_win165() { ssh_win165 'taskkill /f /im node.exe 2>nul & ping -n 2 127.0.0.1 > nul & powershell -NoProfile -Command "Start-ScheduledTask -TaskName AFDevSys" & schtasks /run /tn AFDevModelGateway & echo win165-dev 已重启' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"; }
 
 case "${1:-}" in
   restart)
@@ -73,7 +74,10 @@ case "${1:-}" in
     echo "[fleet] 打包 relay..."
     (cd "$ROOT" && npm run build:deploy)
     scp_ubuntu "$ROOT/dist/relay.cjs" "$UBUNTU_USER@$UBUNTU_HOST:relay.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
-    ssh_ubuntu "pkill -f relay.cjs 2>/dev/null; sleep 1; export PATH=\$HOME/.local/bin:\$PATH; setsid env RELAY_PORT=4174 node ~/relay.cjs > ~/relay.log 2>&1 < /dev/null & sleep 2; ss -tlnp 2>/dev/null | grep 4174 && echo relay-ok" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"
+    # systemd-run 可靠常驻（setsid/nohup 在 ssh 退出后会被 SIGHUP 杀掉，真机踩过）。
+    # 幂等：systemctl stop 停旧 unit → fuser -k 按端口清残留 → reset-failed → systemd-run --collect。
+    # 关键：绝不能用 pkill -f（会匹配到执行本命令的 bash -c 进程 → 自杀），用 fuser -k 按端口杀。
+    ssh_ubuntu "sudo systemctl stop agentfleet-relay 2>/dev/null; sudo fuser -k 4174/tcp 2>/dev/null; sleep 1; sudo systemctl reset-failed agentfleet-relay 2>/dev/null; sudo systemd-run --unit=agentfleet-relay --collect --setenv=RELAY_PORT=4174 \$HOME/.local/bin/node \$HOME/relay.cjs 2>&1; sleep 2; ss -tlnp 2>/dev/null | grep 4174 && echo relay-ok" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"
     ;;
   modelgateway)
     echo "[fleet] 打包 modelgateway..."
@@ -84,7 +88,8 @@ case "${1:-}" in
     scp_win165 "$ROOT/dist/modelgateway.cjs" "$WIN165_USER@$WIN165_HOST:modelgateway.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
 
     echo "[fleet] 启动 Ubuntu modelgateway（设备本地 responses/anthropic 转换网关）..."
-    ssh_ubuntu "pkill -f modelgateway.cjs 2>/dev/null; sleep 1; export PATH=\$HOME/.local/bin:\$PATH; setsid env MODELGATEWAY_PORT=18765 node ~/modelgateway.cjs > ~/modelgateway.log 2>&1 < /dev/null & sleep 2; ss -tlnp 2>/dev/null | grep 18765 && echo mg-ok" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"
+    # 与 relay 同：fuser -k 按端口清残留（不用 pkill，会自杀）
+    ssh_ubuntu "sudo systemctl stop agentfleet-modelgateway 2>/dev/null; sudo fuser -k 18765/tcp 2>/dev/null; sleep 1; sudo systemctl reset-failed agentfleet-modelgateway 2>/dev/null; sudo systemd-run --unit=agentfleet-modelgateway --collect --setenv=MODELGATEWAY_PORT=18765 \$HOME/.local/bin/node \$HOME/modelgateway.cjs 2>&1; sleep 2; ss -tlnp 2>/dev/null | grep 18765 && echo mg-ok" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"
 
     echo "[fleet] Windows 设备 modelgateway 常驻（schtasks）..."
     # Win120：node 在 PATH，直接 node
