@@ -1,6 +1,7 @@
 import type { AgentType, TargetMode, TaskStatus } from '@agentfleet/shared';
 import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
+import { circuitBreaker } from './circuitBreaker.js';
 import {
   assignTaskTarget,
   createTask,
@@ -380,12 +381,15 @@ function agentMatches(
   return true;
 }
 
-/** 空闲优先选择：占用最低、负载最低（busy_count 直接用 agent 行，避免重复查库；只选未满员的 agent） */
+/** 空闲优先选择：占用最低、负载最低（busy_count 直接用 agent 行，避免重复查库；只选未满员、未熔断的 agent） */
 function pickBest(candidates: DeviceAgent[]): DeviceAgent | null {
   if (candidates.length === 0) return null;
   return candidates
     .filter(
-      (p) => p.agent.status !== 'error' && p.agent.busy_count < p.agent.max_concurrency,
+      (p) =>
+        p.agent.status !== 'error' &&
+        p.agent.busy_count < p.agent.max_concurrency &&
+        !circuitBreaker.isOpen(p.deviceId, p.agent.agent_type),
     )
     .sort((a, b) => {
       const busyA = a.agent.busy_count;

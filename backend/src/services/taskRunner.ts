@@ -1,6 +1,7 @@
 import type { AgentType, TaskEvent, TaskEventType, TaskResult, TaskStatus } from '@agentfleet/shared';
 import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
+import { circuitBreaker } from './circuitBreaker.js';
 import { getTask, listTasks, setTaskResult, updateTaskStatus } from '../db/repo/tasks.js';
 import { saveTaskContext } from '../db/repo/taskContexts.js';
 import { appendMessage, listMessagesByTask } from '../db/repo/messages.js';
@@ -415,6 +416,12 @@ function finalize(taskId: string, status: TaskStatus): void {
   if (rec.timer) {
     clearTimeout(rec.timer);
     rec.timer = null;
+  }
+  // 熔断器（P0-6）：成功清零，失败计数（device+agent 维度）
+  if (status === 'completed') {
+    circuitBreaker.recordSuccess(rec.deviceId, rec.agentType);
+  } else if (status === 'failed') {
+    circuitBreaker.recordFailure(rec.deviceId, rec.agentType);
   }
   release(rec.deviceId, rec.agentType);
   running.delete(taskId);
