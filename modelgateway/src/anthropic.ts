@@ -16,7 +16,8 @@ import type { MgHeaders } from './openai.js';
 interface AnthropicBody {
   model: string;
   messages?: Array<{ role?: string; content?: string | Array<{ type?: string; text?: string }> }>;
-  system?: string;
+  /** system 可为 string 或 content blocks 数组（Anthropic 协议两者都允许） */
+  system?: string | Array<{ type?: string; text?: string }>;
   max_tokens?: number;
   temperature?: number;
   stream?: boolean;
@@ -32,7 +33,8 @@ function contentText(content: string | Array<{ type?: string; text?: string }> |
 /** anthropic body → openai chat messages */
 function toOpenAiMessages(body: AnthropicBody): Array<{ role: string; content: string }> {
   const messages: Array<{ role: string; content: string }> = [];
-  if (body.system?.trim()) messages.push({ role: 'system', content: body.system.trim() });
+  const sysText = contentText(body.system);
+  if (sysText.trim()) messages.push({ role: 'system', content: sysText.trim() });
   for (const m of body.messages ?? []) {
     const text = contentText(m.content);
     if (text.trim()) messages.push({ role: m.role === 'assistant' ? 'assistant' : 'user', content: text });
