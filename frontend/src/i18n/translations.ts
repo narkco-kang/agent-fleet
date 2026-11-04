@@ -17,6 +17,7 @@ export const translations: Record<string, TranslationEntry> = {
   'nav.memory': { zh: '记忆', en: 'Memory' },
   'nav.routing': { zh: '路由网关', en: 'Gateway' },
   'nav.swarm': { zh: '蜂群团队', en: 'Swarm' },
+  'nav.loop': { zh: '编排', en: 'Loop' },
   'nav.settings': { zh: '设置', en: 'Settings' },
   'nav.more': { zh: '更多', en: 'More' },
 

@@ -11,6 +11,7 @@ import RouteIcon from '@mui/icons-material/Route';
 import FolderIcon from '@mui/icons-material/Folder';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import GroupsIcon from '@mui/icons-material/Groups';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useLiveData } from '../hooks/useLiveData';
@@ -33,6 +34,7 @@ const NAV = [
   { to: '/memory', labelKey: 'nav.memory', icon: <PsychologyIcon /> },
   { to: '/routing', labelKey: 'nav.routing', icon: <RouteIcon /> },
   { to: '/swarm', labelKey: 'nav.swarm', icon: <GroupsIcon /> },
+  { to: '/loops', labelKey: 'nav.loop', icon: <AccountTreeIcon /> },
   { to: '/settings', labelKey: 'nav.settings', icon: <SettingsIcon /> },
 ];
 

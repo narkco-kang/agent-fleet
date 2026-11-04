@@ -103,6 +103,17 @@ export class LoopScheduler {
     return Array.from(this.active.keys());
   }
 
+  /** 某 loop 的 step 运行状态（P2-10 编排可视化用：节点着色 + 决策门） */
+  stepStatuses(loopId: string): Record<string, { status: TaskStatus; taskIds: string[]; human?: boolean }> {
+    const active = this.active.get(loopId);
+    if (!active) return {};
+    const out: Record<string, { status: TaskStatus; taskIds: string[]; human?: boolean }> = {};
+    for (const [stepId, run] of active.stepTasks) {
+      out[stepId] = { status: run.status, taskIds: run.taskIds, human: run.human };
+    }
+    return out;
+  }
+
   /** step 模板 → 调度输入（map 算子可覆盖 deviceId） */
   private toSubmitInput(loop: Loop, step: LoopStep, deviceId?: string): SchedulerSubmitInput {
     const target = step.template.target;

@@ -32,6 +32,25 @@ export function registerLoopRoutes(app: FastifyInstance): void {
     return { ok: true, data: loop };
   });
 
+  /** 编排 DAG 图（P2-10）：steps 节点 + dependsOn 边 + 运行时状态 + 决策门 */
+  app.get<{ Params: { id: string } }>('/api/loops/:id/graph', async (req, reply) => {
+    const loop = loopService.get(req.params.id);
+    if (!loop) return reply.code(404).send({ ok: false, error: 'loop_not_found' });
+    const statuses = loopScheduler.stepStatuses(req.params.id);
+    const nodes = loop.steps.map((s) => ({
+      id: s.id,
+      name: s.name,
+      operator: s.operator ?? 'sequence',
+      status: statuses[s.id]?.status ?? (loop.state === 'running' ? 'queued' : 'idle'),
+      human: statuses[s.id]?.human ?? false,
+      taskIds: statuses[s.id]?.taskIds ?? [],
+    }));
+    const edges = loop.steps.flatMap((s) =>
+      s.dependsOn.map((depId) => ({ from: depId, to: s.id })),
+    );
+    return { ok: true, data: { loopId: loop.id, state: loop.state, currentRound: loop.currentRound, nodes, edges } };
+  });
+
   /** 启动 Loop（请求人工确认，返回待确认态） */
   app.post<{ Params: { id: string } }>('/api/loops/:id/start', async (req, reply) => {
     const loop = loopService.get(req.params.id);
