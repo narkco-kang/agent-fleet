@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import readline from 'node:readline';
 import type { TaskEvent } from '@agentfleet/shared';
+import { buildSandboxCommand, type SandboxProfile } from '../runner/sandbox.js';
 
 /**
  * 通用 CLI 执行器：把「spawn CLI agent + 流式输出 + 终态判定」统一为生命周期状态机。
@@ -26,6 +27,8 @@ export interface CliRunOptions {
   onEvent: (ev: TaskEvent) => void;
   /** 总超时（ms），超时发 failed（timeout 归因） */
   timeoutMs?: number;
+  /** 沙箱 profile（P0-2，默认 none） */
+  sandbox?: SandboxProfile;
 }
 
 export interface CliRunHandle {
@@ -33,7 +36,9 @@ export interface CliRunHandle {
 }
 
 export function runCli(opts: CliRunOptions): CliRunHandle {
-  const child = spawn(opts.cmd, opts.args, {
+  // 沙箱包裹（P0-2）：readonly/isolated 时用 sandbox-exec/bwrap 包裹命令
+  const { cmd, args } = buildSandboxCommand(opts.sandbox ?? 'none', opts.cmd, opts.args);
+  const child = spawn(cmd, args, {
     cwd: opts.cwd ?? process.cwd(),
     env: process.env,
     stdio: ['ignore', 'pipe', 'pipe'],

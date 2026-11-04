@@ -96,6 +96,7 @@ export class CatalogAdapter implements Adapter {
       streamJson: spec.streamJson,
       textOutput: spec.textOutput,
       timeoutMs: task.options.timeoutMs,
+      sandbox: task.options.sandbox,
       onEvent: sink,
     });
     this.handles.set(task.taskId, handle);

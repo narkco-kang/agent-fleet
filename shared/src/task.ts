@@ -43,6 +43,9 @@ export interface TaskTarget {
   agentProfile?: string;
 }
 
+/** 三态沙箱（P0-2）：默认 none，高危子角色开 readonly/isolated */
+export type SandboxProfile = 'none' | 'readonly' | 'isolated';
+
 /** 任务选项 */
 export interface TaskOptions {
   maxTurns?: number;
@@ -51,6 +54,8 @@ export interface TaskOptions {
   env?: Record<string, string>;
   allowList?: string[];
   denyList?: string[];
+  /** 沙箱隔离级别（P0-2，默认 none；readonly=只读文件系统，isolated=只读+断网） */
+  sandbox?: SandboxProfile;
 }
 
 /** 流式事件 payload（task.event） */

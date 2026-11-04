@@ -1,4 +1,4 @@
-import type { AgentType, TargetMode, TaskStatus } from '@agentfleet/shared';
+import type { AgentType, SandboxProfile, TargetMode, TaskStatus } from '@agentfleet/shared';
 import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
 import { circuitBreaker } from './circuitBreaker.js';
@@ -82,6 +82,24 @@ let hooks: SchedulerHooks | null = null;
 
 export function setSchedulerHooks(h: SchedulerHooks): void {
   hooks = h;
+}
+
+/**
+ * 高危子角色 → 沙箱隔离级别（P0-2）。
+ *
+ * 只覆盖「shell 高危」的安全审计子角色：侦察/渗透验证会在设备上跑任意 shell 命令，
+ * 套 readonly 沙箱（只读文件系统、仍可联网扫描）防止误伤宿主机文件。
+ * 其余子角色（engineer/devops 需写代码/部署文件）默认 none，不做一刀切。
+ */
+const HIGH_RISK_SUBROLE_SANDBOX: Record<string, SandboxProfile> = {
+  recon: 'readonly',
+  exploit: 'readonly',
+};
+
+/** 派发时解析任务的沙箱级别（默认 none；仅高危子角色开） */
+function resolveSandboxForTask(task: TaskRow): SandboxProfile {
+  if (task.target_mode !== 'swarm' || !task.target_sub_role) return 'none';
+  return HIGH_RISK_SUBROLE_SANDBOX[task.target_sub_role] ?? 'none';
 }
 
 /**
@@ -198,7 +216,7 @@ function dispatchLocalTask(
         requireCapability: task.require_capability ?? undefined,
         agentProfile: task.agent_profile ?? undefined,
       },
-      options: {},
+      options: { sandbox: resolveSandboxForTask(task) },
       systemPrompt,
       createdAt: task.created_at,
     },
