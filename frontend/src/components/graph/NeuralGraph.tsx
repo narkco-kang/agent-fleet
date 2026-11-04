@@ -1,18 +1,18 @@
 import { useMemo, useState, type ReactNode, Children } from 'react';
-import { useGraphData, type GraphNode, type GraphAgentNode, type GraphDeviceNode, type GraphTaskNode } from '../../hooks/useGraphData';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { useGraphData, type GraphAgentNode, type GraphDeviceNode, type GraphTaskNode } from '../../hooks/useGraphData';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { NodeLens } from './GraphToolbar';
 import type { DetailTarget } from '../drawer/DetailDrawer';
 
 /**
- * 智能体舰队总览（Mission Control 三栏布局，替代 SVG 三层泳道图）。
+ * 智能体舰队总览（Mission Control 布局，替代 SVG 三层泳道图）。
  *
- * 为什么重构：旧泳道图三列固定坐标、每行 72px、节点卡片 10-12px 小字，
- * 节点少时容器大片空白、无法一眼看清所有设备/agent/任务。
- *
- * 新布局：顶部 KPI 大数字概览 + 设备/Agent/任务三栏高密度卡片，用 CSS grid
- * 填满容器。状态色语义化（在线绿/运行橙/失败红/离线灰），等宽字体标 ID/版本/数字。
- * 点击联动：选设备→高亮其 agent 与任务；选 agent→高亮其任务；选任务→高亮其 agent。
+ * 两栏：左「设备」（内嵌其 agent，可折叠）+ 右「任务」（可折叠）。
+ * - 设备头点击折叠/展开其 agent；agent 子卡片点击打开详情（含「打开平台登录」）。
+ * - 任务点击折叠/展开输出；右上 info 打开详情。
+ * - 运行中节点展示「上流向」数据粒子（光点自下而上流动，示意数据上行）。
  */
 
 /** 状态 → CSS 变量色（跟随主题） */
@@ -72,6 +72,8 @@ export function NeuralGraph({
   const { isMobile } = useBreakpoint();
   const [focus, setFocus] = useState<string | null>(null);
   const [taskFilter, setTaskFilter] = useState<string>('all');
+  const [collapsedDevices, setCollapsedDevices] = useState<Set<string>>(new Set());
+  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
 
   const devices = useMemo(
     () =>
@@ -91,7 +93,7 @@ export function NeuralGraph({
         .sort((a, b) => {
           const ab = a.data.status === 'busy' ? 1 : 0;
           const bb = b.data.status === 'busy' ? 1 : 0;
-          return bb - ab; // 处理中优先，空闲/待登录沉底
+          return bb - ab;
         }),
     [data],
   );
@@ -102,17 +104,19 @@ export function NeuralGraph({
         .sort((a, b) => (b.data.createdAt ?? 0) - (a.data.createdAt ?? 0)),
     [data],
   );
-  // 任务栏状态筛选（failed 含 cancelled/interrupted）
   const visibleTasks = useMemo(() => {
     if (taskFilter === 'all') return tasks;
     if (taskFilter === 'failed') return tasks.filter((t) => ['failed', 'cancelled', 'interrupted'].includes(t.data.status));
     return tasks.filter((t) => t.data.status === taskFilter);
   }, [tasks, taskFilter]);
 
-  // 归属索引：agentId → deviceId；task 的 agentId
-  const agentDevice = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const a of agents) m.set(a.id, a.deviceId);
+  // 归属索引
+  const agentsByDevice = useMemo(() => {
+    const m = new Map<string, GraphAgentNode[]>();
+    for (const a of agents) {
+      if (!m.has(a.deviceId)) m.set(a.deviceId, []);
+      m.get(a.deviceId)!.push(a);
+    }
     return m;
   }, [agents]);
   const taskAgent = useMemo(() => {
@@ -131,8 +135,8 @@ export function NeuralGraph({
     const set = new Set<string>([focus]);
     if (focus.startsWith('agent-')) {
       for (const t of tasks) if (taskAgent.get(t.id) === focus) set.add(t.id);
-      const dev = agentDevice.get(focus);
-      if (dev) set.add(dev);
+      const a = agents.find((x) => x.id === focus);
+      if (a) set.add(a.deviceId);
     } else if (devices.some((d) => d.id === focus)) {
       for (const a of agents) if (a.deviceId === focus) set.add(a.id);
       for (const t of tasks) if (t.data.targetDeviceId === focus) set.add(t.id);
@@ -141,7 +145,7 @@ export function NeuralGraph({
       if (ag) set.add(ag);
     }
     return set;
-  }, [focus, tasks, agents, devices, taskAgent, agentDevice]);
+  }, [focus, tasks, agents, devices, taskAgent]);
 
   const dim = (id: string): boolean => (related ? !related.has(id) : false);
 
@@ -150,20 +154,31 @@ export function NeuralGraph({
   const busyAgents = agents.filter((a) => a.data.status === 'busy').length;
   const runningTasks = tasks.filter((t) => t.data.status === 'running').length;
   const alerts = tasks.filter((t) => t.data.status === 'failed' || t.data.status === 'interrupted' || t.data.status === 'cancelled').length;
-  // 状态分布
   const needsLoginAgents = agents.filter((a) => a.data.status === 'needs_login' || (a.data.activated as boolean | undefined) === false).length;
   const idleAgents = agents.length - busyAgents - needsLoginAgents - agents.filter((a) => a.data.status === 'error').length;
   const queuedTasks = tasks.filter((t) => t.data.status === 'queued' || t.data.status === 'waiting').length;
   const completedTasks = tasks.filter((t) => t.data.status === 'completed').length;
 
-  const click = (node: GraphNode, target: DetailTarget): void => {
-    if (focus === node.id) {
-      setFocus(null);
-      onSelect?.(null);
-    } else {
-      setFocus(node.id);
-      onSelect?.(target);
-    }
+  const select = (target: DetailTarget | null): void => {
+    onSelect?.(target);
+    setFocus(target ? target.id : null);
+  };
+
+  const toggleDevice = (id: string): void => {
+    setCollapsedDevices((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleTask = (id: string): void => {
+    setCollapsedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const blank = (): void => {
@@ -175,7 +190,7 @@ export function NeuralGraph({
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden" onClick={blank}>
-      {/* 顶部 KPI 概览 + 状态色图例 */}
+      {/* 顶部 KPI 概览 */}
       <div className="flex shrink-0 items-center gap-6 border-b border-[var(--border)] px-5 pr-[340px]" style={{ background: 'var(--bg)' }}>
         <Kpi value={onlineDevices} total={devices.length} label="在线设备" color="var(--success)" />
         <Kpi value={agents.length} label="Agent" sub={`${busyAgents} 处理中`} color="var(--agent)" />
@@ -183,12 +198,12 @@ export function NeuralGraph({
         <Kpi value={alerts} label="告警" color={alerts > 0 ? 'var(--danger)' : 'var(--offline)'} />
       </div>
 
-      {/* 三栏：设备 | Agent | 任务 */}
+      {/* 两栏：设备（内嵌 agent 可折叠）| 任务（可折叠） */}
       <div
         className={`flex-1 overflow-hidden ${isMobile ? 'overflow-y-auto' : ''}`}
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'minmax(220px, 300px) minmax(220px, 280px) 1fr',
+          gridTemplateColumns: isMobile ? '1fr' : 'minmax(280px, 380px) 1fr',
           gap: 12,
           padding: 16,
           background: 'var(--bg-subtle)',
@@ -205,58 +220,20 @@ export function NeuralGraph({
           ]} />}
         >
           {devices.map((d) => {
-            const devAgents = agents.filter((a) => a.deviceId === d.id);
-            const color = STATUS_VAR[d.data.status] ?? 'var(--offline)';
-            const online = d.data.status === 'online' || d.data.status === 'busy';
-            const active = focus === d.id;
+            const devAgents = agentsByDevice.get(d.id) ?? [];
             return (
-              <DeviceCard
+              <DeviceGroup
                 key={d.id}
-                name={d.data.name}
-                agentCount={devAgents.length}
-                load={d.data.load?.cpu ?? 0}
-                color={color}
-                online={online}
-                active={active}
+                device={d}
+                agents={devAgents}
+                collapsed={collapsedDevices.has(d.id)}
+                active={focus === d.id}
                 dimmed={dim(d.id) || lensDim('device')}
-                onClick={(e) => { e.stopPropagation(); click(d, { kind: 'device', id: d.data.deviceId, title: d.data.name }); }}
-              />
-            );
-          })}
-        </Column>
-
-        {/* Agent 栏 */}
-        <Column
-          title="Agent"
-          count={agents.length}
-          empty="设备接入后此处显示 agent 平台"
-          statusBar={<StatusBar items={[
-            { color: 'var(--warning)', count: busyAgents, label: '处理中' },
-            { color: 'var(--agent)', count: idleAgents, label: '空闲' },
-            { color: 'var(--offline)', count: needsLoginAgents, label: '待登录' },
-          ]} />}
-        >
-          {agents.map((a) => {
-            const color = agentColor(a.data);
-            const busy = a.data.status === 'busy';
-            const active = focus === a.id;
-            return (
-              <AgentCard
-                key={a.id}
-                initial={agentInitial(a.data.agentType)}
-                name={a.data.displayName}
-                version={a.data.version}
-                label={agentLabel(a.data)}
-                busy={busy}
-                busyCount={a.data.busyCount}
-                maxConcurrency={a.data.maxConcurrency}
-                color={color}
-                active={active}
-                dimmed={dim(a.id) || lensDim('agent')}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  click(a, { kind: 'agent', id: a.id, title: a.data.displayName, deviceId: a.deviceId, agentType: a.data.agentType });
-                }}
+                onToggle={() => toggleDevice(d.id)}
+                onSelect={() => select({ kind: 'device', id: d.data.deviceId, title: d.data.name })}
+                onSelectAgent={(a) =>
+                  select({ kind: 'agent', id: a.id, title: a.data.displayName, deviceId: a.deviceId, agentType: a.data.agentType })
+                }
               />
             );
           })}
@@ -281,19 +258,20 @@ export function NeuralGraph({
             const running = st === 'running';
             const agentId = taskAgent.get(t.id);
             const agentName = agents.find((a) => a.id === agentId)?.data.displayName;
-            const active = focus === t.id;
             return (
               <TaskCard
                 key={t.id}
                 prompt={t.data.prompt}
                 resultText={t.data.resultText ?? ''}
                 label={STATUS_LABEL[st] ?? st}
-                target={agentName ? `${agentName}` : (t.data.targetAgentType ?? '未分配')}
+                target={agentName ?? (t.data.targetAgentType ?? '未分配')}
                 color={color}
                 running={running}
-                active={active}
+                collapsed={collapsedTasks.has(t.id)}
+                active={focus === t.id}
                 dimmed={dim(t.id) || lensDim('task')}
-                onClick={(e) => { e.stopPropagation(); click(t, { kind: 'task', id: t.data.taskId, title: t.data.prompt.slice(0, 40) }); }}
+                onToggle={() => toggleTask(t.id)}
+                onSelect={() => select({ kind: 'task', id: t.data.taskId, title: t.data.prompt.slice(0, 40) })}
               />
             );
           })}
@@ -339,7 +317,7 @@ function Column({ title, count, empty, statusBar, headerExtra, children }: { tit
   );
 }
 
-/** 状态分布迷你条：色块按占比 + 计数（一眼看状态构成） */
+/** 状态分布迷你条：色块按占比 + 计数 */
 function StatusBar({ items }: { items: Array<{ color: string; count: number; label: string }> }): JSX.Element | null {
   const total = items.reduce((s, i) => s + i.count, 0);
   const visible = items.filter((i) => i.count > 0);
@@ -401,76 +379,136 @@ function StatusDot({ color, ping }: { color: string; ping?: boolean }): JSX.Elem
   );
 }
 
-function DeviceCard({ name, agentCount, load, color, online, active, dimmed, onClick }: {
-  name: string; agentCount: number; load: number; color: string; online: boolean; active: boolean; dimmed: boolean; onClick: (e: React.MouseEvent) => void;
-}): JSX.Element {
+/** 上流向数据粒子：光点自下而上循环流动（运行中/处理中节点展示） */
+function FlowParticles({ color }: { color: string }): JSX.Element {
+  const dots = [0, 1, 2];
   return (
-    <button
-      onClick={onClick}
-      className="group w-full rounded-md border bg-[var(--surface)] px-3 py-2.5 text-left transition-all hover:shadow-sm"
-      style={{
-        borderColor: active ? 'var(--brand)' : 'var(--border)',
-        boxShadow: active ? '0 0 0 1px var(--brand)' : undefined,
-        opacity: dimmed ? 0.35 : 1,
-        borderLeft: `3px solid ${color}`,
-      }}
-    >
-      <div className="flex items-center gap-2">
-        <StatusDot color={color} ping={online} />
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-strong)]">{truncate(name, 20)}</span>
-        <span className="rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">{agentCount} agent</span>
-      </div>
-      <div className="mt-2 flex items-center gap-2">
-        <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--bg-subtle)]">
-          <div className="h-full rounded-full" style={{ width: `${Math.round(load * 100)}%`, background: color }} />
-        </div>
-        <span className="font-mono text-[10px] text-[var(--text-muted)]">{Math.round(load * 100)}%</span>
-      </div>
-    </button>
+    <div className="pointer-events-none absolute inset-y-2 left-1.5 w-1" aria-hidden>
+      {dots.map((i) => (
+        <span
+          key={i}
+          className="absolute left-0 h-1.5 w-1.5 rounded-full"
+          style={{
+            top: 0,
+            background: color,
+            boxShadow: `0 0 4px ${color}`,
+            animation: `flow-up ${1.8 + i * 0.5}s linear infinite`,
+            animationDelay: `${i * 0.6}s`,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
-function AgentCard({ initial, name, version, label, busy, busyCount, maxConcurrency, color, active, dimmed, onClick }: {
-  initial: string; name: string; version: string; label: string; busy: boolean; busyCount: number; maxConcurrency: number; color: string; active: boolean; dimmed: boolean; onClick: (e: React.MouseEvent) => void;
+/** 设备分组：设备头（点击折叠）+ 内嵌 agent 子卡片 */
+function DeviceGroup({ device, agents, collapsed, active, dimmed, onToggle, onSelect, onSelectAgent }: {
+  device: GraphDeviceNode; agents: GraphAgentNode[]; collapsed: boolean; active: boolean; dimmed: boolean;
+  onToggle: () => void; onSelect: () => void; onSelectAgent: (a: GraphAgentNode) => void;
 }): JSX.Element {
+  const color = STATUS_VAR[device.data.status] ?? 'var(--offline)';
+  const online = device.data.status === 'online' || device.data.status === 'busy';
+  const load = device.data.load?.cpu ?? 0;
+  const busyCount = agents.filter((a) => a.data.status === 'busy').length;
+  return (
+    <div className="flex flex-col gap-1.5" style={{ opacity: dimmed ? 0.35 : 1 }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className="group w-full rounded-md border bg-[var(--surface)] px-2.5 py-2 text-left transition-all hover:shadow-sm"
+        style={{
+          borderColor: active ? 'var(--brand)' : 'var(--border)',
+          boxShadow: active ? '0 0 0 1px var(--brand)' : undefined,
+          borderLeft: `3px solid ${color}`,
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <ExpandMoreIcon
+            fontSize="small"
+            className="shrink-0 text-[var(--text-muted)] transition-transform"
+            style={{ transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+          />
+          <StatusDot color={color} ping={online} />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-strong)]">{truncate(device.data.name, 18)}</span>
+          <span className="rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
+            {agents.length} agent{busyCount > 0 ? ` · ${busyCount} 忙` : ''}
+          </span>
+          <span
+            role="button"
+            title="设备详情"
+            onClick={(e) => { e.stopPropagation(); onSelect(); }}
+            className="shrink-0 rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--brand)]"
+          >
+            <InfoOutlinedIcon style={{ fontSize: 16 }} />
+          </span>
+        </div>
+        <div className="mt-1.5 flex items-center gap-2">
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--bg-subtle)]">
+            <div className="h-full rounded-full" style={{ width: `${Math.round(load * 100)}%`, background: color }} />
+          </div>
+          <span className="font-mono text-[10px] text-[var(--text-muted)]">{Math.round(load * 100)}%</span>
+        </div>
+      </button>
+
+      {!collapsed && (
+        <div className="ml-3 flex flex-col gap-1.5 border-l border-[var(--border)] pl-2">
+          {agents.length === 0 && (
+            <div className="px-2 py-1 text-[11px] text-[var(--text-muted)]">无已装 agent</div>
+          )}
+          {agents.map((a) => (
+            <AgentCard
+              key={a.id}
+              agent={a}
+              dimmed={dimmed}
+              onClick={(e) => { e.stopPropagation(); onSelectAgent(a); }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgentCard({ agent, dimmed, onClick }: {
+  agent: GraphAgentNode; dimmed: boolean; onClick: (e: React.MouseEvent) => void;
+}): JSX.Element {
+  const a = agent.data;
+  const color = agentColor(a);
+  const busy = a.status === 'busy';
   return (
     <button
       onClick={onClick}
-      className="group w-full rounded-md border bg-[var(--surface)] px-3 py-2.5 text-left transition-all hover:shadow-sm"
+      className="group relative w-full rounded-md border bg-[var(--surface)] px-2.5 py-2 text-left transition-all hover:shadow-sm"
       style={{
-        borderColor: active ? 'var(--brand)' : 'var(--border)',
-        boxShadow: active ? '0 0 0 1px var(--brand)' : undefined,
-        opacity: dimmed ? 0.35 : 1,
+        borderColor: 'var(--border)',
+        opacity: dimmed ? 0.5 : 1,
         borderLeft: `3px solid ${color}`,
       }}
     >
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white" style={{ background: color }}>
-          {initial}
+      {busy && <FlowParticles color={color} />}
+      <div className="flex items-center gap-2">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold text-white" style={{ background: color }}>
+          {agentInitial(a.agentType)}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-[var(--text-strong)]">{truncate(name, 18)}</div>
-          <div className="font-mono text-[10px] text-[var(--text-muted)]">v{version}</div>
+          <div className="truncate text-[13px] font-semibold text-[var(--text-strong)]">{truncate(a.displayName, 18)}</div>
+          <div className="font-mono text-[10px] text-[var(--text-muted)]">v{a.version}</div>
         </div>
         <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ color, background: 'var(--bg-subtle)' }}>
-          {label}{busy ? ` ${busyCount}/${maxConcurrency}` : ''}
+          {agentLabel(a)}{busy ? ` ${a.busyCount}/${a.maxConcurrency}` : ''}
         </span>
       </div>
     </button>
   );
 }
 
-function TaskCard({ prompt, resultText, label, target, color, running, active, dimmed, onClick }: {
-  prompt: string; resultText: string; label: string; target: string; color: string; running: boolean; active: boolean; dimmed: boolean; onClick: (e: React.MouseEvent) => void;
+function TaskCard({ prompt, resultText, label, target, color, running, collapsed, active, dimmed, onToggle, onSelect }: {
+  prompt: string; resultText: string; label: string; target: string; color: string; running: boolean;
+  collapsed: boolean; active: boolean; dimmed: boolean; onToggle: () => void; onSelect: () => void;
 }): JSX.Element {
-  // 完成且有输出 → 主行直接展示输出内容（总览页一眼看到结果），副行展示问题原文
   const showResult = !running && !!resultText;
-  const primary = showResult ? resultText : prompt;
   return (
-    <button
-      onClick={onClick}
-      title={prompt + (resultText ? `\n\n${resultText}` : '')}
-      className="group w-full rounded-md border bg-[var(--surface)] px-3 py-2.5 text-left transition-all hover:shadow-sm"
+    <div
+      className="relative w-full rounded-md border bg-[var(--surface)] transition-all hover:shadow-sm"
       style={{
         borderColor: active ? 'var(--brand)' : 'var(--border)',
         boxShadow: active ? '0 0 0 1px var(--brand)' : undefined,
@@ -478,17 +516,33 @@ function TaskCard({ prompt, resultText, label, target, color, running, active, d
         borderLeft: `3px solid ${color}`,
       }}
     >
-      <div className="flex items-center gap-2">
+      {running && <FlowParticles color={color} />}
+      <div className="flex items-center gap-1.5 px-2.5 py-2">
+        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="shrink-0 text-[var(--text-muted)] hover:text-[var(--text)]">
+          <ExpandMoreIcon fontSize="small" style={{ transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />
+        </button>
         <StatusDot color={color} ping={running} />
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">{truncate(primary, 48)}</span>
-      </div>
-      <div className="mt-1.5 flex items-center justify-between">
-        <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--text-muted)]">
-          {showResult ? truncate(prompt, 24) : truncate(target, 20)}
-        </span>
+        <button onClick={(e) => { e.stopPropagation(); onSelect(); }} className="min-w-0 flex-1 truncate text-left text-[13px] font-medium text-[var(--text)]">
+          {truncate(showResult ? resultText : prompt, 52)}
+        </button>
         <span className="shrink-0 text-[10px] font-semibold" style={{ color }}>{label}</span>
       </div>
-    </button>
+      {!collapsed && (
+        <div className="flex items-center justify-between border-t border-[var(--border)] px-2.5 py-1.5">
+          <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-[var(--text-muted)]">
+            {showResult ? truncate(prompt, 40) : truncate(target, 20)}
+          </span>
+          <span
+            role="button"
+            title="任务详情"
+            onClick={(e) => { e.stopPropagation(); onSelect(); }}
+            className="shrink-0 rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--brand)]"
+          >
+            <InfoOutlinedIcon style={{ fontSize: 14 }} />
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 

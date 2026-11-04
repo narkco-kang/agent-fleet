@@ -101,6 +101,7 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
   const agent = device?.agents.find((a) => a.agentType === target.agentType) ?? device?.agents.find((a) => a.displayName === target.title);
   const [opening, setOpening] = useState(false);
   const [openMsg, setOpenMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const deviceOnline = device?.status === 'online' || device?.status === 'busy';
 
   const openPlatform = async (): Promise<void> => {
     setOpening(true);
@@ -143,19 +144,21 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
 
       <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3">
         <div className="text-xs text-[#64748B]">
-          {activated
-            ? '已激活。如登录态失效需重新登录，可重新打开平台应用。'
-            : '该平台尚未登录激活，无法接任务。点击下方按钮，本设备会弹出对应平台应用，完成登录后即自动激活。'}
+          {!deviceOnline
+            ? '设备当前离线，无法打开平台应用。请先让该设备上线（运行 device-agent 并连接协调服务）后再试。'
+            : activated
+              ? '已激活。如登录态失效需重新登录，可重新打开平台应用。'
+              : '该平台尚未登录激活，无法接任务。点击下方按钮，本设备会弹出对应平台应用，完成登录后即自动激活。'}
         </div>
         <Button
           size="small"
           variant="contained"
           fullWidth
-          disabled={opening}
+          disabled={opening || !deviceOnline}
           onClick={openPlatform}
           sx={{ mt: 1.5 }}
         >
-          {opening ? '打开中…' : activated ? '重新打开平台应用' : '打开平台应用登录激活'}
+          {!deviceOnline ? '设备离线，无法打开' : opening ? '打开中…' : activated ? '重新打开平台应用' : '打开平台应用登录激活'}
         </Button>
         {openMsg && (
           <div

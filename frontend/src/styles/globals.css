@@ -101,3 +101,21 @@ body,
     stroke-width: 8;
   }
 }
+
+/* 上流向数据粒子：光点自下而上循环流动（运行中节点展示数据上行） */
+@keyframes flow-up {
+  0% {
+    transform: translateY(140%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-140%);
+    opacity: 0;
+  }
+}
