@@ -6,7 +6,7 @@ import { useDeviceStore } from '../../store/deviceStore';
 import { useTaskStore } from '../../store/taskStore';
 import { StatusBadge } from '../common/StatusBadge';
 import { http } from '../../api/http';
-import { onLogin, type LoginChallengeMsg, type LoginResultMsg } from '../../api/ws';
+import { onLogin, onModelConfig, type LoginChallengeMsg, type LoginResultMsg, type ModelConfigAckMsg } from '../../api/ws';
 import { loginMethodFor, type AgentType } from '@agentfleet/shared';
 
 /**
@@ -107,9 +107,21 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
   const [loginChallenge, setLoginChallenge] = useState<LoginChallengeMsg | null>(null);
   const [loginResult, setLoginResult] = useState<LoginResultMsg | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [modelConfigAck, setModelConfigAck] = useState<ModelConfigAckMsg | null>(null);
+  const [configuring, setConfiguring] = useState(false);
   const deviceOnline = device?.status === 'online' || device?.status === 'busy';
   // 登录授权方式：device-auth（看板 URL+code）/ app（桌面应用）/ cli（终端）/ api-key（手动配 key）
   const loginMethod = loginMethodFor(target.agentType as AgentType);
+  // codex/claude 支持一键配置模型免登录
+  const canConfigureModel = target.agentType === 'codex' || target.agentType === 'claude';
+
+  // 监听一键配置模型回执
+  useEffect(() => {
+    return onModelConfig((ack) => {
+      if (ack.deviceId !== target.deviceId || ack.agentType !== target.agentType) return;
+      setModelConfigAck(ack);
+    });
+  }, [target.deviceId, target.agentType]);
 
   // 监听设备登录授权消息（challenge / result），仅处理当前 agent
   useEffect(() => {
@@ -153,6 +165,23 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
       });
     } finally {
       setRequesting(false);
+    }
+  };
+
+  const requestModelConfig = async (): Promise<void> => {
+    setConfiguring(true);
+    setModelConfigAck(null);
+    try {
+      await http.requestModelConfig(target.deviceId, target.agentType);
+    } catch (err) {
+      setModelConfigAck({
+        deviceId: target.deviceId,
+        agentType: target.agentType,
+        ok: false,
+        message: (err as Error).message,
+      });
+    } finally {
+      setConfiguring(false);
     }
   };
 
@@ -232,6 +261,35 @@ function AgentDetail({ target }: { target: { deviceId: string; title: string; ag
                   : loginResult.status === 'timeout'
                     ? '授权超时（一次性码 15 分钟过期），请重新发起'
                     : `登录失败：${loginResult.message ?? loginResult.status}`}
+              </div>
+            )}
+
+            {/* 一键配置模型（免登录）：codex/claude 走免费源，无需登录账号 */}
+            {canConfigureModel && (
+              <div className="mt-3 border-t border-[var(--border)] pt-2">
+                <div className="text-xs font-semibold text-[var(--text-strong)]">或：一键配置模型（免登录）</div>
+                <div className="mt-1 text-xs text-[var(--text-muted)]">
+                  配置等级优免费源（kilo）作为模型，无需登录账号即可用。
+                </div>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  fullWidth
+                  disabled={configuring}
+                  onClick={requestModelConfig}
+                  sx={{ mt: 1 }}
+                >
+                  {configuring ? '配置中…' : '一键配置模型（免登录）'}
+                </Button>
+                {modelConfigAck && (
+                  <div
+                    className={`mt-2 rounded-md px-2 py-1.5 text-xs ${
+                      modelConfigAck.ok ? 'bg-[var(--success-soft)] text-[#15803D]' : 'bg-[var(--danger-soft)] text-[#B91C1C]'
+                    }`}
+                  >
+                    {modelConfigAck.message}
+                  </div>
+                )}
               </div>
             )}
           </>

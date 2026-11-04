@@ -238,4 +238,33 @@ export function registerDeviceRoutes(app: FastifyInstance): void {
       return { ok: true, data: { dispatched: true, deviceId: id, agentType } };
     },
   );
+
+  /** 一键配置模型（免登录激活）：向设备下发自定义模型配置（默认 modelgateway + 免费源），
+   *  设备写入 codex/claude 配置文件，免登录走免费源跑任务。 */
+  app.post<{
+    Params: { id: string; agentType: string };
+    Body: { baseUrl?: string; model?: string; apiKey?: string };
+  }>('/api/devices/:id/platforms/:agentType/model-config', async (req, reply) => {
+    const { id, agentType } = req.params;
+    const row = getDevice(id);
+    if (!row) return reply.code(404).send({ ok: false, error: 'device_not_found' });
+    if (!deviceRegistry.isOnline(id)) {
+      return reply.code(409).send({ ok: false, error: 'device_offline' });
+    }
+    // 默认：内置 modelgateway（responses 转换层）+ 等级优免费源 kilo
+    const baseUrl = req.body?.baseUrl ?? 'http://127.0.0.1:18765/v1';
+    const model = req.body?.model ?? 'kilo-auto/free';
+    const apiKey = req.body?.apiKey ?? 'sk-free';
+    const sent = sendToDevice(id, {
+      v: 1,
+      type: MESSAGE_TYPES.DEVICE_MODEL_CONFIG,
+      id: `modelcfg-${Date.now()}`,
+      ts: Date.now(),
+      from: 'coordinator',
+      to: id,
+      payload: { deviceId: id, agentType, baseUrl, model, apiKey },
+    });
+    if (!sent) return reply.code(409).send({ ok: false, error: 'device_not_reachable' });
+    return { ok: true, data: { dispatched: true, deviceId: id, agentType, baseUrl, model } };
+  });
 }

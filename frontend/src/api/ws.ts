@@ -25,6 +25,16 @@ export type LoginMessage =
   | { kind: 'result'; data: LoginResultMsg };
 export type LoginHandler = (msg: LoginMessage) => void;
 
+/** 一键配置模型回执 */
+export interface ModelConfigAckMsg {
+  deviceId: string;
+  agentType: string;
+  ok: boolean;
+  path?: string;
+  message: string;
+}
+export type ModelConfigHandler = (ack: ModelConfigAckMsg) => void;
+
 const WS_BASE = (import.meta.env.VITE_WS_BASE as string | undefined) ?? 'ws://127.0.0.1:4173/ws';
 
 let ws: WebSocket | null = null;
@@ -35,6 +45,7 @@ let manualClose = false;
 const snapshotHandlers = new Set<SnapshotHandler>();
 const patchHandlers = new Set<PatchHandler>();
 const loginHandlers = new Set<LoginHandler>();
+const modelConfigHandlers = new Set<ModelConfigHandler>();
 const stateHandlers = new Set<(state: 'connecting' | 'open' | 'closed') => void>();
 
 /** 订阅快照 */
@@ -53,6 +64,12 @@ export function onPatch(h: PatchHandler): () => void {
 export function onLogin(h: LoginHandler): () => void {
   loginHandlers.add(h);
   return () => loginHandlers.delete(h);
+}
+
+/** 订阅一键配置模型回执 */
+export function onModelConfig(h: ModelConfigHandler): () => void {
+  modelConfigHandlers.add(h);
+  return () => modelConfigHandlers.delete(h);
 }
 
 /** 订阅连接状态 */
@@ -94,6 +111,8 @@ export function connectWs(): void {
       for (const h of loginHandlers) h({ kind: 'challenge', data: env.payload as LoginChallengeMsg });
     } else if (env.type === MESSAGE_TYPES.DEVICE_LOGIN_RESULT) {
       for (const h of loginHandlers) h({ kind: 'result', data: env.payload as LoginResultMsg });
+    } else if (env.type === MESSAGE_TYPES.DEVICE_MODEL_CONFIG_ACK) {
+      for (const h of modelConfigHandlers) h(env.payload as ModelConfigAckMsg);
     }
   };
 

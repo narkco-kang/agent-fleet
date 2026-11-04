@@ -10,6 +10,7 @@ import { cryptoRandomId } from '@agentfleet/shared';
 import { handleAssetDeliver } from './assetReceiver.js';
 import { memoryClient } from './memory/memoryClient.js';
 import { startDeviceLogin } from './loginService.js';
+import { configureModel } from './modelConfig.js';
 import { encodeChainSummary, encodeBlockReject, encodeBlockRequest } from '@agentfleet/memory';
 import type { Block, ChainSummary } from '@agentfleet/memory';
 
@@ -153,6 +154,27 @@ export async function handleEnvelope(
           }
         },
       );
+      break;
+    }
+    case MESSAGE_TYPES.DEVICE_MODEL_CONFIG: {
+      // 一键配置模型（免登录）：给 codex/claude 写自定义模型配置，走免费源
+      const cfg = envelope.payload as { deviceId?: string; agentType?: AgentType; baseUrl?: string; model?: string; apiKey?: string };
+      const agentType = cfg?.agentType ?? 'codex';
+      const result = configureModel({
+        agentType,
+        baseUrl: cfg?.baseUrl ?? '',
+        model: cfg?.model ?? '',
+        apiKey: cfg?.apiKey ?? '',
+      });
+      sender({
+        v: 1,
+        type: MESSAGE_TYPES.DEVICE_MODEL_CONFIG_ACK,
+        id: cryptoRandomId('modelcfgack'),
+        ts: Date.now(),
+        from: loadRegistry().deviceId,
+        to: 'coordinator',
+        payload: { deviceId: loadRegistry().deviceId, agentType, ok: result.ok, path: result.path, message: result.message },
+      });
       break;
     }
     default: {

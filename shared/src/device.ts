@@ -52,6 +52,27 @@ export interface DeviceLoginResult {
   message?: string;
 }
 
+/** 一键配置模型（device.model_config：coordinator → 设备，写自定义模型配置免登录） */
+export interface DeviceModelConfig {
+  deviceId: string;
+  agentType: AgentType;
+  /** OpenAI/Anthropic 兼容 base_url（含 /v1） */
+  baseUrl: string;
+  /** 模型名（如 kilo-auto/free） */
+  model: string;
+  /** API key（免费源可为占位非空值） */
+  apiKey: string;
+}
+
+/** 一键配置模型回执（device.model_config_ack：设备 → coordinator） */
+export interface DeviceModelConfigAck {
+  deviceId: string;
+  agentType: AgentType;
+  ok: boolean;
+  path?: string;
+  message: string;
+}
+
 /** 设备心跳 payload（device.heartbeat，10s） */
 export interface DeviceHeartbeat {
   deviceId: string;

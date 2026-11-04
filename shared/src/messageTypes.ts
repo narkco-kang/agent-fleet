@@ -17,6 +17,9 @@ export type MessageType =
   | 'device.login_request'
   | 'device.login_challenge'
   | 'device.login_result'
+  // 一键配置模型（免登录：给设备上的 codex/claude 写自定义模型配置，走免费源）
+  | 'device.model_config'
+  | 'device.model_config_ack'
   // 任务下发 / 流转
   | 'task.submit'
   | 'task.submit_ack'
@@ -58,6 +61,8 @@ export const MESSAGE_TYPES: Record<string, MessageType> = {
   DEVICE_LOGIN_REQUEST: 'device.login_request',
   DEVICE_LOGIN_CHALLENGE: 'device.login_challenge',
   DEVICE_LOGIN_RESULT: 'device.login_result',
+  DEVICE_MODEL_CONFIG: 'device.model_config',
+  DEVICE_MODEL_CONFIG_ACK: 'device.model_config_ack',
   TASK_SUBMIT: 'task.submit',
   TASK_SUBMIT_ACK: 'task.submit_ack',
   TASK_EVENT: 'task.event',

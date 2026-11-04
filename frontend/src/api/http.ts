@@ -99,6 +99,15 @@ export const http = {
       `/api/devices/${deviceId}/platforms/${agentType}/login`,
       { method: 'POST' },
     ),
+  requestModelConfig: (
+    deviceId: string,
+    agentType: string,
+    body?: { baseUrl?: string; model?: string; apiKey?: string },
+  ) =>
+    request<ApiOk<{ dispatched: boolean; deviceId: string; agentType: string; baseUrl: string; model: string }>>(
+      `/api/devices/${deviceId}/platforms/${agentType}/model-config`,
+      { method: 'POST', body: body ? JSON.stringify(body) : undefined },
+    ),
   pairDevice: (deviceId: string, name?: string) =>
     request<ApiOk<{ pairingCode: string }>>('/api/devices/pair', {
       method: 'POST',

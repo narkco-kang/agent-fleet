@@ -243,6 +243,10 @@ function handleEnvelope(socket: WebSocket, raw: string, fallbackPeer?: Peer): vo
       handleDeviceLoginMessage(type, envelope.payload);
       break;
     }
+    case MESSAGE_TYPES.DEVICE_MODEL_CONFIG_ACK: {
+      handleDeviceModelConfigAck(type, envelope.payload);
+      break;
+    }
     default: {
       // 未知类型：按 03 §6.4 不静默吞，回一个 system 事件
       if (peer?.kind === 'device' && peer.deviceId) {
@@ -428,6 +432,8 @@ export function handleRelayEnvelope(env: Envelope): void {
 
   // 设备登录授权挑战/结果（看板授权中心）：转发看板 + 成功后标记 agent 激活
   handleDeviceLoginMessage(type, payload);
+  // 一键配置模型回执：转发看板 + 成功后标记 agent 激活
+  handleDeviceModelConfigAck(type, payload);
 }
 
 /** 处理设备登录授权消息（challenge/result），直连与中继路径共用 */
@@ -464,6 +470,26 @@ function handleDeviceLoginMessage(type: string, payload: unknown): boolean {
     return true;
   }
   return false;
+}
+
+/** 处理一键配置模型回执（转发看板 + 成功标记激活），直连与中继路径共用 */
+function handleDeviceModelConfigAck(type: string, payload: unknown): boolean {
+  if (type !== MESSAGE_TYPES.DEVICE_MODEL_CONFIG_ACK) return false;
+  const ack = payload as { deviceId?: string; agentType?: string; ok?: boolean; message?: string };
+  broadcastToDashboards({
+    v: 1,
+    type: MESSAGE_TYPES.DEVICE_MODEL_CONFIG_ACK,
+    id: `mc-${Date.now()}`,
+    ts: Date.now(),
+    from: ack.deviceId ?? 'device',
+    to: 'dashboard',
+    payload: ack,
+  });
+  // 配置成功 → 标记该 agent 已激活（已配好自定义模型，免登录）
+  if (ack?.ok && ack.deviceId && ack.agentType) {
+    setAgentActivated(ack.deviceId, ack.agentType as never, true);
+  }
+  return true;
 }
 
 /** ws 探活间隔：每 PING_INTERVAL_MS 发一次 ping，一次未回 pong 即判定死连接 */

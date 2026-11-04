@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { config } from './config.js';
 import { ProviderPool } from './providers.js';
 import { OpenAIHandler, type ChatBody, type MgHeaders } from './openai.js';
+import { ResponsesHandler } from './responses.js';
 
 /**
  * node:http 路由网关：
@@ -41,6 +42,7 @@ function corsHeaders(): Record<string, string> {
 export class GatewayServer {
   private readonly pool: ProviderPool;
   private readonly openai: OpenAIHandler;
+  private readonly responses: ResponsesHandler;
   private readonly version: string;
   private readonly startedAt: number;
   private server: http.Server | null = null;
@@ -48,6 +50,7 @@ export class GatewayServer {
   constructor(pool: ProviderPool) {
     this.pool = pool;
     this.openai = new OpenAIHandler(pool);
+    this.responses = new ResponsesHandler(pool);
     this.version = VERSION;
     this.startedAt = Date.now();
   }
@@ -122,6 +125,25 @@ export class GatewayServer {
         task: req.headers['x-mg-task'] as string | undefined,
       };
       await this.openai.handleChat(req, res, body, mg);
+      return;
+    }
+
+    if (req.method === 'POST' && pathname === '/v1/responses') {
+      let body: Record<string, unknown>;
+      try {
+        const raw = await readBody(req);
+        body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+      } catch {
+        sendJson(res, 400, { error: { message: 'invalid_json_body', type: 'modelgateway_error' } });
+        return;
+      }
+      const mg: MgHeaders = {
+        agent: req.headers['x-mg-agent'] as string | undefined,
+        session: req.headers['x-mg-session'] as string | undefined,
+        platform: req.headers['x-mg-platform'] as string | undefined,
+        task: req.headers['x-mg-task'] as string | undefined,
+      };
+      await this.responses.handle(req, res, body as never, mg);
       return;
     }
 
