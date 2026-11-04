@@ -15,8 +15,9 @@ export interface UsageSummary {
   totalRecords: number;
   totalTokensIn: number;
   totalTokensOut: number;
-  byProvider: Record<string, { tokensIn: number; tokensOut: number; records: number }>;
-  byModel: Record<string, { tokensIn: number; tokensOut: number; records: number }>;
+  totalCost: number;
+  byProvider: Record<string, { tokensIn: number; tokensOut: number; cost: number; records: number }>;
+  byModel: Record<string, { tokensIn: number; tokensOut: number; cost: number; records: number }>;
 }
 
 export interface UsageRecordRow {
@@ -26,6 +27,7 @@ export interface UsageRecordRow {
   model: string | null;
   tokens_in: number | null;
   tokens_out: number | null;
+  cost: number | null;
   created_at: number;
 }
 

@@ -190,6 +190,7 @@ CREATE TABLE IF NOT EXISTS usage_records (
   model       TEXT,
   tokens_in   INTEGER,
   tokens_out  INTEGER,
+  cost        REAL,
   created_at  INTEGER NOT NULL
 );
 

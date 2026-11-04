@@ -33,8 +33,8 @@ export function UsageLedgerTab(): JSX.Element {
         <StatCard label="输入 tokens" value={summary ? String(summary.totalTokensIn) : '—'} />
         <StatCard label="输出 tokens" value={summary ? String(summary.totalTokensOut) : '—'} />
         <StatCard
-          label="Provider 数"
-          value={summary ? String(Object.keys(summary.byProvider).length) : '—'}
+          label="估算成本"
+          value={summary ? `$${summary.totalCost.toFixed(4)}` : '—'}
         />
       </div>
 
@@ -50,13 +50,14 @@ export function UsageLedgerTab(): JSX.Element {
                 <th className="px-3 py-2 font-medium">模型</th>
                 <th className="px-3 py-2 font-medium">输入</th>
                 <th className="px-3 py-2 font-medium">输出</th>
+                <th className="px-3 py-2 font-medium">成本</th>
                 <th className="px-3 py-2 font-medium">时间</th>
               </tr>
             </thead>
             <tbody>
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-[#94A3B8]">
+                  <td colSpan={6} className="px-3 py-8 text-center text-[#94A3B8]">
                     暂无台账记录
                   </td>
                 </tr>
@@ -67,6 +68,9 @@ export function UsageLedgerTab(): JSX.Element {
                     <td className="px-3 py-2 text-[#334155]">{r.model ?? '—'}</td>
                     <td className="px-3 py-2 text-[#334155]">{r.tokens_in ?? '—'}</td>
                     <td className="px-3 py-2 text-[#334155]">{r.tokens_out ?? '—'}</td>
+                    <td className="px-3 py-2 text-[#334155]">
+                      {r.cost != null ? `$${r.cost.toFixed(4)}` : '—'}
+                    </td>
                     <td className="px-3 py-2 text-[#64748B]">
                       {new Date(r.created_at).toLocaleString('zh-CN', { hour12: false })}
                     </td>

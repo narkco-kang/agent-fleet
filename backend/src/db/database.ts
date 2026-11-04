@@ -132,6 +132,14 @@ function runMigrations(database: Database.Database): void {
   if (!assetCols.includes('source')) {
     database.exec(`ALTER TABLE assets ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`);
   }
+
+  // usage_records 新增列 cost（成本核算，P1-7）
+  const usageCols = (
+    database.prepare(`PRAGMA table_info(usage_records)`).all() as Array<{ name: string }>
+  ).map((c) => c.name);
+  if (!usageCols.includes('cost')) {
+    database.exec(`ALTER TABLE usage_records ADD COLUMN cost REAL`);
+  }
 }
 
 /** 获取数据库实例（未初始化则先初始化） */

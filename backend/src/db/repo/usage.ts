@@ -11,6 +11,7 @@ export interface UsageRecordRow {
   model: string | null;
   tokens_in: number | null;
   tokens_out: number | null;
+  cost: number | null;
   created_at: number;
 }
 
@@ -22,11 +23,12 @@ export function insertUsage(input: {
   model?: string | null;
   tokensIn?: number | null;
   tokensOut?: number | null;
+  cost?: number | null;
 }): void {
   getDb()
     .prepare(
-      `INSERT INTO usage_records (record_id, task_id, provider, model, tokens_in, tokens_out, created_at)
-       VALUES (@recordId, @taskId, @provider, @model, @tokensIn, @tokensOut, @now)`,
+      `INSERT INTO usage_records (record_id, task_id, provider, model, tokens_in, tokens_out, cost, created_at)
+       VALUES (@recordId, @taskId, @provider, @model, @tokensIn, @tokensOut, @cost, @now)`,
     )
     .run({
       recordId: input.recordId,
@@ -35,6 +37,7 @@ export function insertUsage(input: {
       model: input.model ?? null,
       tokensIn: input.tokensIn ?? null,
       tokensOut: input.tokensOut ?? null,
+      cost: input.cost ?? null,
       now: Date.now(),
     });
 }
@@ -46,50 +49,53 @@ export function listUsage(limit = 500): UsageRecordRow[] {
     .all(limit) as UsageRecordRow[];
 }
 
-/** 台账摘要（按 provider / model 聚合 + 总量） */
+/** 台账摘要（按 provider / model 聚合 + 总量 + 成本） */
 export function usageSummary(): {
   totalRecords: number;
   totalTokensIn: number;
   totalTokensOut: number;
-  byProvider: Record<string, { tokensIn: number; tokensOut: number; records: number }>;
-  byModel: Record<string, { tokensIn: number; tokensOut: number; records: number }>;
+  totalCost: number;
+  byProvider: Record<string, { tokensIn: number; tokensOut: number; cost: number; records: number }>;
+  byModel: Record<string, { tokensIn: number; tokensOut: number; cost: number; records: number }>;
 } {
   const db = getDb();
   const totals = db
     .prepare(
       `SELECT COUNT(*) AS n,
               COALESCE(SUM(tokens_in),0) AS tin,
-              COALESCE(SUM(tokens_out),0) AS tout
+              COALESCE(SUM(tokens_out),0) AS tout,
+              COALESCE(SUM(cost),0) AS cost
        FROM usage_records`,
     )
-    .get() as { n: number; tin: number; tout: number };
+    .get() as { n: number; tin: number; tout: number; cost: number };
 
-  const byProvider: Record<string, { tokensIn: number; tokensOut: number; records: number }> = {};
+  const byProvider: Record<string, { tokensIn: number; tokensOut: number; cost: number; records: number }> = {};
   const pRows = db
     .prepare(
-      `SELECT provider, COUNT(*) AS n, COALESCE(SUM(tokens_in),0) AS tin, COALESCE(SUM(tokens_out),0) AS tout
+      `SELECT provider, COUNT(*) AS n, COALESCE(SUM(tokens_in),0) AS tin, COALESCE(SUM(tokens_out),0) AS tout, COALESCE(SUM(cost),0) AS cost
        FROM usage_records GROUP BY provider`,
     )
-    .all() as Array<{ provider: string | null; n: number; tin: number; tout: number }>;
+    .all() as Array<{ provider: string | null; n: number; tin: number; tout: number; cost: number }>;
   for (const r of pRows) {
-    byProvider[r.provider ?? 'unknown'] = { tokensIn: r.tin, tokensOut: r.tout, records: r.n };
+    byProvider[r.provider ?? 'unknown'] = { tokensIn: r.tin, tokensOut: r.tout, cost: r.cost, records: r.n };
   }
 
-  const byModel: Record<string, { tokensIn: number; tokensOut: number; records: number }> = {};
+  const byModel: Record<string, { tokensIn: number; tokensOut: number; cost: number; records: number }> = {};
   const mRows = db
     .prepare(
-      `SELECT model, COUNT(*) AS n, COALESCE(SUM(tokens_in),0) AS tin, COALESCE(SUM(tokens_out),0) AS tout
+      `SELECT model, COUNT(*) AS n, COALESCE(SUM(tokens_in),0) AS tin, COALESCE(SUM(tokens_out),0) AS tout, COALESCE(SUM(cost),0) AS cost
        FROM usage_records GROUP BY model`,
     )
-    .all() as Array<{ model: string | null; n: number; tin: number; tout: number }>;
+    .all() as Array<{ model: string | null; n: number; tin: number; tout: number; cost: number }>;
   for (const r of mRows) {
-    byModel[r.model ?? 'unknown'] = { tokensIn: r.tin, tokensOut: r.tout, records: r.n };
+    byModel[r.model ?? 'unknown'] = { tokensIn: r.tin, tokensOut: r.tout, cost: r.cost, records: r.n };
   }
 
   return {
     totalRecords: totals.n,
     totalTokensIn: totals.tin,
     totalTokensOut: totals.tout,
+    totalCost: totals.cost,
     byProvider,
     byModel,
   };

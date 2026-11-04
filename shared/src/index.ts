@@ -20,3 +20,4 @@ export * from './action.js';
 export * from './freeSourceRating.js';
 export * from './freeSourceCatalog.js';
 export * from './platformLaunch.js';
+export * from './pricing.js';
