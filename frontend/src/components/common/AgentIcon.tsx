@@ -8,7 +8,7 @@ const AGENT_META: Record<AgentType, { label: string; bg: string; fg: string }> =
   codex: { label: 'C', bg: '#0F172A', fg: '#FFFFFF' },
   claude: { label: 'Cℓ', bg: '#7C3AED', fg: '#FFFFFF' },
   dsh: { label: 'D', bg: '#0891B2', fg: '#FFFFFF' },
-  grok: { label: 'G', bg: '#F8FAFC', fg: '#0F172A' },
+  grok: { label: 'GB', bg: '#F8FAFC', fg: '#0F172A' },
   cursor: { label: 'Cu', bg: '#000000', fg: '#FFFFFF' },
   aider: { label: 'A', bg: '#16A085', fg: '#FFFFFF' },
   gemini: { label: 'Ge', bg: '#4285F4', fg: '#FFFFFF' },

@@ -14,7 +14,8 @@ import { runAcpPrompt } from '../runner/acpClient.js';
  */
 export class GrokAdapter implements Adapter {
   readonly agentType = 'grok' as const;
-  readonly displayName = 'Grok';
+  // 展示名用「Grok Bot」区分于「grok」模型 CLI（agentType 仍是 'grok'，指云端 agent 队友）
+  readonly displayName = 'Grok Bot';
   private handles = new Map<string, AdapterRunHandle>();
 
   async detect(): Promise<AdapterDetection> {

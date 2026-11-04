@@ -54,7 +54,7 @@ export const mockAgents: AgentSnapshot[] = [
   {
     deviceId: 'dev-macbook',
     agentType: 'grok',
-    displayName: 'Grok',
+    displayName: 'Grok Bot',
     version: '1.0.62',
     executable: '~/.grok/bin/grok',
     status: 'busy',
