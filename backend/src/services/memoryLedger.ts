@@ -291,6 +291,7 @@ class MemoryLedgerService {
       status,
     };
     this.mempool.add(change);
+    this.searchIndex.add(change); // 立即入检索索引（不等出块，与 recordTaskTerminal 一致）
     return this.flush();
   }
 }

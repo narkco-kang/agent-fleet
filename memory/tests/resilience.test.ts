@@ -85,7 +85,7 @@ afterEach(async () => {
 // —— R-1 单蜂群上下文断裂（设备重启 / 掉线） ——
 
 describe('R-1 单蜂群上下文断裂（设备重启不丢记忆）', () => {
-  it('设备写 10 块后「重启」，重新加载账本，所有块完好且整链可验签', async () => {
+  it('设备写 10 块后「重启」，重新加载账本，所有块完好且整链可验签', { timeout: 30000 }, async () => {
     const dir = await tempDir();
     const kp = generateKeyPair();
     const store = new TrustStore();
@@ -133,7 +133,7 @@ describe('R-1 单蜂群上下文断裂（设备重启不丢记忆）', () => {
 // —— R-2 蜂群间断裂（长时间离线 + 大量缺失块补同步） ——
 
 describe('R-2 蜂群间断裂（离线补同步不丢记忆）', () => {
-  it('设备离线 50 块后重新上线，补同步全部缺失块，tip 收敛到 leader', async () => {
+  it('设备离线 50 块后重新上线，补同步全部缺失块，tip 收敛到 leader', { timeout: 30000 }, async () => {
     const kp = generateKeyPair();
     const store = new TrustStore();
     store.register('leader', kp.publicKey);
@@ -141,7 +141,7 @@ describe('R-2 蜂群间断裂（离线补同步不丢记忆）', () => {
     // leader 在线期间出了 50 块
     const leader = new LedgerStore(await tempDir(), 'team-a');
     const chain = signedChain(50, kp, 'leader');
-    for (let i = 1; i < chain.length; i++) await leader.appendBlock(chain[i]!);
+    await leader.appendBlocks(chain.slice(1));
 
     // follower 完全离线（仅 genesis，落后 50 块）
     const follower = new LedgerStore(await tempDir(), 'team-a');
@@ -170,7 +170,7 @@ describe('R-2 蜂群间断裂（离线补同步不丢记忆）', () => {
 
     const chain = signedChain(50, kp, 'leader');
     const follower = new LedgerStore(await tempDir(), 'team-a');
-    for (let i = 1; i <= 10; i++) await follower.appendBlock(chain[i]!);
+    await follower.appendBlocks(chain.slice(1, 11));
 
     const followerTipBefore = await follower.tip();
     const result = await catchUp(

@@ -21,6 +21,9 @@ data/
 *.db-wal
 *.db-shm
 
+# 本地多设备模拟数据目录（dev:local --agent N）
+.dev-devices/
+
 # logs
 *.log
 npm-debug.log*

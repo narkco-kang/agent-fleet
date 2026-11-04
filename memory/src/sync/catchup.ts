@@ -50,38 +50,42 @@ export async function catchUp(
     const blocks = await fetch(tip.index + 1, peerTip.tip_index);
     if (!blocks || blocks.length === 0) break;
 
-    let progressed = false;
+    // 逐块验证，收集连续的合法块；遇到非法块立即拒收中止（非法块不落盘）。
+    // 验证全部通过后一次性批量落盘（appendBlocks），避免逐块全量重写文件（O(n²)）。
+    const valid: Block[] = [];
+    let prev = tip;
+    let rejected: BlockRejectPayload | null = null;
+
     for (const block of blocks) {
-      // 已落后于本地 tip（乱序/重复），重新读本地链头并跳过。
-      if (block.index <= tip.index) {
-        tip = await ledger.tip();
-        continue;
-      }
+      // 已落后于当前链头（乱序/重复），跳过。
+      if (block.index <= prev.index) continue;
 
-      const result = verifyBlock(block, tip, trustStore);
+      const result = verifyBlock(block, prev, trustStore);
       if (!result.ok) {
-        if (onReject) {
-          await onReject({
-            index: block.index,
-            hash: block.hash,
-            reason: result.code ?? result.message ?? 'invalid block',
-          });
-        }
-        return { added, tip, ok: false };
+        rejected = {
+          index: block.index,
+          hash: block.hash,
+          reason: result.code ?? result.message ?? 'invalid block',
+        };
+        break;
       }
 
-      const status = await ledger.appendBlock(block);
-      if (status === 'stale') {
-        tip = await ledger.tip();
-        continue;
-      }
-
-      tip = block;
-      added += 1;
-      progressed = true;
+      valid.push(block);
+      prev = block;
     }
 
-    if (!progressed) break;
+    if (valid.length > 0) {
+      const n = await ledger.appendBlocks(valid);
+      added += n;
+      tip = valid[valid.length - 1]!;
+    }
+
+    if (rejected) {
+      if (onReject) await onReject(rejected);
+      return { added, tip, ok: false };
+    }
+
+    if (valid.length === 0) break;
   }
 
   return { added, tip, ok: tip.index >= peerTip.tip_index };

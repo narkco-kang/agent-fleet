@@ -118,6 +118,36 @@ export class LedgerStore {
     });
   }
 
+  /**
+   * 批量追加连续区块（断线补同步用）：一次锁 + 一次落盘。
+   * 与 appendBlock 语义一致——只接受 index 连续的块，遇到不连续即停止；
+   * 相比逐块 appendBlock（每次全量重写文件，O(n²)），批量写只需一次 JSON 序列化 + fsync。
+   * 返回实际追加的块数。
+   */
+  async appendBlocks(blocks: Block[]): Promise<number> {
+    return withLock(this.lockfile, async (): Promise<number> => {
+      const doc = await this.readDoc();
+      let tipIndex = doc.blocks.length
+        ? doc.blocks[doc.blocks.length - 1]!.index
+        : -1;
+
+      let added = 0;
+      for (const block of blocks) {
+        if (block.index !== tipIndex + 1) break;
+        doc.blocks.push(structuredClone(block));
+        tipIndex = block.index;
+        added += 1;
+      }
+
+      if (added === 0) return 0;
+      const last = doc.blocks[doc.blocks.length - 1]!;
+      doc.tip = { index: last.index, hash: last.hash };
+      doc.updatedAt = new Date().toISOString();
+      await this.atomicWrite(doc);
+      return added;
+    });
+  }
+
   /** 原子写：写临时文件 + fsync + rename 原子替换。 */
   async atomicWrite(doc: LedgerDoc): Promise<void> {
     const dir = dirname(this.path);

@@ -274,9 +274,9 @@ async function main() {
     check('边界 agent 指定不存在平台 → 保持 queued', d.data?.status === 'queued', JSON.stringify(d.data));
   }
 
-  // ── T4.7 断线 → running 任务标记 interrupted ───────────────────
+  // ── T4.7 断线 → running 任务自动迁移回 queued（不丢任务，护城河 P0） ──
   {
-    const r = await api('/api/tasks', { method: 'POST', body: JSON.stringify({ prompt: '断线中断任务', target: { mode: 'agent', agentType: 'grok' } }) });
+    const r = await api('/api/tasks', { method: 'POST', body: JSON.stringify({ prompt: '断线迁移任务', target: { mode: 'agent', agentType: 'grok' } }) });
     const id = r.data?.taskId;
     const submit = await dev1.waitFor((e) => e.type === 'task.submit' && e.payload?.taskId === id, 8000, 'interrupt submit');
     check('T4.7 断线前任务派发 running', !!submit, '未收到断线任务 submit');
@@ -284,7 +284,12 @@ async function main() {
     dev1.close();
     await sleep(800);
     const d = await api(`/api/tasks/${id}`);
-    check('T4.7 设备断线 → status=interrupted', d.data?.status === 'interrupted', `status=${d.data?.status}`);
+    // 自动迁移：断线 running 任务改回 queued，等 dispatch 重新派发到其他在线设备（不丢任务）
+    check('T4.7 设备断线 → 任务自动迁移回 queued（不丢任务）', d.data?.status === 'queued', `status=${d.data?.status}`);
+    const migratedMsg = (d.data?.messages ?? []).some(
+      (m) => m.eventType === 'status' && m.status === 'interrupted' && ((m.data?.message ?? '').includes('迁移') || (m.data?.message ?? '').includes('断线')),
+    );
+    check('T4.7 断线迁移有消息记录', migratedMsg, '无迁移消息记录');
   }
 
   // ── 边界 非法信封类型 → 回 system 事件（不静默） ───────────────
