@@ -72,11 +72,14 @@ export function detectPlatform(probe: PlatformProbe): DetectResult {
   return { found: false, executable: '', version: '', detectMethod: 'path' };
 }
 
-/** which 探测 */
+/** which 探测（Windows 用 where，Unix 用 which） */
 function tryWhich(cmd: string): string | null {
   try {
-    const out = execFileSync('which', [cmd], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    return out || null;
+    const whichCmd = os.platform() === 'win32' ? 'where' : 'which';
+    const out = execFileSync(whichCmd, [cmd], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (!out) return null;
+    // where 可能返回多行（.cmd 与无后缀）；取第一个命中
+    return out.split(/\r?\n/)[0] ?? null;
   } catch {
     return null;
   }
@@ -89,9 +92,16 @@ function findNpmGlobal(pkg: string, binName: string): string | null {
     const root = execFileSync('npm', ['root', '-g'], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     const pkgDir = path.join(root, pkg);
     if (!fs.existsSync(pkgDir) || !fs.statSync(pkgDir).isDirectory()) return null;
-    // 全局 bin 目录下的可执行文件
+    // Unix：全局 bin 目录（prefix/bin/name）
     const exe = path.join(prefix, 'bin', binName);
     if (fs.existsSync(exe) && fs.statSync(exe).isFile()) return exe;
+    // Windows：npm 全局 bin 是 prefix 下的 name.cmd / name（无 bin 子目录）
+    if (os.platform() === 'win32') {
+      const winCmd = path.join(prefix, `${binName}.cmd`);
+      if (fs.existsSync(winCmd) && fs.statSync(winCmd).isFile()) return winCmd;
+      const winExe = path.join(prefix, binName);
+      if (fs.existsSync(winExe) && fs.statSync(winExe).isFile()) return winExe;
+    }
     // 兜底 which（bin 目录可能不在当前 PATH 映射）
     return tryWhich(binName);
   } catch {

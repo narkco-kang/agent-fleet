@@ -40,7 +40,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
     versionArgs: ['--version'],
     capabilities: ['coding'],
     maxConcurrency: 1,
-    runSpec: { mode: 'cli-text', args: ['exec', '{prompt}'], textOutput: true, note: 'codex exec 单轮（待实机验证）' },
+    runSpec: { mode: 'cli-text', args: ['exec', '{prompt}', '--skip-git-repo-check'], textOutput: true, note: 'codex exec 单轮（--skip-git-repo-check 允许非 git 目录）' },
   },
   {
     agentType: 'claude',
