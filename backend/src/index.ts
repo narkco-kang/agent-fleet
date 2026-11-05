@@ -204,9 +204,9 @@ async function main(): Promise<void> {
     }
     // 设备经中继上报的注册/能力/心跳（真实远程设备场景，复用直连逻辑但经 relay 回执）
     handleRelayEnvelope(env);
-    // 设备经中继上报的任务事件/结果复用协调 WS 分发
-    if (env.type === MESSAGE_TYPES.TASK_EVENT) onDeviceTaskEvent(env.payload as never);
-    if (env.type === MESSAGE_TYPES.TASK_RESULT) onDeviceTaskResult(env.payload as never);
+    // 设备经中继上报的任务事件/结果复用协调 WS 分发（env.from = 上报设备 deviceId，供跨设备伪造防御）
+    if (env.type === MESSAGE_TYPES.TASK_EVENT) onDeviceTaskEvent(env.payload as never, env.from);
+    if (env.type === MESSAGE_TYPES.TASK_RESULT) onDeviceTaskResult(env.payload as never, env.from);
     // 资产分发 ack（经中继）
     if (env.type === MESSAGE_TYPES.ASSET_DELIVER_ACK) handleAssetDeliverAck(env.payload as never);
   });

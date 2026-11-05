@@ -163,12 +163,20 @@ export function completeGatewayTask(taskId: string, result: GatewayTaskResult): 
   });
 }
 
-/** 设备上报 task.event：落库 + 广播 */
-export function onDeviceTaskEvent(event: TaskEvent): void {
+/** 设备上报 task.event：落库 + 广播（fromDeviceId 供跨设备伪造防御校验，缺省时跳过归属校验） */
+export function onDeviceTaskEvent(event: TaskEvent, fromDeviceId?: string): void {
   if (!event?.taskId) return;
   // 幂等（对抗性故障注入）：任务已是终态则忽略后续事件（防乱序/重复污染时间线）
   const existing = getTask(event.taskId);
   if (existing && isTerminal(existing.status)) return;
+  // 归属校验（对抗性故障注入）：跨设备伪造事件拒绝——只有 running 任务的归属设备能上报流式事件
+  if (fromDeviceId) {
+    const owner = running.get(event.taskId)?.deviceId;
+    if (owner && owner !== fromDeviceId) {
+      console.warn(`[taskRunner] 拒绝跨设备事件: task=${event.taskId} owner=${owner} from=${fromDeviceId}`);
+      return;
+    }
+  }
   // 协调服务为权威序号来源：保证同一 task 内 seq 严格递增
   const seq = nextSeq(event.taskId);
   const normEvent: TaskEvent = { ...event, seq };
@@ -183,11 +191,13 @@ export function onDeviceTaskEvent(event: TaskEvent): void {
     randomId('msg'),
   );
 
-  // eventType=status 携带状态流转
+  // eventType=status 携带状态流转；终态统一交给 onDeviceTaskResult 权威收口。
+  // 设备在终态时成对发送 TASK_EVENT(status=completed/failed) + TASK_RESULT，result 才携 result_text/
+  // finished_at/tokens；若此处提前置终态并 finalize，随后到达的 TASK_RESULT 会因终态幂等被丢弃，
+  // 导致 finished_at/result_text 永不落库（真实设备任务 e2e 延迟全 0、输出不可见的根因）。
   if (normEvent.eventType === 'status' && normEvent.status) {
-    updateTaskStatus(event.taskId, normEvent.status);
-    if (normEvent.status === 'completed' || normEvent.status === 'failed' || normEvent.status === 'cancelled') {
-      finalize(event.taskId, normEvent.status);
+    if (!isTerminal(normEvent.status)) {
+      updateTaskStatus(event.taskId, normEvent.status);
     }
   }
 
@@ -202,8 +212,8 @@ export function onDeviceTaskEvent(event: TaskEvent): void {
   });
 }
 
-/** 设备上报 task.result：最终结果落库 + 释放 + 广播 */
-export function onDeviceTaskResult(result: TaskResult): void {
+/** 设备上报 task.result：最终结果落库 + 释放 + 广播（fromDeviceId 供跨设备伪造防御校验，缺省时跳过） */
+export function onDeviceTaskResult(result: TaskResult, fromDeviceId?: string): void {
   if (!result?.taskId) return;
   // 幂等（对抗性故障注入）：任务已是终态则忽略重复 result（防重复释放/记账/广播）
   const existing = getTask(result.taskId);
@@ -211,6 +221,14 @@ export function onDeviceTaskResult(result: TaskResult): void {
   // 只有 running 任务才接受 result：断连迁移后的任务已改回 queued，旧设备迟到上报的
   // result 若被接受会把 queued 误判为 completed（对抗性故障注入 DEFECT-FI-01 守着）
   if (existing && existing.status !== 'running') return;
+  // 归属校验（对抗性故障注入）：跨设备伪造 result 拒绝——只有 running 任务的归属设备能上报结果
+  if (fromDeviceId) {
+    const owner = running.get(result.taskId)?.deviceId;
+    if (owner && owner !== fromDeviceId) {
+      console.warn(`[taskRunner] 拒绝跨设备 result: task=${result.taskId} owner=${owner} from=${fromDeviceId}`);
+      return;
+    }
+  }
   const status: TaskStatus = result.status === 'interrupted' ? 'interrupted' : result.status;
 
   setTaskResult(result.taskId, {

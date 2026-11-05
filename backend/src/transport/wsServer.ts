@@ -21,10 +21,10 @@ export interface Peer {
  * 解耦 transport 与 scheduler 的循环依赖。
  */
 export interface TaskBridge {
-  /** 设备上报的流式事件 */
-  onDeviceTaskEvent(event: TaskEvent): void;
-  /** 设备上报的任务结果 */
-  onDeviceTaskResult(result: TaskResult): void;
+  /** 设备上报的流式事件（fromDeviceId 供跨设备伪造防御） */
+  onDeviceTaskEvent(event: TaskEvent, fromDeviceId?: string): void;
+  /** 设备上报的任务结果（fromDeviceId 供跨设备伪造防御） */
+  onDeviceTaskResult(result: TaskResult, fromDeviceId?: string): void;
   /** 设备断开时标记其运行中任务为 interrupted */
   onDeviceDisconnected(deviceId: string): void;
   /** 设备上报决策门（P0-5：任务 blocked 等人类选择） */
@@ -209,11 +209,11 @@ function handleEnvelope(socket: WebSocket, raw: string, fallbackPeer?: Peer): vo
       break;
     }
     case MESSAGE_TYPES.TASK_EVENT: {
-      taskBridge?.onDeviceTaskEvent(envelope.payload as TaskEvent);
+      taskBridge?.onDeviceTaskEvent(envelope.payload as TaskEvent, peer?.deviceId ?? envelope.from);
       break;
     }
     case MESSAGE_TYPES.TASK_RESULT: {
-      taskBridge?.onDeviceTaskResult(envelope.payload as TaskResult);
+      taskBridge?.onDeviceTaskResult(envelope.payload as TaskResult, peer?.deviceId ?? envelope.from);
       break;
     }
     case MESSAGE_TYPES.DECISION_GATE: {

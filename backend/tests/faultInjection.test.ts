@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { closeDatabase, getDb, initDatabase } from '../src/db/database.js';
 import { config } from '../src/config.js';
 import { deviceRegistry } from '../src/services/deviceRegistry.js';
-import { upsertAgents, setAgentActivated } from '../src/db/repo/agents.js';
+import { upsertAgents, setAgentActivated, claimAgent } from '../src/db/repo/agents.js';
 import { upsertDevice } from '../src/db/repo/devices.js';
 import { getTask } from '../src/db/repo/tasks.js';
 import { listMessagesByTask } from '../src/db/repo/messages.js';
@@ -244,5 +244,83 @@ describe('对抗性故障注入', () => {
     // 非法选项（未 resolve 的新 gate）也应拒绝
     const gate2 = createGate('task-fi7', '选择', ['A', 'B']);
     expect(resolveGate(gate2.gateId, 'C')).toBeUndefined();
+  });
+
+  it('跨设备伪造 result 被拒绝：非归属设备上报结果不落库、任务保持 running', () => {
+    registerDevice('dev-owner');
+    registerDevice('dev-attacker');
+    seedAgent('dev-owner', 'codex');
+    enqueueTask({
+      taskId: 'task-spoof',
+      sessionId: 'sess-spoof',
+      origin: 'dashboard',
+      originRef: 'qa',
+      prompt: '写一个工具函数',
+      targetMode: 'device',
+      targetDeviceId: 'dev-owner',
+      targetAgentType: 'codex',
+    });
+    expect(getTask('task-spoof')?.status).toBe('running');
+
+    // 攻击者设备伪造 result（owner=dev-owner，from=dev-attacker → 拒绝）
+    onDeviceTaskResult(completedResult('task-spoof'), 'dev-attacker');
+    expect(getTask('task-spoof')?.status).toBe('running'); // 未被伪造完成
+
+    // 归属设备上报 result → 正常完成
+    onDeviceTaskResult(completedResult('task-spoof'), 'dev-owner');
+    expect(getTask('task-spoof')?.status).toBe('completed');
+  });
+
+  it('跨设备伪造事件被拒绝：非归属设备上报流式事件不污染时间线', () => {
+    registerDevice('dev-owner2');
+    seedAgent('dev-owner2', 'claude');
+    enqueueTask({
+      taskId: 'task-spoof2',
+      sessionId: 'sess-spoof2',
+      origin: 'dashboard',
+      originRef: 'qa',
+      prompt: '写一个工具函数',
+      targetMode: 'device',
+      targetDeviceId: 'dev-owner2',
+      targetAgentType: 'claude',
+    });
+    const before = listMessagesByTask('task-spoof2', 500).length;
+
+    // 非归属设备伪造 text 事件
+    onDeviceTaskEvent(
+      { taskId: 'task-spoof2', seq: 1, eventType: 'text', data: { text: '伪造输出' }, ts: Date.now() },
+      'dev-attacker',
+    );
+
+    expect(listMessagesByTask('task-spoof2', 500).length).toBe(before); // 时间线未污染
+  });
+
+  it('认领竞态：max_concurrency=1 时连续两次认领只成功一次', () => {
+    registerDevice('dev-race');
+    seedAgent('dev-race', 'codex'); // maxConcurrency=1
+
+    expect(claimAgent('dev-race', 'codex')).toBe(true); // 首次成功
+    expect(claimAgent('dev-race', 'codex')).toBe(false); // 满员，第二次失败
+  });
+
+  it('重复注册幂等：同 deviceId 重复 register 不产生重复条目', () => {
+    registerDevice('dev-dup');
+    registerDevice('dev-dup');
+
+    const entries = Array.from(deviceRegistry.all()).filter((e) => e.deviceId === 'dev-dup');
+    expect(entries).toHaveLength(1);
+  });
+
+  it('畸形 taskId 注入：SQL 注入串不崩溃、不破坏 tasks 表', () => {
+    const evil = "x'; DROP TABLE tasks;--";
+    expect(() =>
+      onDeviceTaskResult(
+        { taskId: evil, status: 'completed', result: { text: '', exitCode: 0, durationMs: 1 }, logs: [], finishedAt: Date.now() },
+        'dev-x',
+      ),
+    ).not.toThrow();
+    // tasks 表仍在（参数化查询，未被注入 drop）
+    const row = getDb().prepare('SELECT COUNT(*) AS c FROM tasks').get() as { c: number };
+    expect(row.c).toBeGreaterThanOrEqual(0);
   });
 });
