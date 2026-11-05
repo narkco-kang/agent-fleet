@@ -42,7 +42,21 @@ scp_win165() { sshpass -p "$WIN165_PASS" scp "${SSH_OPTS[@]}" "$@"; }
 restart_ubuntu() { ssh_ubuntu "sudo systemctl restart agentfleet-device && echo ubuntu-dev 已重启" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"; }
 # taskkill node.exe 会连 modelgateway 一起杀（也是 node.exe），所以重启 device-agent 后必须同时重启 modelgateway 常驻任务
 restart_win120() { ssh_win120 'taskkill /f /im node.exe 2>nul & ping -n 2 127.0.0.1 > nul & schtasks /run /tn AgentFleetDevice & schtasks /run /tn AgentFleetModelGateway & echo win120-dev 已重启' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"; }
-restart_win165() { ssh_win165 'taskkill /f /im node.exe 2>nul & ping -n 2 127.0.0.1 > nul & powershell -NoProfile -Command "Start-ScheduledTask -TaskName AFDevSys" & schtasks /run /tn AFDevModelGateway & echo win165-dev 已重启' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"; }
+restart_win165() { ssh_win165 'taskkill /f /im node.exe 2>nul & ping -n 2 127.0.0.1 > nul & schtasks /run /tn AgentFleetDevice & schtasks /run /tn AFDevModelGateway & echo win165-dev 已重启' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq"; }
+
+# ── Windows device-agent 常驻：.bat 启动文件（含环境变量 + 完整 node 路径）+ schtasks /create ──
+# 与 modelgateway 对齐；device-agent 需环境变量(RELAY_URL/DEVICE_NAME) + 用户目录(.agentfleet/registry.json)，
+# 故 /ru Administrator（非 SYSTEM，SYSTEM 的 home 不在 C:\Users\Administrator，会读到不同 registry）。
+# 关键踩坑：schtasks 的 /tr 若直接内联 node 命令，非交互环境 PATH 可能找不到 node（win165 node 在 af-node 目录），
+# 且环境变量/重定向转义易错 → 统一走 .bat 文件（内写 cd + set + 完整 node 路径 + >> 日志）。
+create_device_agent_task() {
+  local label="$1" host="$2" user="$3" pass="$4" node_cmd="$5" device_name="$6"
+  printf '@echo off\r\ncd /d C:\\Users\\Administrator\r\nset RELAY_URL=%s\r\nset DEVICE_NAME=%s\r\nset AGENTFLEET_NO_MDNS=1\r\n%s device-agent.cjs >> device-agent.log 2>&1\r\n' \
+    "$RELAY_URL" "$device_name" "$node_cmd" > /tmp/start-device-agent.bat
+  sshpass -p "$pass" scp "${SSH_OPTS[@]}" /tmp/start-device-agent.bat "$user@$host:C:/Users/Administrator/start-device-agent.bat" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+  sshpass -p "$pass" ssh "${SSH_OPTS[@]}" "$user@$host" 'schtasks /create /f /tn AgentFleetDevice /tr "cmd /c C:\Users\Administrator\start-device-agent.bat" /sc onstart /ru Administrator /rl highest' 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+  echo "$label device-agent schtasks 已创建/更新"
+}
 
 case "${1:-}" in
   restart)
@@ -67,6 +81,9 @@ case "${1:-}" in
     scp_ubuntu "$ROOT/dist/device-agent.cjs" "$UBUNTU_USER@$UBUNTU_HOST:device-agent.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
     scp_win120 "$ROOT/dist/device-agent.cjs" "$WIN120_USER@$WIN120_HOST:device-agent.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
     scp_win165 "$ROOT/dist/device-agent.cjs" "$WIN165_USER@$WIN165_HOST:device-agent.cjs" 2>&1 | grep -vE "post-quantum|store now|openssh.com/pq" || true
+    # 创建/更新 Windows device-agent 常驻 schtasks（.bat 含环境变量 + 完整 node 路径）
+    create_device_agent_task "win120" "$WIN120_HOST" "$WIN120_USER" "$WIN120_PASS" "node" "win120-dev"
+    create_device_agent_task "win165" "$WIN165_HOST" "$WIN165_USER" "$WIN165_PASS" "$WIN165_NODE" "win165-dev"
     restart_ubuntu; restart_win120; restart_win165
     echo "[fleet] 部署 + 重启完成"
     ;;
