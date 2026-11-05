@@ -234,6 +234,7 @@ function handleEnvelope(socket: WebSocket, raw: string, fallbackPeer?: Peer): vo
       } else if (ack?.deviceId && ack?.agentType) {
         // 打开平台应用成功 → 标记该 agent 为已激活（用户在该应用内完成登录）
         setAgentActivated(ack.deviceId, ack.agentType as never, true);
+        broadcastDevicePatch(ack.deviceId);
         console.log(`[platform-open] ${ack.deviceId}/${ack.agentType} 已打开并标记激活: ${ack.message ?? ''}`);
       }
       break;
@@ -463,9 +464,10 @@ function handleDeviceLoginMessage(type: string, payload: unknown): boolean {
       to: 'dashboard',
       payload: r,
     });
-    // 登录成功 → 标记该 agent 已激活（用户已授权）
+    // 登录成功 → 标记该 agent 已激活（用户已授权）+ 广播设备快照更新，前端实时刷新「未激活」状态
     if (r?.status === 'success' && r.deviceId && r.agentType) {
       setAgentActivated(r.deviceId, r.agentType as never, true);
+      broadcastDevicePatch(r.deviceId);
     }
     return true;
   }
@@ -485,9 +487,10 @@ function handleDeviceModelConfigAck(type: string, payload: unknown): boolean {
     to: 'dashboard',
     payload: ack,
   });
-  // 配置成功 → 标记该 agent 已激活（已配好自定义模型，免登录）
+  // 配置成功 → 标记该 agent 已激活（已配好自定义模型，免登录）+ 广播设备快照更新
   if (ack?.ok && ack.deviceId && ack.agentType) {
     setAgentActivated(ack.deviceId, ack.agentType as never, true);
+    broadcastDevicePatch(ack.deviceId);
   }
   return true;
 }

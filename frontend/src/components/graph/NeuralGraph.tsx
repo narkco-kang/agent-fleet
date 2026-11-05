@@ -104,11 +104,22 @@ export function NeuralGraph({
         .sort((a, b) => (b.data.createdAt ?? 0) - (a.data.createdAt ?? 0)),
     [data],
   );
+  // 选中项归属的设备 id（点击设备/agent 时，任务列表按该设备过滤，其余不变灰）
+  const focusDeviceId = useMemo(() => {
+    if (!focus) return null;
+    if (devices.some((d) => d.id === focus)) return focus;
+    const a = agents.find((x) => x.id === focus);
+    if (a) return a.deviceId;
+    return null;
+  }, [focus, devices, agents]);
+
   const visibleTasks = useMemo(() => {
-    if (taskFilter === 'all') return tasks;
-    if (taskFilter === 'failed') return tasks.filter((t) => ['failed', 'cancelled', 'interrupted'].includes(t.data.status));
-    return tasks.filter((t) => t.data.status === taskFilter);
-  }, [tasks, taskFilter]);
+    let ts = tasks;
+    if (focusDeviceId) ts = ts.filter((t) => t.data.targetDeviceId === focusDeviceId);
+    if (taskFilter === 'all') return ts;
+    if (taskFilter === 'failed') return ts.filter((t) => ['failed', 'cancelled', 'interrupted'].includes(t.data.status));
+    return ts.filter((t) => t.data.status === taskFilter);
+  }, [tasks, taskFilter, focusDeviceId]);
 
   // 归属索引
   const agentsByDevice = useMemo(() => {
@@ -129,25 +140,7 @@ export function NeuralGraph({
     return m;
   }, [tasks]);
 
-  // 联动高亮集合
-  const related = useMemo(() => {
-    if (!focus) return null;
-    const set = new Set<string>([focus]);
-    if (focus.startsWith('agent-')) {
-      for (const t of tasks) if (taskAgent.get(t.id) === focus) set.add(t.id);
-      const a = agents.find((x) => x.id === focus);
-      if (a) set.add(a.deviceId);
-    } else if (devices.some((d) => d.id === focus)) {
-      for (const a of agents) if (a.deviceId === focus) set.add(a.id);
-      for (const t of tasks) if (t.data.targetDeviceId === focus) set.add(t.id);
-    } else if (tasks.some((t) => t.id === focus)) {
-      const ag = taskAgent.get(focus);
-      if (ag) set.add(ag);
-    }
-    return set;
-  }, [focus, tasks, agents, devices, taskAgent]);
-
-  const dim = (id: string): boolean => (related ? !related.has(id) : false);
+  // （不再做「点击后其它全变灰」的联动高亮——改为选中项 active 高亮 + 任务按设备过滤，见 focusDeviceId）
 
   // KPI
   const onlineDevices = devices.filter((d) => d.data.status === 'online' || d.data.status === 'busy').length;
@@ -228,7 +221,7 @@ export function NeuralGraph({
                 agents={devAgents}
                 collapsed={collapsedDevices.has(d.id)}
                 active={focus === d.id}
-                dimmed={dim(d.id) || lensDim('device')}
+                dimmed={lensDim('device')}
                 onToggle={() => toggleDevice(d.id)}
                 onSelect={() => select({ kind: 'device', id: d.data.deviceId, title: d.data.name })}
                 onSelectAgent={(a) =>
@@ -250,7 +243,24 @@ export function NeuralGraph({
             { color: 'var(--success)', count: completedTasks, label: '完成' },
             { color: 'var(--danger)', count: alerts, label: '失败' },
           ]} />}
-          headerExtra={<TaskFilter value={taskFilter} onChange={setTaskFilter} />}
+          headerExtra={
+            <>
+              <TaskFilter value={taskFilter} onChange={setTaskFilter} />
+              {focusDeviceId && (
+                <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--brand-soft)] px-2.5 py-1">
+                  <span className="text-[11px] text-[#4F46E5]">
+                    仅显示 {devices.find((d) => d.id === focusDeviceId)?.data.name ?? '该设备'} 的任务
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setFocus(null); onSelect?.(null); }}
+                    className="rounded px-1.5 text-[11px] text-[#4F46E5] hover:bg-[var(--brand-soft)]"
+                  >
+                    清除
+                  </button>
+                </div>
+              )}
+            </>
+          }
         >
           {visibleTasks.map((t) => {
             const st = t.data.status;
@@ -269,7 +279,7 @@ export function NeuralGraph({
                 running={running}
                 collapsed={collapsedTasks.has(t.id)}
                 active={focus === t.id}
-                dimmed={dim(t.id) || lensDim('task')}
+                dimmed={lensDim('task')}
                 onToggle={() => toggleTask(t.id)}
                 onSelect={() => select({ kind: 'task', id: t.data.taskId, title: t.data.prompt.slice(0, 40) })}
               />
@@ -413,7 +423,7 @@ function DeviceGroup({ device, agents, collapsed, active, dimmed, onToggle, onSe
   return (
     <div className="flex flex-col gap-1.5" style={{ opacity: dimmed ? 0.35 : 1 }}>
       <button
-        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
         className="group w-full rounded-md border bg-[var(--surface)] px-2.5 py-2 text-left transition-all hover:shadow-sm"
         style={{
           borderColor: active ? 'var(--brand)' : 'var(--border)',
@@ -422,11 +432,18 @@ function DeviceGroup({ device, agents, collapsed, active, dimmed, onToggle, onSe
         }}
       >
         <div className="flex items-center gap-2">
-          <ExpandMoreIcon
-            fontSize="small"
-            className="shrink-0 text-[var(--text-muted)] transition-transform"
-            style={{ transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
-          />
+          <span
+            role="button"
+            title={collapsed ? '展开 agent' : '折叠 agent'}
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            className="shrink-0 rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)]"
+          >
+            <ExpandMoreIcon
+              fontSize="small"
+              className="shrink-0 transition-transform"
+              style={{ transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+            />
+          </span>
           <StatusDot color={color} ping={online} />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--text-strong)]">{truncate(device.data.name, 18)}</span>
           <span className="rounded bg-[var(--bg-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">

@@ -64,15 +64,17 @@ class DeviceRegistry {
     return entry;
   }
 
-  /** 更新心跳 */
-  heartbeat(deviceId: string, load: DeviceLoad, busyAgents: number): void {
-    const e = this.devices.get(deviceId);
-    if (e) {
-      e.lastHeartbeat = Date.now();
-      e.missedCount = 0; // 收到心跳即归零，容错窗口重开
-      e.load = load;
-      e.busyAgents = busyAgents;
+  /** 更新心跳（若条目此前被 sweeper 判死删除，心跳恢复时自动重新注册，防设备永久 offline） */
+  heartbeat(deviceId: string, load: DeviceLoad, busyAgents: number, kind: ConnectionKind = 'relay'): void {
+    let e = this.devices.get(deviceId);
+    if (!e) {
+      // sweeper 判死时删除了内存条目；设备心跳已恢复 → 重新注册（relay 设备经中继心跳恢复）
+      e = this.register(deviceId, deviceId, kind);
     }
+    e.lastHeartbeat = Date.now();
+    e.missedCount = 0; // 收到心跳即归零，容错窗口重开
+    e.load = load;
+    e.busyAgents = busyAgents;
   }
 
   /** 获取条目 */
