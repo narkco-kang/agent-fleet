@@ -4,8 +4,8 @@ import { MESSAGE_TYPES } from '@agentfleet/shared';
 import { deviceRegistry, type ConnectionKind } from '../services/deviceRegistry.js';
 import { upsertDevice, touchHeartbeat } from '../db/repo/devices.js';
 import { upsertAgents, setAgentActivated } from '../db/repo/agents.js';
-import { verifyToken } from '../security/auth.js';
-import { getPendingPair } from '../security/pairing.js';
+import { verifyToken, issueToken } from '../security/auth.js';
+import { getPendingPair, createPairing, verifyPairing } from '../security/pairing.js';
 
 /**
  * 看板 / 网关连接（用于广播 dashboard.patch、wechat.reply 等）。
@@ -370,6 +370,22 @@ export function handleRelayEnvelope(env: Envelope): void {
     };
     if (!reg?.deviceId) return;
 
+    // token 为空 → 走 relay 配对（relay-only 设备无法 HTTP 直连 backend，自动配对经中继）
+    if (!reg.token) {
+      const pending = getPendingPair(reg.deviceId);
+      const code = pending?.code ?? createPairing(reg.deviceId, reg.name);
+      relayForwardToDevice(reg.deviceId, {
+        v: 1,
+        type: MESSAGE_TYPES.DEVICE_PAIR,
+        id: `pair-${Date.now()}`,
+        ts: Date.now(),
+        from: 'coordinator',
+        to: reg.deviceId,
+        payload: { deviceId: reg.deviceId, name: reg.name, pairingCode: code },
+      });
+      return;
+    }
+
     // token 校验（与直连一致，SKIP_AUTH 跳过）
     if (!SKIP_AUTH && !verifyToken(reg.deviceId, reg.token)) {
       relayForwardToDevice(reg.deviceId, {
@@ -412,6 +428,27 @@ export function handleRelayEnvelope(env: Envelope): void {
         coordinatorPublicKey: coordinatorKeyProvider() ?? undefined,
       },
     });
+    return;
+  }
+
+  if (type === MESSAGE_TYPES.DEVICE_PAIR_REQUEST) {
+    // relay-only 设备确认配对码 → 校验 + 签发 token 经中继下发
+    const pr = payload as { deviceId?: string; pairingCode?: string };
+    if (pr?.deviceId && pr?.pairingCode) {
+      const name = verifyPairing(pr.deviceId, pr.pairingCode);
+      if (name) {
+        const token = issueToken(pr.deviceId);
+        relayForwardToDevice(pr.deviceId, {
+          v: 1,
+          type: MESSAGE_TYPES.DEVICE_PAIR_RESULT,
+          id: `pairres-${Date.now()}`,
+          ts: Date.now(),
+          from: 'coordinator',
+          to: pr.deviceId,
+          payload: { deviceId: pr.deviceId, token },
+        });
+      }
+    }
     return;
   }
 

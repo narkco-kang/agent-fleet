@@ -51,12 +51,35 @@ export async function handleEnvelope(
 
   switch (type) {
     case MESSAGE_TYPES.DEVICE_PAIR: {
-      // 已有 token → 直接 register；否则走 REST 自动配对（协调服务签发签名 token）
+      // 已有 token → 直接 register；否则配对
       const reg = loadRegistry();
       if (reg.token) {
         sendRegister(sender);
       } else {
-        await autoPairAndRegister(sender);
+        // 有 pairingCode（relay 配对）→ 经中继确认配对码；否则走 HTTP 自动配对（LAN 直连）
+        const p = envelope.payload as { pairingCode?: string };
+        if (p?.pairingCode) {
+          sender({
+            v: 1,
+            type: MESSAGE_TYPES.DEVICE_PAIR_REQUEST,
+            id: cryptoRandomId('pairreq'),
+            ts: Date.now(),
+            from: loadRegistry().deviceId,
+            to: 'coordinator',
+            payload: { deviceId: loadRegistry().deviceId, pairingCode: p.pairingCode },
+          });
+        } else {
+          await autoPairAndRegister(sender);
+        }
+      }
+      break;
+    }
+    case MESSAGE_TYPES.DEVICE_PAIR_RESULT: {
+      // relay 配对结果：backend 经中继下发签名 token → 保存并重新注册
+      const r = envelope.payload as { token?: string };
+      if (r?.token) {
+        setToken(r.token);
+        sendRegister(sender);
       }
       break;
     }

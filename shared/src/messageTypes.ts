@@ -9,6 +9,8 @@ export type MessageType =
   | 'device.capabilities'
   | 'device.pair'
   | 'device.pair_ack'
+  | 'device.pair_request'
+  | 'device.pair_result'
   | 'device.relay_online'
   | 'device.relay_offline'
   | 'device.platform_open'
@@ -54,6 +56,8 @@ export const MESSAGE_TYPES: Record<string, MessageType> = {
   DEVICE_CAPABILITIES: 'device.capabilities',
   DEVICE_PAIR: 'device.pair',
   DEVICE_PAIR_ACK: 'device.pair_ack',
+  DEVICE_PAIR_REQUEST: 'device.pair_request',
+  DEVICE_PAIR_RESULT: 'device.pair_result',
   DEVICE_RELAY_ONLINE: 'device.relay_online',
   DEVICE_RELAY_OFFLINE: 'device.relay_offline',
   DEVICE_PLATFORM_OPEN: 'device.platform_open',

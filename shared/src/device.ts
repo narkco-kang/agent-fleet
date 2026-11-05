@@ -150,6 +150,18 @@ export interface DevicePairAck {
   reason?: string;
 }
 
+/** 配对请求（device.pair_request，relay-only 设备经中继确认配对码） */
+export interface DevicePairRequest {
+  deviceId: string;
+  pairingCode: string;
+}
+
+/** 配对结果（device.pair_result，backend 经中继下发签名 token） */
+export interface DevicePairResult {
+  deviceId: string;
+  token: string;
+}
+
 /** 看板快照中的设备节点 */
 export interface DeviceSnapshot {
   deviceId: string;
