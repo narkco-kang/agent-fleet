@@ -27,6 +27,31 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
 
 > Recorded against a live coordinator: the neural graph, submitting a task to the fleet, the prompt library, and the batch-deployment catalog. WebM source: [`docs/demo/demo.webm`](docs/demo/demo.webm).
 
+## ⚡ Performance (reproducible)
+
+Cross-device scheduling is benchmarked, and every number below is produced by scripts in this repo — run them yourself.
+
+| Metric | Value |
+|---|---|
+| Scheduler throughput (200 tasks) | **303 tasks/s** (4 devices × 2 agents, mock exec) |
+| Scheduler throughput (1000 tasks) | **377 tasks/s** |
+| Scheduler throughput (8 devices × 24 agents, 1000 tasks, device killed mid-run) | **353 tasks/s**, lost = 0 |
+| Real multi-device throughput | **38 tasks/s** (2 devices × 2 agents, real ws link) |
+| Scheduling latency p50 / p90 / p99 | **339 / 592 / 639 ms** |
+| Disconnect detection | **~1 s** (was ~35 s) |
+| Task loss when a device dies mid-run | **0** — running tasks migrate back to queued and get re-dispatched |
+| Real cloud servers, zero login | **5/5 completed** (1 Ubuntu + 2 Windows, real codex/claude CLI, no OpenAI/Anthropic account) |
+| One-time scheduling fix | 13 → **414 tasks/s** (30×) after removing three O(n²) DB lookups from the dispatch loop |
+
+```bash
+npm run benchmark --workspace backend                     # scheduler core (mock devices)
+npm run benchmark:multi --workspace backend               # real multi-device (1 backend + N device processes)
+npm run benchmark --workspace backend -- --fail-at 100    # failover
+```
+
+Full methodology and raw history: [`docs/24-benchmark报告.md`](docs/24-benchmark报告.md) · append-only results in `backend/benchmark-results/runs.jsonl`.
+
+
 ## ✨ Features
 
 | Capability | Description |
@@ -54,25 +79,6 @@ AgentFleet is a **self-hosted cross-device AI orchestration layer**. It doesn't 
 | **A2A endpoint** | Agent Card (`/.well-known/agent.json`) + JSON-RPC `tasks/send` / `tasks/get` / `tasks/cancel` — external agents discover and delegate to the fleet |
 | **Sub-second failover** | Device death detected in ~1s (ws ping/pong + fast heartbeat, was ~35s); running tasks auto-migrate to surviving devices — zero loss |
 | **Memory insights** | Semantic consolidation layer turns the change stream into success rate / per-agent distribution / failure lessons — memory you can search *and* learn from |
-
-## ⚡ Performance
-
-Cross-device scheduling is benchmarked and reproducible — the numbers below are the reference point for "cross-device capability". Full report: [`docs/24-benchmark报告.md`](docs/24-benchmark报告.md).
-
-| Metric | Value |
-|---|---|
-| Scheduler throughput (200 tasks) | **303 tasks/s** (4 devices × 2 agents) |
-| Scheduler throughput (1000 tasks) | **377 tasks/s** |
-| Real multi-device throughput | **96 tasks/s** (2 devices × 2 agents, real ws link) |
-| Claim throttling | peak concurrency = theoretical peak (no over-dispatch) |
-| Disconnect detection | **~1s** (kill a device → offline in ~1s, was ~35s) |
-| Failover | **lost = 0** |
-| Disconnect migration | running → queued, auto re-dispatch (no lost task) |
-
-```bash
-npm run benchmark --workspace backend           # scheduler core (mock devices)
-npm run benchmark:multi --workspace backend     # real multi-device (1 backend + N device processes)
-```
 
 ## 🧩 Supported agent platforms and responsibility boundaries
 

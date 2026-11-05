@@ -27,6 +27,31 @@ AgentFleet 是一个**可自托管的跨设备智能体协同层**。它不造�
 
 > 基于真实协调器录制：神经图 → 提交任务 → 任务流转 → 提示词库 → 批量部署目录。WebM 源：[`docs/demo/demo.webm`](docs/demo/demo.webm)。
 
+## ⚡ 性能（可复现）
+
+跨设备调度有 benchmark，下面每个数字都由仓库脚本实测产出——你可以自己跑一遍。
+
+| 指标 | 数值 |
+|---|---|
+| 调度内核吞吐（200 任务） | **303 tasks/s**（4 设备 × 2 agent，mock 执行） |
+| 调度内核吞吐（1000 任务） | **377 tasks/s** |
+| 8 设备 × 24 agent，1000 任务跑到一半杀掉一台设备 | **353 tasks/s**，lost = 0 |
+| 真实多设备吞吐 | **38 tasks/s**（2 设备 × 2 agent，真实 ws 链路） |
+| 调度延迟 p50 / p90 / p99 | **339 / 592 / 639 ms** |
+| 断连感知 | **~1 秒**（原为 ~35 秒） |
+| 设备中途死亡的任务丢失 | **0** —— running 任务自动迁回 queued 并重派 |
+| 真实云服务器、全程免登录 | **5/5 completed**（1 台 Ubuntu + 2 台 Windows，真 codex/claude CLI，未登录任何 OpenAI/Anthropic 账号） |
+| 一次调度优化 | 13 → **414 tasks/s**（30×），移除 dispatch 循环里三处 O(n²) 查库 |
+
+```bash
+npm run benchmark --workspace backend                     # 调度内核（mock 设备）
+npm run benchmark:multi --workspace backend               # 真实多设备（1 backend + N 设备进程）
+npm run benchmark --workspace backend -- --fail-at 100    # 故障注入
+```
+
+完整方法论与原始历史：[`docs/24-benchmark报告.md`](docs/24-benchmark报告.md) · 追加式结果沉淀在 `backend/benchmark-results/runs.jsonl`。
+
+
 ## ✨ 功能特性
 
 | 能力 | 说明 |
