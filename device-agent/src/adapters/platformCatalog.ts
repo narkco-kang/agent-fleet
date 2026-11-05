@@ -9,6 +9,14 @@ import type { PlatformProbe } from './detector.js';
 /** 执行方式（真接策略） */
 export type RunMode = 'cli-stream' | 'cli-text' | 'acp' | 'unsupported';
 
+/**
+ * 平台 API 协议（对齐 free_sources 表的 format 字段，供「按协议匹配免费源 + 一键配置模型」）。
+ * - openai-chat：OpenAI Chat Completions（qwen/gemini/opencode/aider/cursor 等）
+ * - openai-responses：OpenAI Responses API（新版 codex 只认这个 wire_api）
+ * - anthropic-messages：Anthropic Messages（claude/kimi 等）
+ */
+export type ApiProtocol = 'openai-chat' | 'openai-responses' | 'anthropic-messages';
+
 /** 平台执行配置：headless 调用方式（真接时由 CatalogAdapter.run 使用） */
 export interface RunSpec {
   mode: RunMode;
@@ -30,10 +38,28 @@ export interface PlatformDef extends PlatformProbe {
   displayName: string;
   capabilities: string[];
   maxConcurrency: number;
+  /** 平台 API 协议（对齐 EchoBird apiProtocol；缺省 []，云端 agent/桌面应用无本地协议） */
+  apiProtocol?: ApiProtocol[];
   /** 执行配置（缺省 = unsupported，run 走占位失败并附说明） */
   runSpec?: RunSpec;
   /** 登录授权配置（Device Auth Flow：headless 执行 CLI 登录命令，捕获 URL + code，供看板授权中心用） */
   loginSpec?: LoginSpec;
+  /** 一键配置模型的声明式映射（对齐 EchoBird config.json 的 write 映射）；缺省 = 不支持一键配置 */
+  modelConfig?: ModelConfigSpec;
+}
+
+/**
+ * 一键配置模型规格（声明式，对齐 EchoBird config.json）。
+ * write 为「配置文件字段路径 → 值模板」，占位符 {model} / {baseUrl} / {apiKey} 由 configureModel 注入。
+ * 例：claude 的 settings.json 用 "env.ANTHROPIC_BASE_URL": "{baseUrl}"。
+ */
+export interface ModelConfigSpec {
+  /** 相对 home 的配置文件路径（如 '.claude/settings.json'） */
+  configFile: string;
+  /** 配置文件格式（决定读写方式） */
+  format: 'json' | 'toml';
+  /** 字段路径 → 值模板映射（json 用点分路径如 "env.ANTHROPIC_MODEL"，toml 用 "model" / "model_providers.x.base_url"） */
+  write: Record<string, string>;
 }
 
 /** 登录授权规格（Device Auth Flow） */
@@ -51,30 +77,64 @@ export interface LoginSpec {
 export const PLATFORM_CATALOG: PlatformDef[] = [
   {
     agentType: 'codex',
+    apiProtocol: ['openai-responses'],
     displayName: 'Codex',
     commands: ['codex'],
     defaultDirs: ['.local/bin/codex', '.codex/bin/codex'],
+    pathsByOS: {
+      win32: ['%APPDATA%\\npm\\codex.cmd', '%USERPROFILE%\\scoop\\shims\\codex.exe', '%USERPROFILE%\\.bun\\bin\\codex.exe'],
+      darwin: ['/usr/local/bin/codex', '/opt/homebrew/bin/codex', '~/.bun/bin/codex', '~/.local/bin/codex'],
+      linux: ['/usr/local/bin/codex', '~/.bun/bin/codex', '~/.local/bin/codex'],
+    },
     npmPackages: ['@openai/codex'],
     versionArgs: ['--version'],
     capabilities: ['coding'],
     maxConcurrency: 1,
     runSpec: { mode: 'cli-text', args: ['exec', '{prompt}', '--skip-git-repo-check'], textOutput: true, note: 'codex exec 单轮（--skip-git-repo-check 允许非 git 目录）' },
     loginSpec: { args: ['login', '--device-auth'], note: 'codex login --device-auth 输出 URL + one-time code（实机验证）' },
+    modelConfig: {
+      configFile: '.codex/config.toml',
+      format: 'toml',
+      write: {
+        model: '{model}',
+        model_provider: 'agentfleet',
+        'model_providers.agentfleet.name': 'AgentFleet Free Source',
+        'model_providers.agentfleet.base_url': '{baseUrl}',
+        'model_providers.agentfleet.wire_api': 'responses',
+        'model_providers.agentfleet.env_key': '{apiKey?}',
+      },
+    },
   },
   {
     agentType: 'claude',
+    apiProtocol: ['anthropic-messages'],
     displayName: 'Claude Code',
     commands: ['claude'],
     defaultDirs: ['.local/bin/claude', '.claude/bin/claude'],
+    pathsByOS: {
+      win32: ['%APPDATA%\\npm\\claude.cmd', '%USERPROFILE%\\.bun\\bin\\claude.exe', '%LOCALAPPDATA%\\Microsoft\\WinGet\\Links\\claude.exe'],
+      darwin: ['/usr/local/bin/claude', '/opt/homebrew/bin/claude', '~/.local/bin/claude', '~/.bun/bin/claude'],
+      linux: ['/usr/local/bin/claude', '/usr/bin/claude', '~/.local/bin/claude', '~/.bun/bin/claude'],
+    },
     npmPackages: ['@anthropic-ai/claude-code'],
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
     maxConcurrency: 1,
     runSpec: { mode: 'cli-stream', args: ['-p', '{prompt}', '--output-format', 'stream-json', '--verbose'], streamJson: true, note: 'claude -p stream-json（实机验证：--output-format=stream-json 需 --verbose，否则报错）' },
     loginSpec: { args: ['login'], note: 'claude login 输出授权 URL + code（device auth flow，待实机验证）' },
+    modelConfig: {
+      configFile: '.claude/settings.json',
+      format: 'json',
+      write: {
+        'env.ANTHROPIC_BASE_URL': '{gatewayUrl}',
+        'env.ANTHROPIC_MODEL': '{model}',
+        'env.ANTHROPIC_AUTH_TOKEN': '{apiKey}',
+      },
+    },
   },
   {
     agentType: 'dsh',
+    apiProtocol: ['anthropic-messages', 'openai-chat'],
     displayName: 'DSH Desktop',
     commands: ['dsh', 'dsh-desktop'],
     defaultDirs: ['.local/bin/dsh'],
@@ -86,6 +146,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'cursor',
+    apiProtocol: ['openai-chat'],
     displayName: 'Cursor',
     commands: ['cursor', 'cursor-agent'],
     defaultDirs: ['.local/bin/cursor', '.cursor/bin/cursor'],
@@ -98,6 +159,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'aider',
+    apiProtocol: ['openai-chat', 'anthropic-messages'],
     displayName: 'Aider',
     commands: ['aider'],
     defaultDirs: ['.local/bin/aider'],
@@ -109,6 +171,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'gemini',
+    apiProtocol: ['openai-chat'],
     displayName: 'Gemini CLI',
     commands: ['gemini'],
     defaultDirs: ['.local/bin/gemini'],
@@ -121,6 +184,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'cody',
+    apiProtocol: ['anthropic-messages'],
     displayName: 'Cody',
     commands: ['cody'],
     defaultDirs: ['.local/bin/cody'],
@@ -132,6 +196,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'qwen',
+    apiProtocol: ['openai-chat'],
     displayName: 'Qwen Code',
     commands: ['qwen', 'qwen-code'],
     defaultDirs: ['.local/bin/qwen', '.qwen/bin/qwen'],
@@ -144,6 +209,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'doubao',
+    apiProtocol: ['openai-chat', 'anthropic-messages'],
     displayName: '豆包 TRAE',
     commands: ['doubao', 'trae', 'marscode', 'mars-code'],
     defaultDirs: ['.local/bin/doubao', '.local/bin/trae', '.local/bin/marscode'],
@@ -156,9 +222,15 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'kimi',
+    apiProtocol: ['anthropic-messages', 'openai-chat'],
     displayName: 'Kimi Code CLI',
     commands: ['kimi', 'kimi-code'],
     defaultDirs: ['.local/bin/kimi', '.kimi/bin/kimi'],
+    pathsByOS: {
+      win32: ['%USERPROFILE%\\.kimi-code\\bin\\kimi.exe', '%APPDATA%\\npm\\kimi.cmd'],
+      darwin: ['~/.kimi-code/bin/kimi', '/opt/homebrew/bin/kimi', '~/.local/bin/kimi'],
+      linux: ['~/.kimi-code/bin/kimi', '/usr/local/bin/kimi', '~/.local/bin/kimi'],
+    },
     npmPackages: ['@moonshot-ai/kimi-code'],
     versionArgs: ['--version'],
     capabilities: ['coding', 'reasoning'],
@@ -172,6 +244,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'opencode',
+    apiProtocol: ['openai-chat'],
     displayName: 'OpenCode',
     commands: ['opencode'],
     defaultDirs: ['.local/bin/opencode'],
@@ -195,6 +268,7 @@ export const PLATFORM_CATALOG: PlatformDef[] = [
   },
   {
     agentType: 'workbuddy',
+    apiProtocol: ['openai-chat'],
     displayName: 'WorkBuddy',
     commands: ['codebuddy', 'cbc'],
     // WorkBuddy 专属智能体内核由 codebuddy 引导脚本加载（CODEBUDDY_FORCE_LITE_WB_BUNDLE=1

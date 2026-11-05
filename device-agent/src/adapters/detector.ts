@@ -22,6 +22,8 @@ export interface PlatformProbe {
   commands: string[];
   /** 约定目录候选（相对 home 或绝对路径） */
   defaultDirs: string[];
+  /** 按 OS 分组的候选路径（对齐 EchoBird paths.json；优先于 defaultDirs，支持 ~ 与 %VAR% 展开） */
+  pathsByOS?: { win32?: string[]; darwin?: string[]; linux?: string[] };
   /** npm 全局包名（如 @anthropic-ai/claude-code） */
   npmPackages?: string[];
   /** /Applications 下的 .app 名（不含 .app 后缀） */
@@ -42,7 +44,16 @@ export function detectPlatform(probe: PlatformProbe): DetectResult {
     }
   }
 
-  // 2) 约定目录
+  // 2) 按 OS 分组路径（优先于通用 defaultDirs，对齐 EchoBird paths.json 的 win32/darwin/linux）
+  const osKey = os.platform() === 'win32' ? 'win32' : os.platform() === 'darwin' ? 'darwin' : 'linux';
+  for (const p of probe.pathsByOS?.[osKey] ?? []) {
+    const full = expandPath(p);
+    if (fs.existsSync(full) && fs.statSync(full).isFile()) {
+      return { found: true, executable: full, version: probeVersion(full, probe), detectMethod: 'default_dir' };
+    }
+  }
+
+  // 3) 约定目录
   for (const dir of probe.defaultDirs) {
     const full = path.isAbsolute(dir) ? dir : path.join(os.homedir(), dir);
     const candidates = [full, path.join(full, probe.commands[0] ?? '')];
@@ -53,7 +64,7 @@ export function detectPlatform(probe: PlatformProbe): DetectResult {
     }
   }
 
-  // 3) npm 全局包
+  // 4) npm 全局包
   for (const pkg of probe.npmPackages ?? []) {
     const found = findNpmGlobal(pkg, probe.commands[0] ?? '');
     if (found) {
@@ -61,7 +72,7 @@ export function detectPlatform(probe: PlatformProbe): DetectResult {
     }
   }
 
-  // 4) macOS /Applications（含 ~/Applications）
+  // 5) macOS /Applications（含 ~/Applications）
   for (const app of probe.appNames ?? []) {
     const found = findApp(app);
     if (found) {
@@ -70,6 +81,16 @@ export function detectPlatform(probe: PlatformProbe): DetectResult {
   }
 
   return { found: false, executable: '', version: '', detectMethod: 'path' };
+}
+
+/** 展开路径里的 ~（home）与 %VAR%（Windows 环境变量，如 %APPDATA%） */
+export function expandPath(p: string): string {
+  let s = p;
+  if (s === '~' || s.startsWith('~/')) s = path.join(os.homedir(), s.slice(2));
+  if (os.platform() === 'win32') {
+    s = s.replace(/%([^%]+)%/g, (_m, name: string) => process.env[name] ?? `%${name}%`);
+  }
+  return s;
 }
 
 /** which 探测（Windows 用 where，Unix 用 which） */

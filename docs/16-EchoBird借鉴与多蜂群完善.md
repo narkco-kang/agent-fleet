@@ -26,6 +26,19 @@ AgentFleet 可以明确描述为：
 | Quota / Usage 可视化 | 路由网关页保留 token 台账、免费源探测、签到审计 |
 | 一键切模型 | 平台模型页支持设备+agent 主模型、兜底模型、手动切换/重置 |
 
+### 2.1 数据驱动的平台目录（2026-11-05 二次借鉴，已落地）
+
+二次深入 EchoBird 源码（`tools/<platform>/paths.json + config.json` + `tool_config_manager/` 通用引擎）后，借鉴其「声明式平台目录 + 通用配置应用引擎」三层架构，落地到 AgentFleet：
+
+| EchoBird 机制 | AgentFleet 落地 | 证据 |
+|---|---|---|
+| `apiProtocol`（openai/anthropic 协议标注） | `PlatformDef.apiProtocol`（openai-chat/openai-responses/anthropic-messages，与 free_sources.format 对齐） | `device-agent/src/adapters/platformCatalog.ts` |
+| `paths[win32/darwin/linux]` 按 OS 探测 | `PlatformProbe.pathsByOS`（detector 优先按当前 OS 探测，支持 ~ / %VAR% 展开） | `detector.ts` `expandPath()` |
+| `config.json` write 映射（模型配置声明式） | `PlatformDef.modelConfig`（configFile + format + write 占位符 {model}/{baseUrl}/{apiKey}/{gatewayUrl}） | `platformCatalog.ts` `ModelConfigSpec` |
+| `generic.rs` 通用 JSON 映射 | `modelConfig.ts` 数据驱动引擎（applyJson 点分路径合并 / applyToml [table] 生成） | `modelConfig.ts` 重构 |
+
+**关键改进**：`configureModel` 从「硬编码 codex/claude if/else」重构为「查目录 modelConfig 声明 → 数据驱动写入」，新增平台只需在目录加一条声明，无需改代码。codex/claude 的模型配置已迁移为声明式（codex 用 `{apiKey?}` 可选占位符表达 env_key 条件写入）。
+
 ## 3. 本轮新增/完善
 
 ### 3.1 付费 Provider 批量配置 UI

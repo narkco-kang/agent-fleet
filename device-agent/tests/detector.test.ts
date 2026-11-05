@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { preferExecutable } from '../src/adapters/detector.js';
+import { describe, it, expect, vi } from 'vitest';
+import os from 'node:os';
+import { preferExecutable, expandPath } from '../src/adapters/detector.js';
 
 /**
  * Windows 探测修复：where 会同时返回「无扩展名（Unix shell 脚本）」和「.cmd（Windows 批处理）」，
@@ -37,5 +38,25 @@ describe('preferExecutable（Windows 优先可执行扩展名）', () => {
   it('空行过滤 + 空输入返回 null', () => {
     expect(preferExecutable(['', '  ', '\r'], true)).toBeNull();
     expect(preferExecutable([], false)).toBeNull();
+  });
+});
+
+describe('expandPath（pathsByOS 路径展开：~ 与 %VAR%）', () => {
+  it('展开 ~ 为 home', () => {
+    const home = '/Users/alice';
+    vi.spyOn(os, 'homedir').mockReturnValue(home);
+    expect(expandPath('~/.local/bin/codex')).toBe('/Users/alice/.local/bin/codex');
+    vi.restoreAllMocks();
+  });
+
+  it('展开 %VAR% 为环境变量值（Windows）', () => {
+    vi.spyOn(os, 'platform').mockReturnValue('win32');
+    process.env.APPDATA = 'C:\\Users\\Alice\\AppData\\Roaming';
+    expect(expandPath('%APPDATA%\\npm\\codex.cmd')).toBe('C:\\Users\\Alice\\AppData\\Roaming\\npm\\codex.cmd');
+    vi.restoreAllMocks();
+  });
+
+  it('绝对路径原样返回（不展开）', () => {
+    expect(expandPath('/usr/local/bin/codex')).toBe('/usr/local/bin/codex');
   });
 });

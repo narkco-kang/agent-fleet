@@ -2,14 +2,18 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { AgentType } from '@agentfleet/shared';
+import { findPlatformDef, type ModelConfigSpec } from './adapters/platformCatalog.js';
 
 /**
- * 一键配置模型（免登录激活）：给设备上的 codex / claude 写自定义模型配置，
- * 直接指向「原生支持 Responses API 的免费源」（默认 kilo：api.kilo.ai，免 key）。
+ * 一键配置模型（免登录激活）：数据驱动，对齐 EchoBird 的 config.json write 映射。
+ *
+ * 每个平台的「模型配置写到哪里、什么格式、字段怎么映射」由 platformCatalog 的
+ * modelConfig 声明（configFile + format + write），不再为单个平台写死 if/else。
+ * 新增平台只需在目录加一条 modelConfig 声明即可，无需改本文件。
  *
  * 关键事实（实机验证）：新版 codex 只支持 Responses API（wire_api="responses"），
  * 而 kilo 免费源原生提供 /responses 端点且无需 key —— 所以 codex 直接配 kilo 即可
- * 免登录跑任务，无需任何中间网关/转换层、无需打包 modelgateway 到设备。
+ * 免登录跑任务，无需任何中间网关/转换层。
  */
 
 /** 模型配置输入 */
@@ -40,73 +44,140 @@ export function defaultGatewayBaseUrl(): string {
   return (process.env.MODELGATEWAY_BASE_URL ?? 'http://127.0.0.1:18765').replace(/\/$/, '');
 }
 
-/** 写 codex 的 ~/.codex/config.toml（model_providers 指向免费源，免 key 免登录） */
-export function configureCodexModel(input: ModelConfigInput): ModelConfigResult {
-  const dir = path.join(os.homedir(), '.codex');
-  const file = path.join(dir, 'config.toml');
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-    // codex 0.18+ 只支持 wire_api = "responses"（chat 已废弃）。
-    // 免费源免 key：不写 env_key（写了反而会让 codex 带假 Authorization → 上游 401）。
-    const lines = [
-      `model = "${input.model}"`,
-      `model_provider = "agentfleet"`,
-      '',
-      `[model_providers.agentfleet]`,
-      `name = "AgentFleet Free Source"`,
-      `base_url = "${input.baseUrl}"`,
-      `wire_api = "responses"`,
-    ];
-    // 仅付费源（有 apiKey）才写 env_key
-    if (input.apiKey) {
-      lines.push(`env_key = "AGENTFLEET_MODEL_KEY"`);
+/** 占位符上下文 */
+interface ExpandCtx {
+  model: string;
+  baseUrl: string;
+  apiKey: string;
+  gatewayUrl: string;
+}
+
+/**
+ * 展开单个值模板。
+ * 占位符：{model} / {baseUrl} / {apiKey} / {gatewayUrl}。
+ * {apiKey} 空时展开为 'sk-free'（免费源占位，避免某些 CLI 因空 key 启动失败）。
+ * {apiKey?} 为「可选环境变量注入」：有 apiKey 时展开为 AGENTFLEET_MODEL_KEY（codex 的 env_key
+ * 指向环境变量名），无 apiKey 时返回 null（整条跳过，不写 env_key——写了会让 codex 带假
+ * Authorization → 上游 401）。
+ */
+function expandValue(template: string, ctx: ExpandCtx): string | null {
+  if (template === '{apiKey?}') {
+    return ctx.apiKey ? 'AGENTFLEET_MODEL_KEY' : null;
+  }
+  return template
+    .replaceAll('{model}', ctx.model)
+    .replaceAll('{baseUrl}', ctx.baseUrl)
+    .replaceAll('{gatewayUrl}', ctx.gatewayUrl)
+    .replaceAll('{apiKey}', ctx.apiKey || 'sk-free');
+}
+
+/** 展开整个 write 映射（跳过展开为 null 的条目） */
+function expandWrite(write: Record<string, string>, ctx: ExpandCtx): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(write)) {
+    const expanded = expandValue(v, ctx);
+    if (expanded !== null) out[k] = expanded;
+  }
+  return out;
+}
+
+/** 点分路径 set_nested_value（如 "env.ANTHROPIC_MODEL" → { env: { ANTHROPIC_MODEL: ... } }） */
+function setNestedValue(obj: Record<string, unknown>, dottedPath: string, value: string): void {
+  const parts = dottedPath.split('.');
+  let cur: Record<string, unknown> = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const k = parts[i];
+    const next = cur[k];
+    if (typeof next !== 'object' || next === null || Array.isArray(next)) {
+      cur[k] = {};
     }
+    cur = cur[k] as Record<string, unknown>;
+  }
+  cur[parts[parts.length - 1]] = value;
+}
+
+/** JSON 配置写入：读旧配置合并（保留用户其它设置），点分路径写入 */
+function applyJson(configFile: string, write: Record<string, string>): void {
+  let config: Record<string, unknown> = {};
+  try {
+    config = JSON.parse(fs.readFileSync(configFile, 'utf-8')) as Record<string, unknown>;
+  } catch {
+    /* 无旧配置 */
+  }
+  for (const [jsonPath, value] of Object.entries(write)) {
+    setNestedValue(config, jsonPath, value);
+  }
+  fs.writeFileSync(configFile, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+/** TOML 配置写入：点分路径 → [table] 结构，全量生成（我们托管该配置） */
+function applyToml(configFile: string, write: Record<string, string>): void {
+  const topLevel: string[] = [];
+  const tables = new Map<string, string[]>();
+  for (const [tomlPath, value] of Object.entries(write)) {
+    const parts = tomlPath.split('.');
+    if (parts.length === 1) {
+      topLevel.push(`${tomlPath} = ${quoteToml(value)}`);
+    } else {
+      const key = parts[parts.length - 1];
+      const tablePath = parts.slice(0, -1).join('.');
+      const arr = tables.get(tablePath) ?? [];
+      arr.push(`${key} = ${quoteToml(value)}`);
+      tables.set(tablePath, arr);
+    }
+  }
+  const lines: string[] = [...topLevel];
+  for (const [tablePath, entries] of tables) {
     lines.push('');
-    fs.writeFileSync(file, lines.join('\n'), 'utf-8');
-    return { ok: true, agentType: 'codex', path: file, message: '已写入 codex config.toml，免登录使用免费源' };
-  } catch (err) {
-    return { ok: false, agentType: 'codex', path: file, message: `写入失败: ${(err as Error).message}` };
+    lines.push(`[${tablePath}]`);
+    lines.push(...entries);
   }
+  fs.writeFileSync(configFile, lines.join('\n') + '\n', 'utf-8');
 }
 
-/** 写 claude 的 ~/.claude/settings.json（env 注入：连本地 modelgateway 做 anthropic→chat 转换，走免费源） */
-export function configureClaudeModel(input: ModelConfigInput): ModelConfigResult {
-  const dir = path.join(os.homedir(), '.claude');
-  const file = path.join(dir, 'settings.json');
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-    let prev: Record<string, unknown> = {};
-    try {
-      prev = JSON.parse(fs.readFileSync(file, 'utf-8')) as Record<string, unknown>;
-    } catch {
-      /* 无旧配置 */
-    }
-    // claude 需要 anthropic-messages 协议，免费源是 openai-chat → 走设备本地 modelgateway 的
-    // /v1/messages（anthropic→chat 转换）转发到免费源。
-    const next = {
-      ...prev,
-      env: {
-        ...((prev.env as Record<string, unknown>) ?? {}),
-        ANTHROPIC_BASE_URL: defaultGatewayBaseUrl(),
-        ANTHROPIC_MODEL: input.model,
-        ANTHROPIC_AUTH_TOKEN: input.apiKey || 'sk-free',
-      },
-    };
-    fs.writeFileSync(file, JSON.stringify(next, null, 2), 'utf-8');
-    return { ok: true, agentType: 'claude', path: file, message: '已写入 claude settings.json，经本地网关免登录使用免费源' };
-  } catch (err) {
-    return { ok: false, agentType: 'claude', path: file, message: `写入失败: ${(err as Error).message}` };
-  }
+/** TOML 基本字符串引号（JSON 字符串与之等价，够用） */
+function quoteToml(s: string): string {
+  return JSON.stringify(s);
 }
 
-/** 一键配置：按平台写对应配置文件 */
+/** 一键配置：查平台目录的 modelConfig 声明，数据驱动写入（对齐 EchoBird 通用配置应用引擎） */
 export function configureModel(input: ModelConfigInput): ModelConfigResult {
-  if (input.agentType === 'codex') return configureCodexModel(input);
-  if (input.agentType === 'claude') return configureClaudeModel(input);
-  return {
-    ok: false,
-    agentType: input.agentType,
-    path: '',
-    message: `该平台（${input.agentType}）暂不支持一键配置模型`,
+  const def = findPlatformDef(input.agentType);
+  const spec: ModelConfigSpec | undefined = def?.modelConfig;
+  if (!spec) {
+    return {
+      ok: false,
+      agentType: input.agentType,
+      path: '',
+      message: `该平台（${input.agentType}）暂不支持一键配置模型`,
+    };
+  }
+
+  const file = path.join(os.homedir(), spec.configFile);
+  const ctx: ExpandCtx = {
+    model: input.model,
+    baseUrl: input.baseUrl,
+    apiKey: input.apiKey,
+    gatewayUrl: defaultGatewayBaseUrl(),
   };
+
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const write = expandWrite(spec.write, ctx);
+    if (spec.format === 'json') applyJson(file, write);
+    else applyToml(file, write);
+    return {
+      ok: true,
+      agentType: input.agentType,
+      path: file,
+      message: `已写入 ${def?.displayName ?? input.agentType} 配置，免登录使用免费源`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      agentType: input.agentType,
+      path: file,
+      message: `写入失败: ${(err as Error).message}`,
+    };
+  }
 }
