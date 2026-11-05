@@ -52,21 +52,26 @@ describe('loginMethodFor 登录授权方式分类（看板授权中心）', () =
     }
   });
 
-  it('api-key：gemini/qwen/aider', () => {
-    for (const t of ['gemini', 'qwen', 'aider']) {
+  it('api-key：gemini/qwen/aider/cody', () => {
+    for (const t of ['gemini', 'qwen', 'aider', 'cody']) {
       expect(loginMethodFor(t)).toBe('api-key');
     }
   });
 
-  it('app：dsh/workbuddy/windsurf（桌面应用登录）', () => {
-    for (const t of ['dsh', 'workbuddy', 'windsurf']) {
+  it('app：dsh/workbuddy/windsurf/doubao（桌面应用登录）', () => {
+    for (const t of ['dsh', 'workbuddy', 'windsurf', 'doubao']) {
       expect(loginMethodFor(t)).toBe('app');
     }
   });
 
-  it('cli：cody/doubao（打开终端登录）', () => {
-    for (const t of ['cody', 'doubao']) {
-      expect(loginMethodFor(t)).toBe('cli');
+  it('全平台已归类为 device-auth/app/api-key（无 cli 残留）', () => {
+    const all: string[] = [
+      'codex', 'claude', 'grok', 'cursor', 'kimi', 'opencode',
+      'dsh', 'workbuddy', 'windsurf', 'doubao',
+      'gemini', 'qwen', 'aider', 'cody',
+    ];
+    for (const t of all) {
+      expect(loginMethodFor(t)).not.toBe('cli');
     }
   });
 });

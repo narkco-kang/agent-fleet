@@ -83,7 +83,7 @@ const INSTALL_SPECS: Record<AgentType, PlatformInstallSpec> = {
   cody: {
     platform: 'cody',
     commandNames: ['cody'],
-    npmPackage: '@sourcegraph/cody',
+    manualReason: 'Cody CLI (@sourcegraph/cody-cli) 是 experimental 交互式工具、需 SRC_ACCESS_TOKEN，无稳定 headless 安装源；verify 已有安装即可。',
   },
   qwen: {
     platform: 'qwen',
@@ -92,13 +92,13 @@ const INSTALL_SPECS: Record<AgentType, PlatformInstallSpec> = {
   },
   doubao: {
     platform: 'doubao',
-    commandNames: ['doubao', 'marscode', 'mars-code'],
-    npmPackage: '@bytedance/mars-code',
+    commandNames: ['doubao', 'marscode', 'mars-code', 'trae'],
+    manualReason: 'TRAE（豆包 AI IDE/CLI）经官方渠道安装（.exe/.dmg/.deb），无公开稳定 npm 包；verify 已有安装即可。',
   },
   kimi: {
     platform: 'kimi',
-    commandNames: ['kimi', 'kimi-cli'],
-    npmPackage: 'kimi-cli',
+    commandNames: ['kimi', 'kimi-code'],
+    npmPackage: '@moonshot-ai/kimi-code',
   },
   opencode: {
     platform: 'opencode',

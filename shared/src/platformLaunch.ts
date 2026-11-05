@@ -33,7 +33,7 @@ const LAUNCH_SPECS: Record<AgentType, LaunchSpec> = {
   gemini: { cli: 'gemini' },
   cody: { cli: 'cody' },
   qwen: { cli: 'qwen-code' },
-  doubao: { cli: 'marscode' },
+  doubao: { appNames: ['TRAE'], cli: 'marscode' },
   kimi: { cli: 'kimi' },
   opencode: { cli: 'opencode' },
   windsurf: { appNames: ['Windsurf'], cli: 'windsurf' },
@@ -52,8 +52,8 @@ export type LoginMethod = 'device-auth' | 'app' | 'cli' | 'api-key';
 /** device-auth 平台（CLI 支持 `login --device-auth` 类命令，输出 URL + code） */
 const DEVICE_AUTH_PLATFORMS: readonly AgentType[] = ['codex', 'claude', 'grok', 'cursor', 'kimi', 'opencode'];
 
-/** api-key 平台（无交互登录，需手动配 API key） */
-const API_KEY_PLATFORMS: readonly AgentType[] = ['aider', 'gemini', 'qwen'];
+/** api-key 平台（无交互登录，需手动配 API key / access token） */
+const API_KEY_PLATFORMS: readonly AgentType[] = ['aider', 'gemini', 'qwen', 'cody'];
 
 /** 判断某平台的登录授权方式 */
 export function loginMethodFor(agentType: AgentType): LoginMethod {

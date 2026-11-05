@@ -13,7 +13,7 @@
 1. **安装 / 卸载**：由 `backend/src/services/deploy/installScripts.ts` 生成 OS 自适应脚本，经 SSH 在目标设备执行。
 2. **发现 / 上报**：由 `device-agent/src/adapters/platformCatalog.ts` 与 `GrokAdapter` 探测本机命令、版本、能力，并上报协调器。
 3. **经 modelgateway 执行模型**：部署成功后可为任意「设备 + agent 平台」绑定网关模型，任务优先经内置 `modelgateway/` 执行；失败时自动切换 fallback，全部失败再降级本地 CLI。
-4. **本地 CLI 真接调用**：当前稳定真接的是 Grok；其余平台已具备发现与派发骨架，但不同 CLI 的 headless 参数、登录态和输出格式差异较大，需要逐个平台做实测适配后再标为稳定真接。
+4. **本地 CLI 真接调用**：已真接 11 个平台（ACP：grok/kimi/workbuddy；专用 Adapter：dsh；单轮 cliRunner：codex/claude/cursor/aider/gemini/qwen/opencode）。cody/doubao/windsurf 受上游限制（无稳定 headless CLI）维持 unsupported。
 
 ## 2. 平台能力矩阵
 
@@ -26,20 +26,20 @@
 
 | 平台 key | 显示名 | 自动安装 | 自动卸载 | 发现上报 | 网关模型执行 | 本地 CLI 真接 | 说明 |
 |---|---|---:|---:|---:|---:|---:|---|
-| `codex` | Codex | ✅ npm `@openai/codex` | ✅ npm uninstall | ✅ | ✅ | cli-text 待验证 | 默认部署集之一；`codex exec "{prompt}"` 单轮，待实机验证 |
-| `claude` | Claude Code | ✅ npm `@anthropic-ai/claude-code` | ✅ npm uninstall | ✅ | ✅ | cli-stream 待验证 | 默认部署集之一；`claude -p "{prompt}" --output-format stream-json`，需用户本机已登录 |
-| `dsh` | DSH Desktop | 手动/验证 | 手动/验证 | ✅ | ✅ | **headless 已确认（逆向）** | 逆向确认 `dsh headless "<prompt>"` 单轮可行（`ELECTRON_RUN_AS_NODE=1` 跑 `harness-node-entry.mjs` + `app.asar/.../lib/bin.js`）；报错仅「缺 credentials + agent-loop 插件」，需登录 + profile 配置，待专用 DshAdapter |
-| `grok` | Grok | 手动/验证 | 手动/验证 | ✅ | ✅ | ✅ 稳定 | `GrokAdapter` 走 ACP（`grok agent stdio`，完整 bot 循环），认证用 `XAI_API_KEY` 或 `grok login` |
-| `cursor` | Cursor | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | cli-text 待验证 | `cursor-agent -p "{prompt}"` headless（print 模式，`--force` 允许改文件）；Linux 无统一安装 |
-| `aider` | Aider | ✅ pipx `aider-chat` | ✅ pipx uninstall | ✅ | ✅ | cli-text 单轮 | 默认部署集之一；`aider --message "{prompt}" --no-git --yes` 单轮（无 headless agent 循环） |
-| `gemini` | Gemini CLI | ✅ npm `@google/gemini-cli` | ✅ npm uninstall | ✅ | ✅ | cli-text 待验证 | 默认部署集之一；`gemini -p "{prompt}"` 单轮，需用户本机登录 |
-| `cody` | Cody | ✅ npm `@sourcegraph/cody` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 本地调用协议待实测 |
-| `qwen` | Qwen Code | ✅ npm `@qwen-code/qwen-code` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；通常需要用户本机登录或配置凭证 |
-| `doubao` | 豆包 MarsCode | ✅ npm `@bytedance/mars-code` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 本地调用协议待实测 |
-| `kimi` | Kimi CLI | ✅ npm `kimi-cli` | ✅ npm uninstall | ✅ | ✅ | ACP 待验证 | 支持 ACP（`kimi acp`，类似 grok），待泛化 acpClient 接入 |
-| `opencode` | OpenCode | ✅ npm `opencode-ai` | ✅ npm uninstall | ✅ | ✅ | 骨架 | 默认部署集之一；免费源探测里也包含 OpenCode 上游线路 |
-| `windsurf` | Windsurf | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | 待确认（GUI） | GUI/Cascade 为主，headless CLI 参数未证实；Linux 无统一安装 |
-| `workbuddy` | WorkBuddy (CodeBuddy) | 手动/验证 | 手动/验证 | ✅ | ✅ | cli-text 待验证 | 腾讯 CodeBuddy（`@genie/agent-cli`）；`codebuddy -p "{prompt}"` 单轮（`--output-format stream-json`），CLI 藏在 Electron app 内 |
+| `codex` | Codex | ✅ npm `@openai/codex` | ✅ npm uninstall | ✅ | ✅ | ✅ cli-text（实机验证） | 默认部署集之一；`codex exec "{prompt}"` 单轮（可配 kilo 免费源免登录） |
+| `claude` | Claude Code | ✅ npm `@anthropic-ai/claude-code` | ✅ npm uninstall | ✅ | ✅ | ✅ cli-stream（实机验证） | 默认部署集之一；`claude -p "{prompt}" --output-format stream-json --verbose`，需登录或走 modelgateway 免登录 |
+| `dsh` | DSH Desktop | 手动/验证 | 手动/验证 | ✅ | ✅ | ✅ DshAdapter（headless） | 逆向 Electron Node 模式 headless（`ELECTRON_RUN_AS_NODE=1` 跑 `harness-node-entry.mjs` + `lib/bin.js`），专用 DshAdapter |
+| `grok` | Grok Bot | 手动/验证 | 手动/验证 | ✅ | ✅ | ✅ GrokAdapter（ACP） | `GrokAdapter` 走 ACP（`grok agent stdio`，完整 bot 循环），登录 = 网页授权 `grok login --device-auth` |
+| `cursor` | Cursor | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | ✅ cli-text | `cursor-agent -p "{prompt}"` headless（print 模式，`--force` 允许改文件）；Linux 无统一安装 |
+| `aider` | Aider | ✅ pipx `aider-chat` | ✅ pipx uninstall | ✅ | ✅ | ✅ cli-text | 默认部署集之一；`aider --message "{prompt}" --no-git --yes` 单轮（无 headless agent 循环） |
+| `gemini` | Gemini CLI | ✅ npm `@google/gemini-cli` | ✅ npm uninstall | ✅ | ✅ | ✅ cli-text | 默认部署集之一；`gemini -p "{prompt}"` 单轮（需 GEMINI_API_KEY） |
+| `cody` | Cody | 手动/验证 | 手动/验证 | ✅ | ✅ | ❌ unsupported | `@sourcegraph/cody-cli` 是 experimental 交互式工具、需 SRC_ACCESS_TOKEN，无稳定 headless 单轮模式 |
+| `qwen` | Qwen Code | ✅ npm `@qwen-code/qwen-code` | ✅ npm uninstall | ✅ | ✅ | ✅ cli-text | 默认部署集之一；`qwen -p "{prompt}"` 单轮（需 API key） |
+| `doubao` | 豆包 TRAE | 手动/验证 | 手动/验证 | ✅ | ✅ | ❌ unsupported（TRAE CLI headless 待实测） | TRAE（豆包 AI IDE/CLI）经官方渠道安装；登录为手机号/邮箱验证码 |
+| `kimi` | Kimi Code CLI | ✅ npm `@moonshot-ai/kimi-code` | ✅ npm uninstall | ✅ | ✅ | ✅ acp（实机验证） | `kimi acp` 走 ACP（spawnArgs=['acp']）；旧 `kimi-cli` 是 PyPI 已归档 |
+| `opencode` | OpenCode | ✅ npm `opencode-ai` | ✅ npm uninstall | ✅ | ✅ | ✅ cli-text | 默认部署集之一；`opencode run "{prompt}"` 单轮；免费源探测里也包含 OpenCode 上游线路 |
+| `windsurf` | Windsurf | ✅ macOS brew cask / Windows winget | ✅ brew/winget | ✅ | ✅ | ❌ unsupported | Windsurf 是 IDE（Cascade），无官方 headless CLI；第三方 windsurf-cli 只是打开文件的辅助工具 |
+| `workbuddy` | WorkBuddy (CodeBuddy) | 手动/验证 | 手动/验证 | ✅ | ✅ | ✅ WorkbuddyAdapter | `CODEBUDDY_FORCE_LITE_WB_BUNDLE=1` + `--serve --acp` 走 ACP stdio，复用桌面登录态，CLI 藏在 Electron app 内 |
 
 ## 3. 默认一键部署集
 
@@ -90,16 +90,24 @@ sequenceDiagram
     D-->>B: task.event stream + task.result
 ```
 
-当前稳定真接：`grok`。
+当前已真接 **11 个平台**（codex/claude/dsh/grok/cursor/aider/gemini/qwen/kimi/opencode/workbuddy），覆盖三种方式：
 
-其余平台当前处于「发现 + 派发骨架」状态：设备守护可以识别并上报这些平台，协调器可以路由到对应 agentType；但真正启动 CLI 执行任务前，需要按平台实测 headless 参数、认证方式、输出格式和取消行为。
+- **ACP 真接**：grok（GrokAdapter）、kimi（catalogAdapter acp）、workbuddy（WorkbuddyAdapter `--serve --acp`）
+- **专用 Adapter**：dsh（Electron Node headless）
+- **单轮 cliRunner**：codex / claude / cursor / aider / gemini / qwen / opencode
+
+剩余 **3 个平台**（cody / doubao / windsurf）客观无稳定 headless CLI，维持 `unsupported`（诚实口径）：
+
+- cody：`@sourcegraph/cody-cli` experimental 交互式、需 SRC_ACCESS_TOKEN
+- doubao：TRAE CLI 已发布但 headless 非交互参数待实测
+- windsurf：纯 IDE（Cascade），无官方 headless CLI
 
 ## 5. GitHub 展示口径
 
 对外 README 应保持以下表述：
 
 - AgentFleet **负责 14 个平台的安装/卸载脚本生成、验证、发现上报、平台模型绑定与网关执行**。
-- AgentFleet **当前稳定本地 CLI 真接调用 Grok**。
-- 其他平台的本地 CLI 真接调用不是不可做，而是需要逐平台实测，不应在 README 中提前宣传为已稳定。
+- AgentFleet **本地 CLI 真接调用 11 个平台**（codex/claude/dsh/grok/cursor/aider/gemini/qwen/kimi/opencode/workbuddy）。
+- cody / doubao / windsurf 三个平台受上游限制（无稳定 headless CLI）暂未真接，已在看板诚实标注。
 
 这样既能体现 AgentFleet 的多平台能力，也避免误导用户以为所有第三方 CLI 的 headless 调用都已完成并实机验证。
