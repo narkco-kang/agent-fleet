@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { config } from '../src/config.js';
 import { initDatabase, closeDatabase } from '../src/db/database.js';
 import { deviceRegistry } from '../src/services/deviceRegistry.js';
@@ -34,6 +35,7 @@ interface BenchArgs {
   tasks: number;
   execMs: number;
   failDeviceAtMs: number;
+  save: boolean;
 }
 
 function parseArgs(argv: string[]): BenchArgs {
@@ -47,7 +49,18 @@ function parseArgs(argv: string[]): BenchArgs {
     tasks: get('tasks', 200),
     execMs: get('exec-ms', 20),
     failDeviceAtMs: get('fail-at', 0),
+    save: argv.includes('--save'),
   };
+}
+
+/** 追加一条 benchmark 结果到 benchmark-results/runs.jsonl（跨运行历史沉淀，供 benchmark-report 汇总） */
+function saveResult(kind: string, result: Record<string, unknown>): void {
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'benchmark-results');
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, 'runs.jsonl');
+  const line = { kind, ts: new Date().toISOString(), ...result };
+  fs.appendFileSync(file, JSON.stringify(line) + '\n');
+  console.log(`# [save] 已写入 ${file}`);
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -198,6 +211,7 @@ async function main(): Promise<void> {
   };
 
   console.log('\n' + JSON.stringify(result, null, 2));
+  if (args.save) saveResult('scheduler', result);
 
   closeDatabase();
   fs.rmSync(tmp, { recursive: true, force: true });

@@ -35,6 +35,7 @@ interface MultiArgs {
   execMs: number;
   concurrency: number;
   failDeviceAtMs: number;
+  save: boolean;
 }
 
 function parseArgs(argv: string[]): MultiArgs {
@@ -49,7 +50,24 @@ function parseArgs(argv: string[]): MultiArgs {
     execMs: get('exec-ms', 20),
     concurrency: get('concurrency', 1),
     failDeviceAtMs: get('fail-at', 0),
+    save: argv.includes('--save'),
   };
+}
+
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const idx = Math.min(sorted.length - 1, Math.floor(sorted.length * p));
+  return sorted[idx];
+}
+
+/** 追加一条 benchmark 结果到 benchmark-results/runs.jsonl（跨运行历史沉淀，供 benchmark-report 汇总） */
+function saveResult(kind: string, result: Record<string, unknown>): void {
+  const dir = path.join(ROOT, 'backend', 'benchmark-results');
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, 'runs.jsonl');
+  const line = { kind, ts: new Date().toISOString(), ...result };
+  fs.appendFileSync(file, JSON.stringify(line) + '\n');
+  console.log(`# [save] 已写入 ${file}`);
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -234,13 +252,16 @@ async function main(): Promise<void> {
     interrupted,
     lost_tasks: args.tasks - completed - failed - interrupted,
     e2e_latency_ms: {
-      p50: e2e[Math.floor(e2e.length * 0.5)] ?? 0,
-      p95: e2e[Math.floor(e2e.length * 0.95)] ?? 0,
+      p50: percentile(e2e, 0.5),
+      p90: percentile(e2e, 0.9),
+      p95: percentile(e2e, 0.95),
+      p99: percentile(e2e, 0.99),
       max: e2e[e2e.length - 1] ?? 0,
     },
   };
 
   console.log('\n' + JSON.stringify(result, null, 2));
+  if (args.save) saveResult('multidevice', result);
   cleanup();
   process.exit(0);
 }

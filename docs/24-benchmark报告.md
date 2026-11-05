@@ -1,7 +1,7 @@
 # AgentFleet 跨设备蜂群调度 Benchmark 报告
 
 > 定位：这是「跨设备能力」的度量标准——用可复现的数字证明「多设备蜂群调度」不是口号，是可量化的工程壁垒。
-> 更新：2026-11-02。所有数据均由本仓库脚本实测，命令见文末，任何人可复现。
+> 更新：2026-11-05。所有数据均由本仓库脚本实测，命令见文末，任何人可复现。
 
 ---
 
@@ -48,15 +48,17 @@
 
 ### 数据
 
-| 场景 | 吞吐 | completed | failed | lost | e2e 延迟 P50/P95 |
+| 场景 | 吞吐 | completed | failed | lost | e2e 延迟 P50/P90/P99 |
 |---|---|---|---|---|---|
-| 2 设备 × 2 agent，100 任务，20ms | 96 tasks/s | 100 | 0 | 0 | 196 / 622 ms |
+| 2 设备 × 2 agent，100 任务，20ms | 38 tasks/s | 100 | 0 | 0 | 391 / 1957 / 2450 ms |
 | 4 设备，200 任务（历史） | 193 tasks/s | 200 | 0 | 0 | — |
 
 ### 关键点
 
 - 真实 ws 链路，非 mock；`completed = 100%`、`lost = 0`。
 - 设备进程用 bench 模式（`AGENTFLEET_BENCH=1` + `benchAdapter.ts`），exec 是可控延迟 mock（避免撞 grok API 额度）。
+- e2e 延迟 P90/P99 显著高于调度内核（网络往返 + 设备进程调度开销），是真实链路的长尾特征。
+- **吞吐受「顺序提交」约束**：当前脚本用 `await fetch` 逐个 POST 任务，吞吐含提交串行化开销，是端到端（提交→调度→执行→回收）吞吐而非纯调度吞吐（纯调度吞吐见第二节）。
 
 ---
 
@@ -109,6 +111,12 @@
 | 秒级断连感知 | ws close 即时触发（不等 30s 心跳兜底）；mDNS 反向连接断开统一走 `notifyDeviceDisconnected` | `taskRunner.onDeviceDisconnected` 秒级标 interrupted |
 | 任务自动迁移 | 断线设备 running 任务改回 queued → dispatch 重新派发到其他在线设备 | 故障转移 benchmark `lost=0` |
 
+### 终态权威收口（2026-11-05 修复的真 bug）
+
+设备在终态时**成对发送** `TASK_EVENT(status=completed/failed)` + `TASK_RESULT`。旧实现里 `onDeviceTaskEvent` 一收到终态 status 就 `finalize`（置终态 + 释放），导致随后到达的 `TASK_RESULT` 被「终态幂等」校验丢弃 → **`finished_at` / `result_text` 永不落库**（真实设备任务的 e2e 延迟全 0、输出不可见）。
+
+修复：终态统一交给 `onDeviceTaskResult` 权威收口（`onDeviceTaskEvent` 不再对终态 status 置终态/finalize）。修复后 e2e 延迟正常（见第三节 P50/P90/P99），并有 `faultInjection.test.ts` 跨设备伪造/终态幂等用例守着。
+
 ---
 
 ## 六、可复现方法
@@ -123,9 +131,19 @@ npm run benchmark --workspace backend -- --fail-at 100                 # 故障�
 
 # 真实多设备 benchmark（1 backend + N 设备进程）
 npm run benchmark:multi --workspace backend
+
+# 结果持久化（加 --save 追加到 backend/benchmark-results/runs.jsonl，跨运行历史沉淀）
+npm run benchmark --workspace backend -- --save
+npm run benchmark:multi --workspace backend -- --save
+
+# 历史沉淀报告（把 runs.jsonl 渲染成 markdown 汇总表）
+npm run benchmark:report --workspace backend
+npm run benchmark:report --workspace backend -- --write docs/24-benchmark报告.md
 ```
 
-参数：`--devices`（设备数）、`--agents`（每设备 agent 数）、`--tasks`（任务数）、`--exec-ms`（单任务模拟耗时）、`--fail-at`（注入故障的毫秒点）。
+参数：`--devices`（设备数）、`--agents`（每设备 agent 数）、`--tasks`（任务数）、`--exec-ms`（单任务模拟耗时）、`--fail-at`（注入故障的毫秒点）、`--save`（追加结果到 runs.jsonl）。
+
+> **结果沉淀机制**：`runs.jsonl` 是 append-only 的原始记录（每次 `--save` 追加一行 JSON），随仓库提交，构成「跨设备能力」度量的可审计历史；`benchmark:report` 把原始记录渲染成人类可读的汇总表，方便对外展示扩展性曲线与长尾指标。
 
 ---
 
@@ -133,8 +151,8 @@ npm run benchmark:multi --workspace backend
 
 这三组数字共同证明：**AgentFleet 的「跨设备蜂群调度」是可量化、可审计、不可复制的工程能力**——
 
-- **可量化**：吞吐 96~428 tasks/s、completed=100%、lost=0，全部可复现。
-- **可审计**：脚本开源、断连/迁移留日志与任务事件。
+- **可量化**：调度内核吞吐 300~353 tasks/s、端到端 38 tasks/s、completed=100%、lost=0，全部可复现。
+- **可审计**：脚本开源、断连/迁移留日志与任务事件、benchmark 结果 append-only 随仓库沉淀（`runs.jsonl`）。
 - **不可复制**：30 倍优化背后是修 O(n²) 调度退化；秒级断连 + 自动迁移是单机工具结构上做不了的分布式容错。
 
 这是「跨设备能力」的度量标准 v1，后续持续沉淀更多指标（延迟分位、多机扩展性曲线、对抗性故障注入）。
