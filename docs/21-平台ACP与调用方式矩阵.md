@@ -26,8 +26,8 @@ ACP（**Agent Client Protocol**）是由 Zed 主导、Anthropic 与 Google 参�
 | opencode | `opencode` | ❓ 未确认 | 有自己的 SDK/TUI，需实测 |
 | windsurf | 无 headless CLI | ❌ 无 | 未接入（GUI/Cascade 为主） |
 | aider | `aider --message` | ❌ 无 | 走 `aider --message` |
-| cody | 无 headless print 参数 | ❌ 无 | 未接入（IDE 插件为主） |
-| doubao | 无 headless CLI | ❌ 无 | 未接入（MarsCode 以 IDE 插件为主） |
+| cody | 无 headless print 参数 | ❌ 无 | 未接入（IDE 插件为主；`sourcegraph cli` 是代码搜索/批量变更工具，非自主编码 agent CLI） |
+| doubao | TRAE CLI（字节 AI 编程命令行） | ❓ 待实测 | **2026-11-05 修正**：字节 TRAE 已发布 CLI（面向终端 AI 编程），headless 非交互（`-p`/`--print`）模式待实测确认后接入；此前「无 headless CLI」结论不准确 |
 | dsh | DSH Desktop | ❓ 未确认 | 需实测 |
 
 > 标注原则：已确认的写「✅/⚠️/❌」，未确认的一律写「❓ 需实测」——**不编造**。
@@ -55,10 +55,12 @@ ACP（**Agent Client Protocol**）是由 Zed 主导、Anthropic 与 Google 参�
 
 - [x] claude：实机验证 `claude -p --output-format stream-json` 需 `--verbose`（已补参数）。
 - [x] kimi：调研确认 `kimi acp` 走 ACP（新版 npm `@moonshot-ai/kimi-code`），catalogAdapter 已落地 acp 模式。
-- [x] cody / doubao / windsurf：调研确认三者无 headless CLI（IDE 插件/交互式为主），维持未接入。
+- [x] cody / windsurf：调研确认无 headless 编码 agent CLI（cody 的 `sourcegraph cli` 是代码搜索工具；windsurf 是 IDE/GUI），维持未接入。
+- [x] doubao：**2026-11-05 修正**——字节 TRAE 已发布 CLI（终端 AI 编程），headless 非交互模式待实测。
 - [ ] gemini / cursor / qwen：确认 `agent stdio` 的 ACP 入口与认证参数。
 - [ ] opencode / dsh：实测 CLI，确定是否支持 ACP / headless 命令。
+- [ ] doubao（TRAE CLI）：实测 headless 非交互参数，确认后补 CatalogAdapter 接入。
 
 ---
 
-*本矩阵基于 2026-11-02 对 ACP 协议公开资料与 grok CLI 实测；2026-11-04 补充 kimi/cody/doubao/windsurf 调研结论与 claude --verbose 实测。未确认项不臆测。*
+*本矩阵基于 2026-11-02 对 ACP 协议公开资料与 grok CLI 实测；2026-11-04 补充 kimi/cody/doubao/windsurf 调研结论与 claude --verbose 实测；2026-11-05 修正 doubao（TRAE CLI 已发布）。未确认项不臆测。*
