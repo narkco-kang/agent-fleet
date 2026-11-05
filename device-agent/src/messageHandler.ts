@@ -240,8 +240,11 @@ async function autoPairAndRegister(sender: MessageSender): Promise<void> {
   const { deviceId } = loadRegistry();
   const base = config.coordinatorHttpUrl;
   if (!base) {
-    // 无法自动配对：降级为本地随机 token（协调服务跳过鉴权时可用）
-    setToken(cryptoRandomId('tok'));
+    // relay-only 设备无法 HTTP 直连：清空 token 重新 register（空 token），
+    // 让 backend 走「token 空 → 经中继发 device.pair(pairingCode)」触发 relay 配对，
+    // 设备回 device.pair_request 确认配对码 → backend 经中继下发签名 token（device.pair_result）。
+    // （此前降级为随机 token 会一直被拒，形成 token_invalid 死循环）
+    setToken('');
     sendRegister(sender);
     return;
   }
