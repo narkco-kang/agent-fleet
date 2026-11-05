@@ -65,6 +65,24 @@ export function createRelayServer(): { wss: WebSocketServer; close: () => void }
       notifyCoordinatorOnline(deviceId);
     } else if (role === 'coordinator') {
       coordinatorSockets.add(socket);
+      // 补发当前在线设备：coordinator 可能晚于设备上线才连接（如协调器重启），
+      // 此时设备早已触发过 relay_online，若不补发会漏通知 → 设备在协调器看来永久 offline。
+      // （真实多机测试踩过：设备 6:35 上线、backend 11:55 才启动，coordinatorSockets 当时为空，广播落空。）
+      for (const [onlineDeviceId] of deviceSockets) {
+        if (socket.readyState === socket.OPEN) {
+          socket.send(
+            JSON.stringify({
+              v: 1,
+              type: 'device.relay_online',
+              id: `relay-${Date.now()}`,
+              ts: Date.now(),
+              from: 'relay',
+              to: 'coordinator',
+              payload: { deviceId: onlineDeviceId },
+            }),
+          );
+        }
+      }
     }
 
     socket.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
