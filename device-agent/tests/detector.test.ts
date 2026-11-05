@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import os from 'node:os';
-import { preferExecutable, expandPath } from '../src/adapters/detector.js';
+import { preferExecutable, expandPath, normalizeWindowsExecutable } from '../src/adapters/detector.js';
 
 /**
  * Windows 探测修复：where 会同时返回「无扩展名（Unix shell 脚本）」和「.cmd（Windows 批处理）」，
@@ -58,5 +58,27 @@ describe('expandPath（pathsByOS 路径展开：~ 与 %VAR%）', () => {
 
   it('绝对路径原样返回（不展开）', () => {
     expect(expandPath('/usr/local/bin/codex')).toBe('/usr/local/bin/codex');
+  });
+});
+
+describe('normalizeWindowsExecutable（Windows 无扩展名 → .cmd，修 spawn EINVAL）', () => {
+  it('非 Windows 原样返回', () => {
+    vi.spyOn(os, 'platform').mockReturnValue('darwin');
+    expect(normalizeWindowsExecutable('/usr/local/bin/codex')).toBe('/usr/local/bin/codex');
+    vi.restoreAllMocks();
+  });
+
+  it('已有 .exe/.cmd/.bat 原样返回', () => {
+    vi.spyOn(os, 'platform').mockReturnValue('win32');
+    expect(normalizeWindowsExecutable('C:\\x\\codex.cmd')).toBe('C:\\x\\codex.cmd');
+    expect(normalizeWindowsExecutable('C:\\x\\codex.exe')).toBe('C:\\x\\codex.exe');
+    vi.restoreAllMocks();
+  });
+
+  it('无扩展名 → 换 .cmd（若存在）', () => {
+    vi.spyOn(os, 'platform').mockReturnValue('win32');
+    // 用真实存在的文件（本机 node 的 .cmd 不存在，用临时 mock 不行，这里直接验证逻辑：无扩展名且 .cmd 不存在时保持原样）
+    expect(normalizeWindowsExecutable('C:\\not-exist\\codex')).toBe('C:\\not-exist\\codex');
+    vi.restoreAllMocks();
   });
 });

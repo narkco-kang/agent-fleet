@@ -90,11 +90,20 @@ function runLoginProcess(
   const base = { deviceId: input.deviceId, agentType: input.agentType };
   let child: ChildProcess;
   try {
-    child = spawn(executable, loginSpec.args, {
-      cwd: process.cwd(),
-      env: process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    // Windows：npm 全局 CLI 是 .cmd/.bat 批处理，不能直接 spawn（EINVAL/ENOENT），
+    // 须经 cmd.exe /c 包装（与 cliRunner 一致，真实多机踩过 win165 codex login spawn EINVAL）
+    const isWindowsBatch = process.platform === 'win32' && /\.(cmd|bat)$/i.test(executable);
+    child = isWindowsBatch
+      ? spawn('cmd.exe', ['/d', '/s', '/c', executable, ...loginSpec.args], {
+          cwd: process.cwd(),
+          env: process.env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+      : spawn(executable, loginSpec.args, {
+          cwd: process.cwd(),
+          env: process.env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
   } catch (err) {
     onResult({ ...base, status: 'failed', message: `启动登录失败: ${(err as Error).message}` });
     return;

@@ -34,13 +34,31 @@ export interface PlatformProbe {
   parseVersion?: (stdout: string) => string;
 }
 
+/** Windows 上探测到的无扩展名可执行（npm 全局 sh 脚本，spawn 会 EINVAL/ENOENT），优先换 .cmd/.bat */
+export function normalizeWindowsExecutable(exe: string): string {
+  if (os.platform() !== 'win32' || !exe) return exe;
+  if (/\.(exe|cmd|bat)$/i.test(exe)) return exe;
+  const cmd = `${exe}.cmd`;
+  if (fs.existsSync(cmd)) return cmd;
+  const bat = `${exe}.bat`;
+  if (fs.existsSync(bat)) return bat;
+  return exe;
+}
+
 /** 探测单平台（按 which → 目录 → npm → app 顺序） */
 export function detectPlatform(probe: PlatformProbe): DetectResult {
+  const hit = (executable: string, version: string, detectMethod: DetectMethod): DetectResult => ({
+    found: true,
+    executable: normalizeWindowsExecutable(executable),
+    version,
+    detectMethod,
+  });
+
   // 1) which / PATH
   for (const cmd of probe.commands) {
     const found = tryWhich(cmd);
     if (found) {
-      return { found: true, executable: found, version: probeVersion(found, probe), detectMethod: 'which' };
+      return hit(found, probeVersion(found, probe), 'which');
     }
   }
 
@@ -49,7 +67,7 @@ export function detectPlatform(probe: PlatformProbe): DetectResult {
   for (const p of probe.pathsByOS?.[osKey] ?? []) {
     const full = expandPath(p);
     if (fs.existsSync(full) && fs.statSync(full).isFile()) {
-      return { found: true, executable: full, version: probeVersion(full, probe), detectMethod: 'default_dir' };
+      return hit(full, probeVersion(full, probe), 'default_dir');
     }
   }
 
@@ -59,7 +77,7 @@ export function detectPlatform(probe: PlatformProbe): DetectResult {
     const candidates = [full, path.join(full, probe.commands[0] ?? '')];
     for (const c of candidates) {
       if (fs.existsSync(c) && fs.statSync(c).isFile()) {
-        return { found: true, executable: c, version: probeVersion(c, probe), detectMethod: 'default_dir' };
+        return hit(c, probeVersion(c, probe), 'default_dir');
       }
     }
   }
@@ -68,7 +86,7 @@ export function detectPlatform(probe: PlatformProbe): DetectResult {
   for (const pkg of probe.npmPackages ?? []) {
     const found = findNpmGlobal(pkg, probe.commands[0] ?? '');
     if (found) {
-      return { found: true, executable: found, version: probeVersion(found, probe), detectMethod: 'npm' };
+      return hit(found, probeVersion(found, probe), 'npm');
     }
   }
 
@@ -76,7 +94,7 @@ export function detectPlatform(probe: PlatformProbe): DetectResult {
   for (const app of probe.appNames ?? []) {
     const found = findApp(app);
     if (found) {
-      return { found: true, executable: found, version: readAppVersion(found), detectMethod: 'app' };
+      return hit(found, readAppVersion(found), 'app');
     }
   }
 
