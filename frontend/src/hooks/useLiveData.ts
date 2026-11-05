@@ -6,7 +6,7 @@ import { useTaskStore } from '../store/taskStore';
 import { useWsStore } from '../store/wsStore';
 import { mockDevices, mockAgents } from '../api/mockData';
 import { MockEngine } from '../api/mockEngine';
-import type { DashboardSnapshot, DashboardPatch } from '@agentfleet/shared';
+import type { DashboardSnapshot, DashboardPatch, AgentSnapshot } from '@agentfleet/shared';
 
 /**
  * 实时数据集成：
@@ -102,6 +102,18 @@ export function useLiveData(): void {
       if (mockMode.current) return;
       if (patch.devices) {
         for (const d of patch.devices) upsertDevice(d);
+      }
+      if (patch.agents) {
+        // agents patch（登录激活/配置模型后 activated 实时刷新）：按 deviceId 分组更新
+        const byDevice = new Map<string, AgentSnapshot[]>();
+        for (const a of patch.agents) {
+          const list = byDevice.get(a.deviceId) ?? [];
+          list.push(a);
+          byDevice.set(a.deviceId, list);
+        }
+        for (const [deviceId, agents] of byDevice) {
+          upsertDevice({ deviceId } as never, agents);
+        }
       }
       if (patch.tasks) {
         for (const t of patch.tasks) upsertTask(t);

@@ -10,7 +10,7 @@ import type {
 import { SNAPSHOT_TASK_WINDOW } from '@agentfleet/shared';
 import { deviceRegistry } from './deviceRegistry.js';
 import { getDevice, listDevices, toDeviceSnapshot } from '../db/repo/devices.js';
-import { listAgents, toAgentSnapshot } from '../db/repo/agents.js';
+import { listAgents, listAgentsByDevice, toAgentSnapshot } from '../db/repo/agents.js';
 import { getTask, listTasks, toTaskSnapshot } from '../db/repo/tasks.js';
 import { getTeam } from '../db/repo/teams.js';
 import { getRoleTeam } from '../db/repo/roleTeams.js';
@@ -80,6 +80,12 @@ export function buildDevicePatch(deviceId: string): DashboardPatch {
   );
   const device = { ...snapshot, status: deviceRegistry.isOnline(deviceId) ? snapshot.status : 'offline' };
   return makePatch({ devices: [device] });
+}
+
+/** 单设备 agents patch（登录激活/配置模型后 activated 变化实时刷新） */
+export function buildAgentsPatch(deviceId: string): DashboardPatch {
+  const agents = listAgentsByDevice(deviceId).map(toAgentSnapshot);
+  return makePatch({ agents });
 }
 
 /**

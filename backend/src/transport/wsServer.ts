@@ -6,6 +6,7 @@ import { upsertDevice, touchHeartbeat } from '../db/repo/devices.js';
 import { upsertAgents, setAgentActivated } from '../db/repo/agents.js';
 import { verifyToken, issueToken } from '../security/auth.js';
 import { getPendingPair, createPairing, verifyPairing } from '../security/pairing.js';
+import { buildAgentsPatch } from '../services/snapshot.js';
 
 /**
  * 看板 / 网关连接（用于广播 dashboard.patch、wechat.reply 等）。
@@ -107,6 +108,20 @@ function broadcastDevicePatch(deviceId: string): void {
     v: 1,
     type: MESSAGE_TYPES.DASHBOARD_PATCH,
     id: `devpatch-${deviceId}-${Date.now()}`,
+    ts: Date.now(),
+    from: 'coordinator',
+    to: 'dashboard',
+    payload: patch,
+  });
+}
+
+/** 向看板广播单设备 agents patch（登录激活/配置模型后 activated 实时刷新，修复「已写入配置但显示未激活」） */
+function broadcastAgentsPatch(deviceId: string): void {
+  const patch = buildAgentsPatch(deviceId);
+  broadcastToDashboards({
+    v: 1,
+    type: MESSAGE_TYPES.DASHBOARD_PATCH,
+    id: `agentpatch-${deviceId}-${Date.now()}`,
     ts: Date.now(),
     from: 'coordinator',
     to: 'dashboard',
@@ -234,7 +249,7 @@ function handleEnvelope(socket: WebSocket, raw: string, fallbackPeer?: Peer): vo
       } else if (ack?.deviceId && ack?.agentType) {
         // 打开平台应用成功 → 标记该 agent 为已激活（用户在该应用内完成登录）
         setAgentActivated(ack.deviceId, ack.agentType as never, true);
-        broadcastDevicePatch(ack.deviceId);
+        broadcastAgentsPatch(ack.deviceId);
         console.log(`[platform-open] ${ack.deviceId}/${ack.agentType} 已打开并标记激活: ${ack.message ?? ''}`);
       }
       break;
@@ -504,7 +519,7 @@ function handleDeviceLoginMessage(type: string, payload: unknown): boolean {
     // 登录成功 → 标记该 agent 已激活（用户已授权）+ 广播设备快照更新，前端实时刷新「未激活」状态
     if (r?.status === 'success' && r.deviceId && r.agentType) {
       setAgentActivated(r.deviceId, r.agentType as never, true);
-      broadcastDevicePatch(r.deviceId);
+      broadcastAgentsPatch(r.deviceId);
     }
     return true;
   }
@@ -527,7 +542,7 @@ function handleDeviceModelConfigAck(type: string, payload: unknown): boolean {
   // 配置成功 → 标记该 agent 已激活（已配好自定义模型，免登录）+ 广播设备快照更新
   if (ack?.ok && ack.deviceId && ack.agentType) {
     setAgentActivated(ack.deviceId, ack.agentType as never, true);
-    broadcastDevicePatch(ack.deviceId);
+    broadcastAgentsPatch(ack.deviceId);
   }
   return true;
 }
