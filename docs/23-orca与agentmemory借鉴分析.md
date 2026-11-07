@@ -110,7 +110,7 @@ Orca 直接 spawn CLI agent（Codex 走 `codex-fetcher.ts` + Windows `cmd.exe /c
 ### 3. benchmark 数据对外沉淀成「度量标准」
 
 - 落盘一份 `docs/24-benchmark报告.md`（或独立 benchmark 报告），含：
-  - 调度内核 benchmark 数据（200 任务 179 tasks/s、1000 任务 414 tasks/s，30 倍优化）
+  - 调度内核 benchmark 数据（200 任务约 300 tasks/s、1000 任务约 347 tasks/s，一次性优化约 30 倍；原始记录见 `backend/benchmark-results/runs.jsonl`）
   - 真实多设备 benchmark 数据（2 设备 158、4 设备 193 tasks/s，completed=100%）
   - 故障转移 / 断连迁移数据（lost=0）
   - 可复现命令（`npm run benchmark` / `npm run benchmark:multi`）

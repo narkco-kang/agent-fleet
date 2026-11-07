@@ -33,15 +33,15 @@ AgentFleet 是一个**可自托管的跨设备智能体协同层**。它不造�
 
 | 指标 | 数值 |
 |---|---|
-| 调度内核吞吐（200 任务） | **303 tasks/s**（4 设备 × 2 agent，mock 执行） |
-| 调度内核吞吐（1000 任务） | **377 tasks/s** |
+| 调度内核吞吐（200 任务） | **300 tasks/s**（4 设备 × 2 agent，模拟执行） |
+| 调度内核吞吐（1000 任务） | **347 tasks/s**（4 设备 × 2 agent，模拟执行） |
 | 8 设备 × 24 agent，1000 任务跑到一半杀掉一台设备 | **353 tasks/s**，lost = 0 |
 | 真实多设备吞吐 | **38 tasks/s**（2 设备 × 2 agent，真实 ws 链路） |
 | 调度延迟 p50 / p90 / p99 | **339 / 592 / 639 ms** |
 | 断连感知 | **~1 秒**（原为 ~35 秒） |
 | 设备中途死亡的任务丢失 | **0** —— running 任务自动迁回 queued 并重派 |
 | 真实云服务器、全程免登录 | **5/5 completed**（1 台 Ubuntu + 2 台 Windows，真 codex/claude CLI，未登录任何 OpenAI/Anthropic 账号） |
-| 一次调度优化 | 13 → **414 tasks/s**（30×），移除 dispatch 循环里三处 O(n²) 查库 |
+| 一次调度优化 | 吞吐约 **30×**，移除 dispatch 循环里三处 O(n²) 查库 |
 
 ```bash
 npm run benchmark --workspace backend                     # 调度内核（mock 设备）

@@ -33,15 +33,17 @@ Cross-device scheduling is benchmarked, and every number below is produced by sc
 
 | Metric | Value |
 |---|---|
-| Scheduler throughput (200 tasks) | **303 tasks/s** (4 devices × 2 agents, mock exec) |
-| Scheduler throughput (1000 tasks) | **377 tasks/s** |
-| Scheduler throughput (8 devices × 24 agents, 1000 tasks, device killed mid-run) | **353 tasks/s**, lost = 0 |
+| Scheduler throughput (200 tasks) | **300 tasks/s** (4 devices × 2 agents, simulated exec) |
+| Scheduler throughput (1000 tasks) | **347 tasks/s** (4 devices × 2 agents, simulated exec) |
+| Scheduler throughput (8 devices × 24 agents, 1000 tasks, device killed mid-run) | **353 tasks/s**, lost = 0 (simulated exec) |
 | Real multi-device throughput | **38 tasks/s** (2 devices × 2 agents, real ws link) |
 | Scheduling latency p50 / p90 / p99 | **339 / 592 / 639 ms** |
 | Disconnect detection | **~1 s** (was ~35 s) |
-| Task loss when a device dies mid-run | **0** — running tasks migrate back to queued and get re-dispatched |
+| Task loss when a device dies mid-run | **0** — running tasks are re-queued and re-dispatched |
 | Real cloud servers, zero login | **5/5 completed** (1 Ubuntu + 2 Windows, real codex/claude CLI, no OpenAI/Anthropic account) |
-| One-time scheduling fix | 13 → **414 tasks/s** (30×) after removing three O(n²) DB lookups from the dispatch loop |
+| One-time scheduling fix | **~30×** throughput after removing three O(n²) DB lookups from the dispatch loop |
+
+> Rows marked *simulated exec* measure the scheduler with `setTimeout`-based fake tasks, not real CLI runs — they isolate scheduling cost from agent cost. The 349 ↔ 353 spread between two runs of the same config is run-to-run noise (±1.5%), not a speedup from killing a device. The one real-link number is the 38 tasks/s row.
 
 ```bash
 npm run benchmark --workspace backend                     # scheduler core (mock devices)
