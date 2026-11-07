@@ -17,4 +17,10 @@ export interface ActionConfirmation {
   createdAt: number;
   confirmedAt?: number;
   confirmedBy?: string;
+  /** Mandate/policyVersion：受理时锁住的策略版本（DSH 融合） */
+  policyVersion?: string;
+  /** 策略变更后对在途单的通知（结构化 Reason JSON），不撤销已给授权 */
+  policyNotice?: string;
+  /** 拒绝/复检失败的结构化原因（Reason JSON），诚实报告而非静默丢弃 */
+  reason?: string;
 }

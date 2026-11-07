@@ -18,6 +18,13 @@ export function setRelayMessageHandler(fn: (env: Envelope) => void): void {
   onRelayMessage = fn;
 }
 
+/** 中继连接状态变更钩子（DSH HealthBoard：由 index.ts 注入唯一写入者） */
+let onRelayState: (connected: boolean) => void = () => {};
+
+export function setRelayStateHandler(fn: (connected: boolean) => void): void {
+  onRelayState = fn;
+}
+
 /** 出站连接中继 */
 export function connectRelay(): void {
   if (!config.relayUrl) return;
@@ -32,6 +39,7 @@ export function connectRelay(): void {
     socket = new WebSocket(url.toString());
   } catch (err) {
     console.warn('[relay-client] 连接中继失败:', (err as Error).message);
+    onRelayState(false);
     scheduleReconnect();
     return;
   }
@@ -39,6 +47,7 @@ export function connectRelay(): void {
   socket.on('open', () => {
     reconnectDelay = 1_000;
     relaySocket = socket;
+    onRelayState(true);
     console.log(`[relay-client] 协调服务已出站连接中继 ${url.toString()}`);
   });
 
@@ -57,10 +66,12 @@ export function connectRelay(): void {
 
   socket.on('close', () => {
     relaySocket = null;
+    onRelayState(false);
     scheduleReconnect();
   });
 
   socket.on('error', () => {
+    onRelayState(false);
     socket.close();
   });
 }

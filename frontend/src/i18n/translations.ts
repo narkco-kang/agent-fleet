@@ -20,6 +20,7 @@ export const translations: Record<string, TranslationEntry> = {
   'nav.loop': { zh: '编排', en: 'Loop' },
   'nav.mcp': { zh: '工具', en: 'MCP' },
   'nav.settings': { zh: '设置', en: 'Settings' },
+  'nav.systemHealth': { zh: '系统健康', en: 'Health' },
   'nav.more': { zh: '更多', en: 'More' },
 
   // ===== 布局 / 顶栏 / 状态条 =====
@@ -37,6 +38,33 @@ export const translations: Record<string, TranslationEntry> = {
   'layout.onlineDevices': { zh: '在线设备', en: 'online' },
   'layout.runningTasks': { zh: '运行中任务', en: 'running' },
   'layout.loading': { zh: '加载中…', en: 'Loading…' },
+  'layout.componentErrors': { zh: '组件故障', en: 'Component errors' },
+  'layout.deadEffects': { zh: '待人工处理副作用', en: 'Dead effects' },
+  'layout.policyNotices': { zh: '策略变更待复检', en: 'Policy notices' },
+
+  // ===== 系统健康（DSH 融合） =====
+  'health.title': { zh: '系统健康', en: 'System Health' },
+  'health.subtitle': { zh: '只把需要人的东西摆到人面前', en: 'Only surface what needs a human' },
+  'health.components': { zh: '组件健康', en: 'Components' },
+  'health.effects': { zh: '持久副作用队列', en: 'Persistent Effects' },
+  'health.probes': { zh: '模型真实推理体检', en: 'Model Inference Probes' },
+  'health.policy': { zh: '策略版本与在途单', en: 'Policy Version & In-flight' },
+  'health.state.ready': { zh: '正常', en: 'Ready' },
+  'health.state.degraded': { zh: '降级', en: 'Degraded' },
+  'health.state.error': { zh: '故障', en: 'Error' },
+  'health.empty': { zh: '暂无记录', en: 'No records' },
+  'health.retry': { zh: '重新入队', en: 'Retry' },
+  'health.runProbe': { zh: '立即体检', en: 'Run probe' },
+  'health.refresh': { zh: '刷新', en: 'Refresh' },
+  'health.owner': { zh: '写入者', en: 'Owner' },
+  'health.failures': { zh: '连续失败', en: 'Failures' },
+  'health.pending': { zh: '待执行', en: 'Pending' },
+  'health.dead': { zh: '待人工', en: 'Dead' },
+  'health.running': { zh: '运行中', en: 'Running' },
+  'health.latency': { zh: '延迟', en: 'Latency' },
+  'health.checkedAt': { zh: '检测于', en: 'Checked' },
+  'health.policyVersion': { zh: '当前策略版本', en: 'Policy version' },
+  'health.notices': { zh: '收到变更通知的在途单', en: 'In-flight notices' },
 
   // ===== 资产管理 =====
   'assets.title': { zh: '资产管理', en: 'Asset Management' },

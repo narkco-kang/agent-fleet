@@ -182,7 +182,13 @@ CREATE TABLE IF NOT EXISTS action_confirmations (
   payload_summary TEXT NOT NULL DEFAULT '',
   created_at      INTEGER NOT NULL,
   confirmed_at    INTEGER,
-  confirmed_by    TEXT
+  confirmed_by    TEXT,
+  -- Mandate/policyVersion（DSH 融合）：确认记录锁住受理时的策略版本；
+  -- 策略变更只写 policy_notice 通知在途单，不撤销已给的授权
+  policy_version  TEXT NOT NULL DEFAULT '',
+  policy_notice   TEXT NOT NULL DEFAULT '',
+  -- 拒绝/复检失败的结构化原因（Reason JSON）
+  reason          TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS usage_records (
@@ -302,3 +308,56 @@ CREATE TABLE IF NOT EXISTS free_sources (
   updated_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_free_sources_format ON free_sources (format, category);
+
+-- ===== DSH 架构融合（docs/29） =====
+
+-- 持久副作用队列：命令在事务内只登记，提交后由 drain 幂等执行
+-- 借鉴 dsh-superagent src/app/effects.ts：
+--   PRIMARY KEY(kind,effect_key) 天然幂等；generation 让「运行中又被合并」的旧尝试无法覆盖新 payload；
+--   seq 保住队列位置（coalescing 不改 seq）；attempts/due_at 支撑指数退避；
+--   进程崩溃后 pending 行仍在，重启自动续跑（不丢状态）。
+CREATE TABLE IF NOT EXISTS effects (
+  kind         TEXT NOT NULL,
+  effect_key   TEXT NOT NULL,
+  payload      TEXT NOT NULL DEFAULT '{}',
+  seq          INTEGER NOT NULL,
+  generation   INTEGER NOT NULL DEFAULT 0,
+  attempts     INTEGER NOT NULL DEFAULT 0,
+  last_error   TEXT NOT NULL DEFAULT '',
+  due_at       INTEGER NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'pending',  -- pending | dead
+  created_at   INTEGER NOT NULL,
+  updated_at   INTEGER NOT NULL,
+  finished_at  INTEGER,
+  PRIMARY KEY (kind, effect_key)
+);
+CREATE INDEX IF NOT EXISTS idx_effects_due ON effects (status, due_at, seq);
+CREATE INDEX IF NOT EXISTS idx_effects_kind ON effects (kind, seq);
+
+-- 健康看板：一个组件一个条目、一个写入者（claim 拒绝二次认领）
+-- 连续失败 3 次才升 error，成功一次立即清除（DSH src/infra/health.ts + effects.ts）
+CREATE TABLE IF NOT EXISTS component_health (
+  name        TEXT PRIMARY KEY,
+  owner       TEXT NOT NULL,
+  state       TEXT NOT NULL DEFAULT 'ready',   -- ready | degraded | error
+  failures    INTEGER NOT NULL DEFAULT 0,
+  last_error  TEXT NOT NULL DEFAULT '',
+  updated_at  INTEGER NOT NULL
+);
+
+-- 模型真实推理体检结果（区别于仅元数据探测）：失败即自动清理失效路由
+CREATE TABLE IF NOT EXISTS model_probe_results (
+  model       TEXT PRIMARY KEY,
+  ok          INTEGER NOT NULL DEFAULT 0,
+  latency_ms  INTEGER NOT NULL DEFAULT 0,
+  detail      TEXT NOT NULL DEFAULT '',
+  checked_at  INTEGER NOT NULL
+);
+
+-- 体检导致的角色路由自动切换记录：模型恢复后可精确复原，不单向劣化配置
+CREATE TABLE IF NOT EXISTS model_probe_actions (
+  role             TEXT PRIMARY KEY,
+  original_primary TEXT NOT NULL,
+  switched_to      TEXT NOT NULL DEFAULT '',  -- 空 = 无可用兜底，已禁用该路由
+  created_at       INTEGER NOT NULL
+);

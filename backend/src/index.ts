@@ -36,6 +36,7 @@ import {
   connectRelay,
   relaySend,
   setRelayMessageHandler,
+  setRelayStateHandler,
 } from './services/relayClient.js';
 import { deviceRegistry, setDeviceOfflineHandler } from './services/deviceRegistry.js';
 import { setDeviceStatus } from './db/repo/devices.js';
@@ -56,7 +57,16 @@ import { startCheckinLoop } from './services/routing/checkinService.js';
 import { startFreeSourceCrawlLoop } from './services/routing/freeSourceCrawler.js';
 import { registerGatewayRoutes } from './routes/gateway.js';
 import { gatewayManager } from './services/gateway/gatewayManager.js';
-import { MESSAGE_TYPES } from '@agentfleet/shared';
+import { MESSAGE_TYPES, reasonOf } from '@agentfleet/shared';
+import { actionGuard } from './services/actionGuard.js';
+import { effectQueue } from './services/effects/effectQueue.js';
+import { healthBoard } from './services/healthBoard.js';
+import { tieredPolicy } from './services/tieredPolicy.js';
+import { markPolicyNotices } from './db/repo/confirmations.js';
+import {
+  startModelProbeHealthLoop,
+  stopModelProbeHealthLoop,
+} from './services/routing/modelProbeHealth.js';
 
 /**
  * 后端协调服务入口：
@@ -65,7 +75,28 @@ import { MESSAGE_TYPES } from '@agentfleet/shared';
 
 async function main(): Promise<void> {
   initDatabase();
-  console.log('[backend] SQLite 数据库就绪（14 张表，含 9 张新表）:', config.dbPath);
+  console.log('[backend] SQLite 数据库就绪:', config.dbPath);
+
+  // ===== DSH 架构融合（docs/29）=====
+  // 1) 持久副作用队列：先预热 handler（崩溃后残留的 pending 行需要执行器），再启动扫描。
+  //    effectQueue.start() 会立即 kick 一次，把上次进程遗留的副作用续跑完。
+  actionGuard.primeEffectHandlers();
+  effectQueue.start();
+  const pending = effectQueue.stats().pending;
+  if (pending > 0) console.log(`[effects] 恢复 ${pending} 条上次未完成的副作用`);
+
+  // 2) 策略版本变更 → 只通知在途确认单，不撤销已给的 Mandate（confirm 时再 revalidate）。
+  tieredPolicy.onChange((change) => {
+    const n = markPolicyNotices(change.noticeJson);
+    console.log(`[policy] 策略版本 ${change.from.slice(0, 8)} → ${change.to.slice(0, 8)}，已通知 ${n} 张在途单`);
+  });
+
+  // 3) relay 是独立故障域：连接状态由唯一写入者写 HealthBoard（连续 3 次失败才告警）。
+  const relayHealth = healthBoard.claim('relay', 'relayClient');
+  setRelayStateHandler((connected) => {
+    if (connected) relayHealth.ok();
+    else relayHealth.failure(reasonOf('probeFailed', { detail: 'relay 连接断开' }));
+  });
 
   // 团队记忆账本（group="team"）：启动即加载，任务终态自动记账
   await memoryLedger.init();
@@ -96,6 +127,8 @@ async function main(): Promise<void> {
   startCheckinLoop();
   // 免费源目录：启动后 30s 首次抓取 + 每 12 小时自动定期抓取
   startFreeSourceCrawlLoop();
+  // 模型真实推理体检：结果写回平台绑定/角色路由，失效自动切换、恢复自动复原
+  startModelProbeHealthLoop();
 
   // 装配任务桥接 + 中继转发
   setTaskBridge({
@@ -215,6 +248,9 @@ async function main(): Promise<void> {
   // 优雅退出
   const shutdown = async (): Promise<void> => {
     console.log('\n[backend] 正在关闭...');
+    // 只停扫描，不删 pending 行：下次启动 effectQueue.start() 自动续跑
+    effectQueue.stop();
+    stopModelProbeHealthLoop();
     stopLanDiscovery();
     deviceRegistry.stopSweeper();
     await app.close();

@@ -21,3 +21,6 @@ export * from './freeSourceRating.js';
 export * from './freeSourceCatalog.js';
 export * from './platformLaunch.js';
 export * from './pricing.js';
+// DSH 架构融合：内容派生幂等 ID + 结构化原因码
+export * from './idKey.js';
+export * from './reason.js';

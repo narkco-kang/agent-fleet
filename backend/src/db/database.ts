@@ -157,6 +157,21 @@ function runMigrations(database: Database.Database): void {
   if (!roleTeamCols.includes('leader_slug')) {
     database.exec(`ALTER TABLE role_teams ADD COLUMN leader_slug TEXT`);
   }
+
+  // action_confirmations 新增列 policy_version / policy_notice（DSH Mandate 融合，docs/29）
+  // 老库必须补列，否则 createConfirmation 的 INSERT 会报 no such column
+  const confirmationCols = (
+    database.prepare(`PRAGMA table_info(action_confirmations)`).all() as Array<{ name: string }>
+  ).map((c) => c.name);
+  if (!confirmationCols.includes('policy_version')) {
+    database.exec(`ALTER TABLE action_confirmations ADD COLUMN policy_version TEXT NOT NULL DEFAULT ''`);
+  }
+  if (!confirmationCols.includes('policy_notice')) {
+    database.exec(`ALTER TABLE action_confirmations ADD COLUMN policy_notice TEXT NOT NULL DEFAULT ''`);
+  }
+  if (!confirmationCols.includes('reason')) {
+    database.exec(`ALTER TABLE action_confirmations ADD COLUMN reason TEXT NOT NULL DEFAULT ''`);
+  }
 }
 
 /** 获取数据库实例（未初始化则先初始化） */

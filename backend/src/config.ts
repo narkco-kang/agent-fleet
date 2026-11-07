@@ -38,6 +38,10 @@ export interface BackendConfig {
   actionGuardEnabled: boolean;
   /** 角色路由表 JSON 文件路径（启动时导入，空则跳过） */
   roleRoutesJsonPath: string;
+  /** 模型真实推理体检开关（MODEL_PROBE_ENABLED=0 关闭） */
+  modelProbeEnabled: boolean;
+  /** 模型真实推理体检周期（毫秒，默认 30min） */
+  modelProbeIntervalMs: number;
 }
 
 export const config: BackendConfig = {
@@ -61,4 +65,6 @@ export const config: BackendConfig = {
   deployEnabled: process.env.DEPLOY_ENABLED !== '0',
   actionGuardEnabled: process.env.ACTION_GUARD_ENABLED !== '0',
   roleRoutesJsonPath: process.env.ROLE_ROUTES_JSON ?? '',
+  modelProbeEnabled: process.env.MODEL_PROBE_ENABLED !== '0',
+  modelProbeIntervalMs: Number(process.env.MODEL_PROBE_INTERVAL_MS ?? 1_800_000),
 };

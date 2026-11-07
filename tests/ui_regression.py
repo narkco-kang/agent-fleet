@@ -10,9 +10,18 @@ AgentFleet 全功能 UI 拟人回归测试（Playwright）
 """
 import sys
 import time
+import json
+import urllib.request
 from playwright.sync_api import sync_playwright
 
 BASE = "http://127.0.0.1:5173"
+API = "http://127.0.0.1:4173"
+
+
+def api_get(path):
+    """读取本机真实 backend 的 REST 数据，用于与 UI 渲染做一致性断言。"""
+    with urllib.request.urlopen(API + path, timeout=10) as r:
+        return json.load(r)["data"]
 
 passed = 0
 failed = 0
@@ -83,6 +92,7 @@ def main():
             ("记忆", "/memory", "记忆页"),
             ("路由网关", "/routing", "路由网关页"),
             ("蜂群团队", "/swarm", "蜂群团队页"),
+            ("系统健康", "/system-health", "系统健康页"),
             ("设置", "/settings", "设置页"),
         ]
         for label, path, name in pages:
@@ -93,6 +103,64 @@ def main():
             # 页面主体非空白
             body_text = page.locator("body").inner_text()
             check(f"{name} 内容非空白", len(body_text.strip()) > 20, f"body 文本长度={len(body_text)}")
+
+        # ── 系统健康页（DSH 架构融合专项：Effects / HealthBoard / Reason / Mandate / 模型体检）──
+        # 先读本机真实 backend 的注意力摘要，用来和 UI 渲染做一致性断言
+        attention = api_get("/api/system/attention")
+        components = api_get("/api/system/health/components")
+        effect_data = api_get("/api/system/effects")
+        probe_rows = api_get("/api/system/model-probes")
+        policy = api_get("/api/actions/policy/notices")
+
+        bar = page.locator("[data-testid='attention-bar']")
+        needs_human = any(attention[k] > 0 for k in (
+            "needsLogin", "pendingActions", "alerts", "healthErrors", "deadEffects", "policyNotices"
+        ))
+        check("顶栏摘要条仅在有需要人的项时出现",
+              bar.count() == (1 if needs_human else 0), f"attention={attention}")
+        if bar.count() > 0:
+            bar_text = bar.inner_text()
+            check("顶栏摘要条显示待处理", "待处理" in bar_text, f"bar={bar_text[:120]}")
+            # 诚实报告：error/死信/策略变更都归零时，绝不假装有告警
+            if attention["healthErrors"] == 0:
+                check("healthErrors=0 时不显示组件故障", "组件故障" not in bar_text, f"bar={bar_text[:120]}")
+            if attention["deadEffects"] == 0:
+                check("deadEffects=0 时不显示待人工处理副作用", "待人工处理副作用" not in bar_text, f"bar={bar_text[:120]}")
+            if attention["policyNotices"] == 0:
+                check("policyNotices=0 时不显示策略变更待复检", "策略变更待复检" not in bar_text, f"bar={bar_text[:120]}")
+            # 有降级兜底的组件只标 degraded，不占用人的注意力
+            check("degraded 不误报为 error", attention["healthErrors"] == 0,
+                  f"healthDegraded={attention['healthDegraded']}, healthErrors={attention['healthErrors']}")
+
+        click_nav(page, "系统健康")
+        page.wait_for_timeout(1000)
+        check("系统健康页 导航 → 路由正确", "/system-health" in page.url, f"url={page.url}")
+        health_text = page.locator("body").inner_text()
+        for title in ("组件健康", "持久副作用队列", "模型真实推理体检", "策略版本与在途单"):
+            check(f"系统健康页显示四视图「{title}」", title in health_text, f"页面文本={health_text[:160]}")
+        entries = components.get("entries", [])
+        check("组件健康表渲染真实组件",
+              any(e["name"] in health_text for e in entries[:6]) if entries else False,
+              f"entries={[e['name'] for e in entries[:6]]}")
+        if any(e["state"] == "degraded" for e in entries):
+            check("降级态如实呈现", "降级" in health_text, f"页面文本={health_text[:160]}")
+        check("策略版本 Mandate 可见", policy["version"][:12] in health_text,
+              f"version={policy['version'][:12]}")
+        if probe_rows:
+            check("模型体检历史渲染真实模型", probe_rows[0]["model"] in health_text,
+                  f"model={probe_rows[0]['model']}")
+        check("副作用队列统计可见", str(effect_data["stats"]["pending"]) in health_text,
+              f"pending={effect_data['stats']['pending']}")
+        probe_btn = page.locator("button:has-text('立即体检')")
+        check("系统健康页有「立即体检」按钮", probe_btn.count() > 0, "找不到立即体检按钮")
+        refresh_btn = page.locator("button:has-text('刷新')")
+        check("系统健康页有「刷新」按钮", refresh_btn.count() > 0, "找不到刷新按钮")
+        if refresh_btn.count() > 0:
+            refresh_btn.first.click()
+            page.wait_for_timeout(1000)
+            check("刷新后页面未白屏且四视图仍在",
+                  "组件健康" in page.locator("body").inner_text() and "策略版本与在途单" in page.locator("body").inner_text(),
+                  "刷新后内容丢失")
 
         # ── 中英文切换 ──
         click_nav(page, "设置")

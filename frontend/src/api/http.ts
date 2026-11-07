@@ -39,6 +39,59 @@ export interface ApiOk<T> {
   error?: string;
 }
 
+/** DSH 融合：待处理摘要（只暴露需要人介入的项，健康态折叠） */
+export interface AttentionSummary {
+  needsLogin: number;
+  pendingActions: number;
+  alerts: number;
+  healthErrors: number;
+  healthDegraded: number;
+  deadEffects: number;
+  pendingEffects: number;
+  policyNotices: number;
+  failedProbes: number;
+}
+
+export interface HealthEntryView {
+  name: string;
+  owner: string;
+  state: 'ready' | 'degraded' | 'error';
+  failures: number;
+  lastError: string;
+  updatedAt: number;
+}
+
+export interface HealthSummaryView {
+  total: number;
+  ready: number;
+  degraded: number;
+  errors: number;
+  errorNames: string[];
+}
+
+export interface EffectRowView {
+  kind: string;
+  effectKey: string;
+  payload: Record<string, unknown>;
+  seq: number;
+  generation: number;
+  attempts: number;
+  lastError: string;
+  dueAt: number;
+  status: 'pending' | 'dead';
+  createdAt: number;
+  updatedAt: number;
+  finishedAt?: number;
+}
+
+export interface ProbeRecordView {
+  model: string;
+  ok: boolean;
+  latencyMs: number;
+  detail: string;
+  checkedAt: number;
+}
+
 /** GET 便捷封装 */
 export function get<T>(path: string): Promise<T> {
   return request<T>(path);
@@ -81,9 +134,31 @@ export const http = {
     request<ApiOk<{ devicesOnline: number; tasksRunning: number; relayConnected: boolean }>>(
       '/api/system/status',
     ),
-  getAttention: () =>
-    request<ApiOk<{ needsLogin: number; pendingActions: number; alerts: number }>>(
-      '/api/system/attention',
+  getAttention: () => request<ApiOk<AttentionSummary>>('/api/system/attention'),
+  getHealthComponents: () =>
+    request<ApiOk<{ entries: HealthEntryView[]; summary: HealthSummaryView }>>(
+      '/api/system/health/components',
+    ),
+  getEffects: () =>
+    request<
+      ApiOk<{
+        rows: EffectRowView[];
+        stats: { pending: number; dead: number; running: number; kinds: number; byKind: Record<string, { pending: number; dead: number }> };
+      }>
+    >('/api/system/effects'),
+  retryEffect: (kind: string, effectKey: string) =>
+    post<ApiOk<EffectRowView>>('/api/system/effects/retry', { kind, effectKey }),
+  getPolicyNotices: () =>
+    request<
+      ApiOk<{
+        version: string;
+        notices: Array<{ id: string; kind: string; status: string; policyVersion?: string; policyNotice?: string }>;
+      }>
+    >('/api/actions/policy/notices'),
+  getModelProbes: () => request<ApiOk<ProbeRecordView[]>>('/api/system/model-probes'),
+  runModelProbe: () =>
+    post<ApiOk<{ ok: number; failed: number; total: number; reason: string; infrastructureFailure: boolean }>>(
+      '/api/system/model-probes/run',
     ),
   getDevices: () => request<ApiOk<Array<DeviceSnapshot & { agents: AgentSnapshot[] }>>>('/api/devices'),
   getDevice: (id: string) =>

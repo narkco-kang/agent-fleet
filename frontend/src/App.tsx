@@ -8,6 +8,7 @@ const DeviceDetailPage = lazy(() => import('./pages/DeviceDetailPage'));
 const TasksPage = lazy(() => import('./pages/TasksPage'));
 const TaskDetailPage = lazy(() => import('./pages/TaskDetailPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const SystemHealthPage = lazy(() => import('./pages/SystemHealthPage'));
 const DeployPage = lazy(() => import('./pages/DeployPage'));
 const PlatformModelsPage = lazy(() => import('./pages/PlatformModelsPage'));
 const RoutingGatewayPage = lazy(() => import('./pages/RoutingGatewayPage'));
@@ -37,6 +38,7 @@ export default function App(): JSX.Element {
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/system-health" element={<SystemHealthPage />} />
           <Route path="/deploy" element={<DeployPage />} />
           <Route path="/platform-models" element={<PlatformModelsPage />} />
           <Route path="/routing" element={<RoutingGatewayPage />} />

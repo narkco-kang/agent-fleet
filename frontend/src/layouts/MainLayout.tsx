@@ -13,9 +13,11 @@ import PsychologyIcon from '@mui/icons-material/Psychology';
 import GroupsIcon from '@mui/icons-material/Groups';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useLiveData } from '../hooks/useLiveData';
 import { http } from '../api/http';
+import type { AttentionSummary } from '../api/http';
 import { useDeviceStore } from '../store/deviceStore';
 import { useTaskStore } from '../store/taskStore';
 import { useWsStore } from '../store/wsStore';
@@ -36,6 +38,7 @@ const NAV = [
   { to: '/swarm', labelKey: 'nav.swarm', icon: <GroupsIcon /> },
   { to: '/loops', labelKey: 'nav.loop', icon: <AccountTreeIcon /> },
   { to: '/mcp', labelKey: 'nav.mcp', icon: <ExtensionIcon /> },
+  { to: '/system-health', labelKey: 'nav.systemHealth', icon: <MonitorHeartIcon /> },
   { to: '/settings', labelKey: 'nav.settings', icon: <SettingsIcon /> },
 ];
 
@@ -59,7 +62,7 @@ export default function MainLayout(): JSX.Element {
   const backendOnline = useWsStore((s) => s.backendOnline);
   const relayOnline = useWsStore((s) => s.relayOnline);
 
-  const [attention, setAttention] = useState<{ needsLogin: number; pendingActions: number; alerts: number } | null>(null);
+  const [attention, setAttention] = useState<AttentionSummary | null>(null);
 
   useEffect(() => {
     const load = (): void => {
@@ -158,8 +161,16 @@ export default function MainLayout(): JSX.Element {
 
         {/* 待处理摘要条（有非零项才显示，健康态折叠） */}
         {attention &&
-          (attention.needsLogin > 0 || attention.pendingActions > 0 || attention.alerts > 0) && (
-            <div className="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--warning-soft)] px-4 py-1.5 text-xs text-[var(--text)]">
+          (attention.needsLogin > 0 ||
+            attention.pendingActions > 0 ||
+            attention.alerts > 0 ||
+            attention.healthErrors > 0 ||
+            attention.deadEffects > 0 ||
+            attention.policyNotices > 0) && (
+            <div
+              data-testid="attention-bar"
+              className="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--warning-soft)] px-4 py-1.5 text-xs text-[var(--text)]"
+            >
               <span className="font-medium text-[var(--text-strong)]">{t('layout.pending')}</span>
               {attention.needsLogin > 0 && (
                 <button
@@ -180,6 +191,30 @@ export default function MainLayout(): JSX.Element {
                   className="rounded bg-[var(--danger-soft)] px-2 py-0.5 text-[#B91C1C] hover:bg-[#FECACA]"
                 >
                   {t('layout.alerts')} {attention.alerts}
+                </button>
+              )}
+              {attention.healthErrors > 0 && (
+                <button
+                  onClick={() => navigate('/system-health')}
+                  className="rounded bg-[var(--danger-soft)] px-2 py-0.5 text-[#B91C1C] hover:bg-[#FECACA]"
+                >
+                  {t('layout.componentErrors')} {attention.healthErrors}
+                </button>
+              )}
+              {attention.deadEffects > 0 && (
+                <button
+                  onClick={() => navigate('/system-health')}
+                  className="rounded bg-[var(--danger-soft)] px-2 py-0.5 text-[#B91C1C] hover:bg-[#FECACA]"
+                >
+                  {t('layout.deadEffects')} {attention.deadEffects}
+                </button>
+              )}
+              {attention.policyNotices > 0 && (
+                <button
+                  onClick={() => navigate('/system-health')}
+                  className="rounded bg-[var(--warning-soft)] px-2 py-0.5 text-[#B45309] hover:bg-[#FDE68A]"
+                >
+                  {t('layout.policyNotices')} {attention.policyNotices}
                 </button>
               )}
             </div>
