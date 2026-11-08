@@ -3,7 +3,7 @@ import {
   resolveBaseUrl,
   type DirectFreeSource,
 } from '@agentfleet/shared';
-import type { PaidProviderConfig } from './config.js';
+import type { ModelAliasMap, PaidProviderConfig } from './config.js';
 
 /**
  * 内置 provider 池：
@@ -32,6 +32,8 @@ export interface ProviderResolution {
   provider: ProviderConfig;
   outModel: string;
   degraded: boolean;
+  /** 命中业务模型别名（而非 provider 原始模型名） */
+  alias?: boolean;
 }
 
 export interface GatewayProviderStatus {
@@ -78,19 +80,57 @@ function stripPrefix(model: string, id: string): string {
 
 export class ProviderPool {
   private providers: ProviderConfig[];
+  private readonly modelAliases: ModelAliasMap;
 
-  constructor(paidProviders: PaidProviderConfig[] = []) {
+  constructor(paidProviders: PaidProviderConfig[] = [], modelAliases: ModelAliasMap = {}) {
     const direct = DIRECT_FREE_SOURCES.map(toDirectProvider);
     const paid = paidProviders.map(toPaidProvider);
     this.providers = [...paid, ...direct];
+    this.modelAliases = { ...modelAliases };
   }
 
   list(): ProviderConfig[] {
     return this.providers;
   }
 
+  /** 已加载的业务模型别名（供 /health 可观测，不含密钥） */
+  aliases(): ModelAliasMap {
+    return { ...this.modelAliases };
+  }
+
+  aliasCount(): number {
+    return Object.keys(this.modelAliases).length;
+  }
+
+  /**
+   * 别名目标解析：`providerId/model` / `providerId:model` 前缀优先，
+   * 其次按已在册模型名精确匹配。解析不到返回 null，由调用方回落到默认降级链路。
+   */
+  private resolveAliasTarget(target: string): { provider: ProviderConfig; outModel: string } | null {
+    const t = target.trim();
+    for (const p of this.providers) {
+      for (const sep of [':', '/']) {
+        const prefix = `${p.id}${sep}`;
+        if (!t.startsWith(prefix)) continue;
+        const outModel = t.slice(prefix.length);
+        if (outModel) return { provider: p, outModel };
+      }
+    }
+    for (const p of this.providers) {
+      if (p.models.includes(t)) return { provider: p, outModel: t };
+    }
+    return null;
+  }
+
   resolve(model: string): ProviderResolution {
     const m = model.trim();
+    // 业务别名优先：把虚拟 ref 精确落到真实上游模型，
+    // 避免「已降级到兜底 provider，却仍把虚拟模型名原样发给上游」的必然失败。
+    const aliasTarget = this.modelAliases[m];
+    if (aliasTarget) {
+      const aliased = this.resolveAliasTarget(aliasTarget);
+      if (aliased) return { ...aliased, degraded: false, alias: true };
+    }
     // 付费精确匹配（含 `id:model` / `id/model` 前缀写法）
     for (const p of this.providers) {
       if (p.kind !== 'paid') continue;

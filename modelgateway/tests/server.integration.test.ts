@@ -63,6 +63,8 @@ beforeAll(async () => {
       MODELGATEWAY_PORT: String(port),
       MODELGATEWAY_HOST: '127.0.0.1',
       MG_PAID_PROVIDERS: '[]',
+      // 彻底隔离本机 .workbuddy-ai 下的付费 provider / 别名配置
+      MODELGATEWAY_LOCAL_CONFIG: '0',
     },
   });
   let stderr = '';
@@ -90,6 +92,8 @@ describe('内置 modelgateway 集成冒烟（临时端口）', () => {
       uptimeMs: number;
       providers: unknown[];
       defaultModel: string;
+      aliasCount: number;
+      modelAliases: Record<string, string>;
     };
     expect(json.ok).toBe(true);
     expect(typeof json.version).toBe('string');
@@ -99,6 +103,9 @@ describe('内置 modelgateway 集成冒烟（临时端口）', () => {
     // 无付费 provider 时内置 Kilo + OpenCode 两个直连免费源
     expect(json.providers).toHaveLength(2);
     expect(json.defaultModel).toBe('kilo-auto/free');
+    // 隔离本机配置后无业务别名
+    expect(json.aliasCount).toBe(0);
+    expect(json.modelAliases).toEqual({});
   });
 
   it('GET /v1/models 返回聚合模型列表（OpenAI data 结构）', async () => {

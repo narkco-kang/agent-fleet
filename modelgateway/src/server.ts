@@ -98,6 +98,8 @@ export class GatewayServer {
         uptimeMs: Date.now() - this.startedAt,
         providers: this.pool.health(),
         defaultModel: this.pool.defaultModel(),
+        aliasCount: this.pool.aliasCount(),
+        modelAliases: this.pool.aliases(),
       });
       return;
     }

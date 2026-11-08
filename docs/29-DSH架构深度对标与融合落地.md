@@ -257,10 +257,77 @@ curl -s -X POST http://127.0.0.1:4173/api/system/effects/retry \
 
 **可靠性内核在生产拓扑下**：`relayConnected=true`、HealthBoard 6 条（ready 5 / degraded 1 / **errors 0**）、Effects `kinds=4` 无 pending/dead、policyVersion `64070de3…`、attention `healthErrors=0`；Playwright 拟人 UI 回归 **50/50、零 console/page 错误**。
 
-**诚实边界**：`MODELGATEWAY_URL` 默认 `http://127.0.0.1:18765`，而本机协调器没有本地网关（Ubuntu 的网关只监听 `127.0.0.1`），因此 9 个模型体检恒为 `fetch failed`。安全护栏已按设计生效（判 `infrastructureFailure`、零路由清理、只标 degraded），但**成功路径尚未在生产拓扑下验证**：要么在本机常驻一个 modelgateway，要么把 `MODELGATEWAY_URL` 指向可达网关；切换/复原逻辑目前只由 `modelProbeHealth.test.ts` 单测覆盖。
+**诚实边界（当时的状态，已由 §9 补齐）**：`MODELGATEWAY_URL` 默认 `http://127.0.0.1:18765`，而本机协调器没有本地网关（Ubuntu 的网关只监听 `127.0.0.1`），因此 9 个模型体检恒为 `fetch failed`。安全护栏已按设计生效（判 `infrastructureFailure`、零路由清理、只标 degraded），但当时**成功路径未验证**，切换/复原逻辑只有单测覆盖。当天下午已在本机把网关与真实上游跑通并完成完整闭环验证，见 §9。
 
 ---
 
-## 9. 一句话总结
+## 9. 本机 modelgateway 与模型体检闭环实机验证（2026-11-08 下午）
+
+### 9.1 为什么之前「成功路径」永远跑不到
+
+两个叠加根因，只修一个都没用：
+
+1. **本机没有网关**：`MODELGATEWAY_URL` 默认 `127.0.0.1:18765`，Ubuntu 上的网关只监听 loopback → 9 个模型恒 `fetch failed` → 护栏判 `infrastructureFailure`，只标 degraded、零路由清理。
+2. **业务模型 ref 与上游模型名脱节**（更隐蔽）：角色路由里 8 个 primary 是 DSH 风格虚拟 ref（`mgs-claude/group/strong`、`gpt/gpt-6.1-sol` …）。`ProviderPool.resolve()` 未命中时会降级到 `kilo-free`，**却把虚拟模型名原样透传给上游** → 上游 400 / 空响应 → 即使网关在线也仍然全失败。
+
+### 9.2 落地改动
+
+| 文件 | 变更 |
+|---|---|
+| `modelgateway/src/config.ts` | 新增 `ModelAliasMap`：从 `.workbuddy-ai/modelgateway-aliases.json` 与 `MG_MODEL_ALIASES` env 读取「业务 ref → `providerId/model`」映射；`apiKey` 支持 `${ENV_VAR}` 展开，密钥不落配置文件；新增 `MODELGATEWAY_LOCAL_CONFIG=0` 供 CI/集成测试彻底隔离本机配置 |
+| `modelgateway/src/providers.ts` | `ProviderPool` 接受别名表，`resolve()` 优先命中别名并落到真实上游模型（`/` 与 `:` 前缀、已在册模型名三种写法）；解析不到时安全回落原降级链路；`aliases()` / `aliasCount()` 供可观测 |
+| `modelgateway/src/server.ts` / `index.ts` | `/health` 暴露 `aliasCount` / `modelAliases`；启动日志打印别名数 |
+| `modelgateway/tests/providers.test.ts`、`server.integration.test.ts` | 新增 11 条断言：别名三种写法、无效别名回落、密钥 env 展开、非法配置容错；修正既有冒烟用例被本机 provider 配置污染的问题 |
+| `scripts/start-modelgateway.sh` | 本机网关启动器（固定 Node 24，前台 `exec`，可手动 / 由 LaunchAgent 托管） |
+| `scripts/dev-local.mjs` | **把 modelgateway 纳入一键启动链**；若 18765 已有健康实例则跳过，避免端口冲突 |
+| `.workbuddy-ai/*`（本机、已 gitignore） | `modelgateway-providers.json` 的 key 改为 `${DEEPSEEK_API_KEY}` / `${OPENAI_API_KEY}`；`modelgateway-aliases.json` 配 9 条映射 |
+
+别名配置样例（`deepseek` 用本机 `.env` 真 key，Kilo 免费源免密）：
+
+```json
+{
+  "mgs-claude/group/strong": "deepseek/deepseek-chat",
+  "mgs-hermes/group/long-context": "kilo-free/kilo-auto/free",
+  "kilo-auto/free": "kilo-free/kilo-auto/free"
+}
+```
+
+运维命令：
+
+```bash
+bash scripts/start-modelgateway.sh                 # 前台启动本机网关（18765）
+npm run dev:local                                  # 一键链已自动带网关
+curl -s http://127.0.0.1:18765/health | jq         # 看 providers / aliasCount / modelAliases
+curl -s -X POST http://127.0.0.1:4173/api/system/model-probes/run | jq
+# 单点故障注入（env 覆盖同名别名，重启网关即生效，无需改文件）：
+MG_MODEL_ALIASES='{"mgs-claude/group/strong":"deepseek/no-such-model-xyz"}' \
+  bash scripts/start-modelgateway.sh
+```
+
+### 9.3 实机闭环（真实上游、真实 DB、真实前端）
+
+上游实测：DeepSeek（`.env` 真 key）返回 `Pong! 🏓`；Kilo 免费源 `kilo-auto/free` 的 content 为空但 `reasoning` 非空，`extractText()` 的 reasoning 兜底保证 `ok=true`。
+
+| 轮次 | 结果 |
+|---|---|
+| 基线 | 9 条 `fetch failed`；`model-probe` degraded / failures=2；平台绑定 `state=degraded` |
+| ① 成功路径 | `configured=true, 9/9 ok, infrastructureFailure=false`，真实 `provider=deepseek/kilo-free`；`bindingsRecovered=1`（排除表清空、state→ok）；HealthBoard **6/6 ready**；attention `failedProbes 9→0` |
+| ② 单模型真实故障 | 注入不存在的上游模型（DeepSeek 真 400）→ `8/9 ok, infrastructureFailure=false`，`routesDisabled=1`、`external-claude` 禁用、`model_probe_actions` 落 1 行、degraded/failures=1；**护栏没有把局部故障误判成网络故障** |
+| ③ 恢复 | `9/9 ok`，`routesRestored=1`，动作表清空，6/6 ready，`failedProbes=0` |
+| ④ 有健康兜底时故障 | 给 `external-claude` 加 `fallback=['kilo-auto/free']` 再注入 → `routesPromoted=1`，primary 自动切到 `kilo-auto/free`，`switched_to` 落库 |
+| ⑤ 最终复原 | `9/9 ok`、`routesRestored=1`；把临时 fallback 精确写回 `[]`，8/8 路由 enabled、动作表空、平台绑定 ok |
+
+回归：`npm run build` ✅；backend **318/318**、memory **132/132**、device-agent **32/32**、modelgateway **29/29**；Playwright 拟人 UI 回归 **49/49、零 console/page 错误**（比 §5 的 50 少 1 条，因为「降级态如实呈现」是仅当有 degraded 组件才触发的条件断言，归零后自然不计）。
+
+### 9.4 常驻与诚实边界
+
+- 已生成 `~/Library/LaunchAgents/com.agentfleet.modelgateway.plist`（`RunAtLoad` + `KeepAlive`），但当前执行上下文向 launchd 提交服务时，`bootstrap gui/501`、`load -w`、`bootstrap user/501` 三次均报 `Bootstrap failed: 5: Input/output error`（`plutil -lint` 通过、权限 644、服务未被禁用）——属于执行会话限制，不是 plist 问题，**未反复重试**。在真实 Terminal.app 里执行一次即可开机自启：
+  `launchctl bootstrap gui/501 ~/Library/LaunchAgents/com.agentfleet.modelgateway.plist`；停用：`launchctl bootout gui/501/com.agentfleet.modelgateway`。
+- 更贴合项目的持久方案已落地：`scripts/dev-local.mjs` 每次一键启动都会拉起网关；当前会话网关由本机后台进程持续运行。
+- 边界：别名把 9 个虚拟 ref 映射到 **2 个真实上游模型**，证明的是「体检闭环链路与路由决策」真实可用，**不等于每个业务模型都独立可用**；每轮体检会发 6 次 DeepSeek 最小请求（`max_tokens=8`），成本极低但非零。
+
+---
+
+## 10. 一句话总结
 
 之前 AgentFleet 的「授权 → 执行」是 `void Promise.then(...)`，一旦进程崩溃或 SSH 抖动，动作就静默消失且无从查起；现在它是**一个事务登记一行持久副作用**，崩溃续跑、失败退避、耗尽待人、原因可判定、健康可观测——这才是 DSH 架构真正值得融合的部分。

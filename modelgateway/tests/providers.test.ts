@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PaidProviderConfig } from '../src/config.js';
+import { expandEnvValue, parseModelAliases, type PaidProviderConfig } from '../src/config.js';
 import { ProviderPool } from '../src/providers.js';
 
 /** 构造一个付费 provider 的测试夹具 */
@@ -95,5 +95,84 @@ describe('ProviderPool（内置 provider 池）', () => {
   it('defaultModel() 返回首个 provider 的首个模型', () => {
     expect(new ProviderPool([paid()]).defaultModel()).toBe('gpt-x');
     expect(new ProviderPool().defaultModel()).toBe('kilo-auto/free');
+  });
+});
+
+describe('配置解析（密钥 env 引用 / 别名容错）', () => {
+  it('expandEnvValue 展开 ${VAR} 与 $VAR，未设置返回空串，普通字符串原样保留', () => {
+    process.env.AF_CONFIG_TEST_KEY = 'sk-live';
+    expect(expandEnvValue('${AF_CONFIG_TEST_KEY}')).toBe('sk-live');
+    expect(expandEnvValue('$AF_CONFIG_TEST_KEY')).toBe('sk-live');
+    expect(expandEnvValue('${AF_CONFIG_TEST_MISSING}')).toBe('');
+    expect(expandEnvValue('literal-key')).toBe('literal-key');
+    delete process.env.AF_CONFIG_TEST_KEY;
+  });
+
+  it('parseModelAliases 兼容 JSON 字符串 / {aliases:{}} / 非法输入', () => {
+    expect(parseModelAliases('{"a":"paid-x/gpt-x"}')).toEqual({ a: 'paid-x/gpt-x' });
+    expect(parseModelAliases({ aliases: { b: 'kilo-free/kilo-auto/free' } })).toEqual({
+      b: 'kilo-free/kilo-auto/free',
+    });
+    expect(parseModelAliases({ a: 1, '  b  ': '  paid-x/gpt-x  ' })).toEqual({ b: 'paid-x/gpt-x' });
+    expect(parseModelAliases('not-json')).toEqual({});
+    expect(parseModelAliases(['x'])).toEqual({});
+    expect(parseModelAliases(undefined)).toEqual({});
+  });
+});
+
+describe('业务模型别名（虚拟 ref → 真实上游模型）', () => {
+  const aliases = {
+    'mgs-claude/group/strong': 'paid-x/gpt-x',
+    'mgs-hermes/group/long-context': 'kilo-free/kilo-auto/free',
+    'mgs-glm/group/strong': 'claude-y',
+    'mgs-tiered/group/mini-tiered': 'paid-x:claude-y',
+    'broken/ref': 'no-such-provider/nope',
+  };
+
+  it('别名命中付费 provider（/ 与 : 两种前缀）→ 真实模型名、degraded=false', () => {
+    const pool = new ProviderPool([paid()], aliases);
+    const slash = pool.resolve('mgs-claude/group/strong');
+    expect(slash).toMatchObject({ outModel: 'gpt-x', degraded: false, alias: true });
+    expect(slash.provider.id).toBe('paid-x');
+    expect(pool.resolve('mgs-tiered/group/mini-tiered')).toMatchObject({
+      outModel: 'claude-y',
+      degraded: false,
+      alias: true,
+    });
+  });
+
+  it('别名命中直连免费源 → kilo-free + kilo-auto/free', () => {
+    const pool = new ProviderPool([paid()], aliases);
+    expect(pool.resolve('mgs-hermes/group/long-context')).toMatchObject({
+      provider: { id: 'kilo-free' },
+      outModel: 'kilo-auto/free',
+      degraded: false,
+      alias: true,
+    });
+  });
+
+  it('别名值只写已在册模型名 → 按模型表精确匹配到 provider', () => {
+    const pool = new ProviderPool([paid()], aliases);
+    expect(pool.resolve('mgs-glm/group/strong')).toMatchObject({
+      provider: { id: 'paid-x' },
+      outModel: 'claude-y',
+      alias: true,
+    });
+  });
+
+  it('别名目标解析不到 → 安全回落原降级链路，不抛错', () => {
+    const pool = new ProviderPool([paid()], aliases);
+    const r = pool.resolve('broken/ref');
+    expect(r.degraded).toBe(true);
+    expect(r.provider.id).toBe('kilo-free');
+    expect(r.outModel).toBe('broken/ref');
+  });
+
+  it('未配置别名的 ref 行为不变；aliases() 只暴露映射、不含密钥', () => {
+    const pool = new ProviderPool([paid()], aliases);
+    expect(pool.resolve('some-unknown-model')).toMatchObject({ degraded: true, outModel: 'some-unknown-model' });
+    expect(pool.aliasCount()).toBe(5);
+    expect(pool.aliases()).toEqual(aliases);
+    expect(JSON.stringify(pool.aliases())).not.toContain('sk-test');
   });
 });

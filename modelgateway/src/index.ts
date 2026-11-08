@@ -7,12 +7,12 @@ import { GatewayServer } from './server.js';
  * 默认手动启动；backend 可通过 MODELGATEWAY_AUTO_START=1 自动 spawn。
  */
 async function main(): Promise<void> {
-  const pool = new ProviderPool(config.paidProviders);
+  const pool = new ProviderPool(config.paidProviders, config.modelAliases);
   const server = new GatewayServer(pool);
   await server.start();
   console.log(
     `[modelgateway] 内置网关已启动 http://${config.host}:${config.port}` +
-      `（providers=${pool.list().length}, paid=${config.paidProviders.length}, default=${pool.defaultModel()}）`,
+      `（providers=${pool.list().length}, paid=${config.paidProviders.length}, aliases=${pool.aliasCount()}, default=${pool.defaultModel()}）`,
   );
 
   // 优雅退出：SIGINT/SIGTERM 触发 server.stop()，3s 兜底强制退出避免挂起

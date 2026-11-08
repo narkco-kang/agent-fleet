@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /**
- * 本机一键联调：backend + frontend + device-agent 同时启动。
+ * 本机一键联调：backend + frontend + modelgateway + device-agent 同时启动。
+ *
+ * modelgateway 必须随本机启动链一起拉起：backend 每 30min 跑一次模型真实推理体检
+ * （runModelHealthCheck），网关不在就会全部 fetch failed，只走「基础设施故障」护栏分支，
+ * 成功/失败切换/恢复复原的闭环永远不会发生。
  *
  * 为什么需要这个脚本（而不是三条 npm run 拼一起）：
  *
@@ -14,9 +18,11 @@
  * 生产环境（systemd / Docker / 用户自己终端）没有这些变量，剥离是空操作。
  *
  * 用法：
- *   npm run dev:local              # backend:4173 + frontend:5173 + 1 台设备
- *   npm run dev:local -- --no-agent  # 只起 backend + frontend
+ *   npm run dev:local              # backend:4173 + frontend:5173 + modelgateway:18765 + 1 台设备
+ *   npm run dev:local -- --no-agent  # 只起 backend + frontend + modelgateway
  *   npm run dev:local -- --agent 2   # 起 2 台设备（模拟多设备蜂群）
+ *
+ * 若 18765 端口上已有健康的 modelgateway（手动启动 / LaunchAgent），会自动跳过，避免端口冲突。
  */
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -35,7 +41,13 @@ const HOST_INJECTED_ENV = [
   'TOYBOX_SANDBOX_SOCK',
 ];
 
-const COLORS = { backend: '\x1b[36m', frontend: '\x1b[35m', device: '\x1b[32m', reset: '\x1b[0m' };
+const COLORS = {
+  backend: '\x1b[36m',
+  frontend: '\x1b[35m',
+  modelgateway: '\x1b[33m',
+  device: '\x1b[32m',
+  reset: '\x1b[0m',
+};
 
 function cleanEnv(extra = {}) {
   const env = { ...process.env, ...extra };
@@ -90,6 +102,16 @@ function run(label, npmArgs, extraEnv) {
   return proc;
 }
 
+/** 单次探活：用于判断 modelgateway 是否已经被外部（手动 / LaunchAgent）拉起 */
+async function isHealthy(url) {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(1200) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** 轮询等待 HTTP 服务就绪 */
 async function waitForHttp(url, timeoutMs = 40_000, label = '') {
   const deadline = Date.now() + timeoutMs;
@@ -109,13 +131,26 @@ async function waitForHttp(url, timeoutMs = 40_000, label = '') {
 async function main() {
   const { agentCount } = parseArgs(process.argv.slice(2));
   const backendPort = Number(process.env.BACKEND_PORT ?? 4173);
+  const gatewayPort = Number(process.env.MODELGATEWAY_PORT ?? 18765);
+  const gatewayUrl = `http://127.0.0.1:${gatewayPort}`;
   const coordinatorUrl = process.env.COORDINATOR_URL ?? `ws://127.0.0.1:${backendPort}`;
   const coordinatorHttpUrl = process.env.COORDINATOR_HTTP_URL ?? `http://127.0.0.1:${backendPort}`;
 
   process.stdout.write('\x1b[1m[dev] 启动 AgentFleet 本机联调\x1b[0m\n');
   process.stdout.write(`[dev] backend  : http://127.0.0.1:${backendPort}\n`);
   process.stdout.write('[dev] frontend : http://127.0.0.1:5173\n');
+  process.stdout.write(`[dev] modelgateway : ${gatewayUrl}\n`);
   process.stdout.write(`[dev] 设备数   : ${agentCount}\n\n`);
+
+  // 网关先起：backend 的模型真实推理体检依赖它；已有健康实例则跳过，避免端口冲突。
+  if (await isHealthy(`${gatewayUrl}/health`)) {
+    process.stdout.write('[dev] modelgateway 已在运行，跳过启动\n\n');
+  } else {
+    run('modelgateway', ['run', 'start', '--workspace', 'modelgateway'], {
+      MODELGATEWAY_PORT: String(gatewayPort),
+    });
+    await waitForHttp(`${gatewayUrl}/health`, 20_000, 'modelgateway /health');
+  }
 
   run('backend', ['run', 'start', '--workspace', 'backend'], { BACKEND_PORT: String(backendPort) });
   // backend 没有 /api/health，用设备列表作为「HTTP 已就绪」的探针
