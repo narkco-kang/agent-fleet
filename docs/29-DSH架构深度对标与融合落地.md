@@ -240,6 +240,27 @@ curl -s -X POST http://127.0.0.1:4173/api/system/effects/retry \
 
 ---
 
-## 8. 一句话总结
+## 8. 远程生产部署与实机验证（2026-11-08）
+
+`8815e7c` 之后按既有流程把产物真正部署到三台云服务器：`npm run build:deploy` 生成 `dist/{device-agent,relay,modelgateway}.cjs`，`deploy-fleet.sh relay` / `modelgateway` / `deploy` 分别下发并重启；本机协调器以 `RELAY_URL=ws://118.194.233.141:4174` 重启，形成「本机 backend + 公网中继 + 三台真实设备 + 每台本地网关」的完整生产拓扑。
+
+**顺带修掉的常驻可靠性根因**（`scripts/deploy-fleet.sh`）：
+
+| 症状 | 根因 | 修复 |
+|---|---|---|
+| Win165 服务器重启后设备永不自启，看板长期 offline | `schtasks /create /ru Administrator` 不带 `/rp` → 任务被建成 `Interactive only`；SSH 会话无交互登录时 `schtasks /run` 只回 `Attempted to run`，实际 `Last Result=267011`（从未运行）/ 上次运行 1999/11/30。当时在线的进程是手动 `Start-Process` 的孤儿 | 补 `/rp` 让任务变为 `Interactive/Background`，保留 Administrator 的 home（registry 路径） |
+| 任务跑满 3 天被杀且不自拉 | `/sc onstart` 任务默认 `ExecutionTimeLimit=PT72H`，而 onstart 只在开机触发 | 用 `Set-ScheduledTask` 置 `PT0S`；带 `/rp` 的后台任务二次提交 Settings 必须同时给 `-User/-Password`，否则报 0x8007052e |
+| 一次 deploy 里 Win165 偶发 SSH `Permission denied`，任务没重建却显示「部署完成」 | 同轮连续 scp/ssh 多次连接；脚本对 create 输出不做校验 | create 结果必须含 `SUCCESS/成功` 才通过，最多重试 3 次；`/run` 的「Attempted」不再当作成功 |
+| 遗留任务混淆 | Win165 有 11/05 改名前留下的 `\AFDevSys`（指向已废弃的 `start-device.bat`） | deploy 时幂等删除 |
+
+**最终实机状态**：三台设备 online（win120-dev 1 agent / ubuntu-dev 4 / win165-dev 2）；两台 Windows 的 `AgentFleetDevice` 与 modelgateway 任务均 `Running` + `Interactive/Background` + `Last Result=267009` + `PT0S`；Ubuntu 三服务 active，4174/18765 监听，7 条中继 ESTAB；`AFDevSys` 已清。
+
+**可靠性内核在生产拓扑下**：`relayConnected=true`、HealthBoard 6 条（ready 5 / degraded 1 / **errors 0**）、Effects `kinds=4` 无 pending/dead、policyVersion `64070de3…`、attention `healthErrors=0`；Playwright 拟人 UI 回归 **50/50、零 console/page 错误**。
+
+**诚实边界**：`MODELGATEWAY_URL` 默认 `http://127.0.0.1:18765`，而本机协调器没有本地网关（Ubuntu 的网关只监听 `127.0.0.1`），因此 9 个模型体检恒为 `fetch failed`。安全护栏已按设计生效（判 `infrastructureFailure`、零路由清理、只标 degraded），但**成功路径尚未在生产拓扑下验证**：要么在本机常驻一个 modelgateway，要么把 `MODELGATEWAY_URL` 指向可达网关；切换/复原逻辑目前只由 `modelProbeHealth.test.ts` 单测覆盖。
+
+---
+
+## 9. 一句话总结
 
 之前 AgentFleet 的「授权 → 执行」是 `void Promise.then(...)`，一旦进程崩溃或 SSH 抖动，动作就静默消失且无从查起；现在它是**一个事务登记一行持久副作用**，崩溃续跑、失败退避、耗尽待人、原因可判定、健康可观测——这才是 DSH 架构真正值得融合的部分。
